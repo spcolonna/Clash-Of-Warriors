@@ -1,0 +1,1 @@
+ /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/flutter_build/a7fb198f0e8654a9a7f04deb9a702cf2/native_assets.json:  /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/objective_c.dylib

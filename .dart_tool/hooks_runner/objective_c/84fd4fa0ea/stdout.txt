@@ -1,0 +1,58 @@
+Running `(cd /Users/sebastianperez/.pub-cache/hosted/pub.dev/objective_c-9.3.0/; HOME=/Users/sebastianperez TMPDIR=/var/folders/sv/h2xf1dbj3qqfr_t90nsmt1040000gp/T/ ANDROID_HOME=/Users/sebastianperez/Library/Android/sdk PATH=/Applications/Xcode.app/Contents/SharedFrameworks/SwiftBuild.framework/Versions/A/PlugIns/SWBBuildService.bundle/Contents/PlugIns/SWBUniversalPlatformPlugin.bundle/Contents/Frameworks/SWBUniversalPlatform.framework/Resources:/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin:/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/local/bin:/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/libexec:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/usr/bin:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/usr/local/bin:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/local/bin:/Applications/Xcode.app/Contents/Developer/usr/bin:/Applications/Xcode.app/Contents/Developer/usr/local/bin:/Users/sebastianperez/.rbenv/shims:/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home/bin:/Users/sebastianperez/.nvm/versions/node/v24.14.1/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/Users/sebastianperez/Library/Android/sdk/platform-tools:/Users/sebastianperez/Library/Android/sdk/tools:/Users/sebastianperez/.pub-cache/bin /opt/homebrew/share/flutter/bin/cache/dart-sdk/bin/dart --packages=/Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/package_config.json /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/objective_c/84fd4fa0ea/hook.dill --config=/Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/objective_c/84fd4fa0ea/input.json )`.
+INFO: 2026-04-16 23:36:50.844668: Running `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang --version`.
+
+INFO: 2026-04-16 23:36:50.861634: Running `/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang --version`.
+
+INFO: 2026-04-16 23:36:50.876543: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.4.sdk -target arm64-apple-ios-simulator -mios-version-min=13 -c /Users/sebastianperez/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/include/dart_api_dl.c -fpic -I src -o /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/include/dart_api_dl.c.o
+
+INFO: 2026-04-16 23:36:50.876912: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.4.sdk -target arm64-apple-ios-simulator -mios-version-min=13 -c /Users/sebastianperez/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/objective_c.c -fpic -I src -o /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/objective_c.c.o
+
+INFO: 2026-04-16 23:36:50.877134: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.4.sdk -target arm64-apple-ios-simulator -mios-version-min=13 -x objective-c -fobjc-arc -c /Users/sebastianperez/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/input_stream_adapter.m -fpic -I src -o /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/input_stream_adapter.m.o
+
+INFO: 2026-04-16 23:36:50.877296: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.4.sdk -target arm64-apple-ios-simulator -mios-version-min=13 -x objective-c -fobjc-arc -c /Users/sebastianperez/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/objective_c.m -fpic -I src -o /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/objective_c.m.o
+
+INFO: 2026-04-16 23:36:50.877578: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.4.sdk -target arm64-apple-ios-simulator -mios-version-min=13 -x objective-c -fobjc-arc -c /Users/sebastianperez/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/observer.m -fpic -I src -o /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/observer.m.o
+
+INFO: 2026-04-16 23:36:50.877800: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.4.sdk -target arm64-apple-ios-simulator -mios-version-min=13 -x objective-c -fobjc-arc -c /Users/sebastianperez/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/protocol.m -fpic -I src -o /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/protocol.m.o
+
+
+
+INFO: 2026-04-16 23:36:50.877888: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.4.sdk -target arm64-apple-ios-simulator -mios-version-min=13 -x objective-c -fobjc-arc -c /Users/sebastianperez/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/objective_c_bindings_generated.m -fpic -I src -o /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/objective_c_bindings_generated.m.o
+
+INFO: 2026-04-16 23:36:51.005646: 
+INFO: 2026-04-16 23:36:51.005737: 
+INFO: 2026-04-16 23:36:51.005764: Generated /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/observer.m.o
+
+INFO: 2026-04-16 23:36:51.006134: 
+INFO: 2026-04-16 23:36:51.006148: 
+INFO: 2026-04-16 23:36:51.006156: Generated /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/objective_c.c.o
+
+dl.c.o
+
+INFO: 2026-04-16 23:36:51.007868: 
+INFO: 2026-04-16 23:36:51.007894: 
+INFO: 2026-04-16 23:36:51.007904: Generated /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/protocol.m.o
+
+INFO: 2026-04-16 23:36:51.133094: 
+INFO: 2026-04-16 23:36:51.133132: 
+INFO: 2026-04-16 23:36:51.133142: Generated /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/ns_number.m.o
+
+INFO: 2026-04-16 23:36:51.142854: 
+INFO: 2026-04-16 23:36:51.142892: 
+INFO: 2026-04-16 23:36:51.142902: Generated /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/objective_c.m.o
+
+INFO: 2026-04-16 23:36:51.144468: 
+INFO: 2026-04-16 23:36:51.144490: 
+INFO: 2026-04-16 23:36:51.144500: Generated /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/input_stream_adapter.m.o
+
+INFO: 2026-04-16 23:36:51.152061: 
+INFO: 2026-04-16 23:36:51.152096: 
+INFO: 2026-04-16 23:36:51.152106: Generated /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/objective_c_bindings_generated.m.o
+
+INFO: 2026-04-16 23:36:51.152386: Running: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -shared -Wl,-encryptable -undefined dynamic_lookup -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.4.sdk -target arm64-apple-ios-simulator -mios-version-min=13 /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/include/dart_api_dl.c.o /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/objective_c.c.o /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/input_stream_adapter.m.o /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/objective_c.m.o /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/observer.m.o /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/ns_number.m.o /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/protocol.m.o /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/obj/src/objective_c_bindings_generated.m.o -o /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/objective_c.dylib
+
+INFO: 2026-04-16 23:36:51.194803: 
+INFO: 2026-04-16 23:36:51.194863: ld: warning: -undefined dynamic_lookup is deprecated on iOS-simulator
+
+INFO: 2026-04-16 23:36:51.194876: Generated /Users/sebastianperez/Documents/Personal/ClashOfWarriors/arena_project/.dart_tool/hooks_runner/shared/objective_c/build/84fd4fa0ea/objective_c.dylib
+
