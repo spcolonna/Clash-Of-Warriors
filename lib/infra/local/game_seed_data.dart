@@ -1,0 +1,311 @@
+// lib/infra/local/game_seed_data.dart
+//
+// Datos del seed del juego. Se cargan en Firestore la primera vez.
+// Contiene: 5 héroes Common + 20 cartas Neutrales + 5 cartas de facción (una por raza).
+
+class GameSeedData {
+  // ════════════════════════════════════════════════════════════════════════
+  // HÉROES — 5 Common (uno por facción)
+  // ════════════════════════════════════════════════════════════════════════
+
+  static const List<Map<String, dynamic>> heroes = [
+    {
+      'id': 'puo_liu',
+      'name': 'Puo Liu',
+      'title': 'El Estudiante',
+      'faction': 'shaolin',
+      'rarity': 'common',
+      'maxHp': 80,
+      'maxStamina': 10,
+      'stats': {'punch': 7, 'kick': 6, 'grapple': 4, 'defense': 7, 'dodge': 6},
+      'lore': 'El más joven en bajar de la Montaña Sagrada. Aún le tiemblan las manos antes de cada batalla. Pero los maestros dicen que ese temblor desaparecerá pronto.',
+      'imagePath': 'assets/images/heroes/puo_liu.png',
+      'passiveId': 'passive_puo_liu',
+    },
+    {
+      'id': 'kage',
+      'name': 'Kage',
+      'title': 'El Iniciado',
+      'faction': 'ninja',
+      'rarity': 'common',
+      'maxHp': 72,
+      'maxStamina': 12,
+      'stats': {'punch': 5, 'kick': 7, 'grapple': 2, 'defense': 6, 'dodge': 10},
+      'lore': 'Nadie sabe su nombre real. Kage significa sombra en el idioma del Clan. Es todo lo que necesitás saber.',
+      'imagePath': 'assets/images/heroes/kage.png',
+      'passiveId': 'passive_kage',
+    },
+    {
+      'id': 'ryoto',
+      'name': 'Ryoto',
+      'title': 'El Estudiante del Tatami',
+      'faction': 'judoka',
+      'rarity': 'common',
+      'maxHp': 85,
+      'maxStamina': 9,
+      'stats': {'punch': 3, 'kick': 5, 'grapple': 9, 'defense': 9, 'dodge': 4},
+      'lore': 'Lleva doce años en el tatami. Perdió los primeros tres. No ha perdido desde entonces.',
+      'imagePath': 'assets/images/heroes/ryoto.png',
+      'passiveId': 'passive_ryoto',
+    },
+    {
+      'id': 'kai',
+      'name': 'Kai',
+      'title': 'El Novato del Cemento',
+      'faction': 'boxer',
+      'rarity': 'common',
+      'maxHp': 80,
+      'maxStamina': 10,
+      'stats': {'punch': 8, 'kick': 3, 'grapple': 4, 'defense': 8, 'dodge': 7},
+      'lore': 'Kai aprendió a pelear antes de aprender a leer. En los garajes donde creció, la teoría era un lujo que nadie tenía.',
+      'imagePath': 'assets/images/heroes/kai.png',
+      'passiveId': 'passive_kai',
+    },
+    {
+      'id': 'mila',
+      'name': 'Mila',
+      'title': 'La Libre',
+      'faction': 'capoeira',
+      'rarity': 'common',
+      'maxHp': 75,
+      'maxStamina': 11,
+      'stats': {'punch': 5, 'kick': 9, 'grapple': 2, 'defense': 5, 'dodge': 9},
+      'lore': 'Mila danza. La gente que la ve danzar no entiende que ya están en combate.',
+      'imagePath': 'assets/images/heroes/mila.png',
+      'passiveId': 'passive_mila',
+    },
+  ];
+
+  // ════════════════════════════════════════════════════════════════════════
+  // CARTAS — 20 Neutrales + 5 de facción (una de puño por raza)
+  // ════════════════════════════════════════════════════════════════════════
+
+  static const List<Map<String, dynamic>> cards = [
+    // ── NEUTRALES ─────────────────────────────────────────────────────────
+
+    // Puño
+    {
+      'id': 'neutral_punch_basic',
+      'name': 'Golpe Básico',
+      'category': 'punch',
+      'rarity': 'neutral',
+      'staminaCost': 1,
+      'baseDamage': 8,
+      'staminaBonus': null,
+      'requiresDice': false,
+      'heroId': null,
+      'factionId': null,
+      'lore': 'El primer golpe que cualquier luchador aprende. Sin técnica, sin arte. Solo intención.',
+    },
+    {
+      'id': 'neutral_punch_strong',
+      'name': 'Golpe Fuerte',
+      'category': 'punch',
+      'rarity': 'neutral',
+      'staminaCost': 2,
+      'baseDamage': 14,
+      'staminaBonus': null,
+      'requiresDice': false,
+      'heroId': null,
+      'factionId': null,
+      'lore': 'Más peso, más cadera. Lo básico, ejecutado con toda la fuerza disponible.',
+    },
+
+    // Patada
+    {
+      'id': 'neutral_kick_basic',
+      'name': 'Patada Básica',
+      'category': 'kick',
+      'rarity': 'neutral',
+      'staminaCost': 1,
+      'baseDamage': 7,
+      'staminaBonus': null,
+      'requiresDice': false,
+      'heroId': null,
+      'factionId': null,
+      'lore': 'Corta, directa. Para poner distancia o probar las defensas del oponente.',
+    },
+    {
+      'id': 'neutral_kick_strong',
+      'name': 'Patada Fuerte',
+      'category': 'kick',
+      'rarity': 'neutral',
+      'staminaCost': 2,
+      'baseDamage': 14,
+      'staminaBonus': null,
+      'requiresDice': false,
+      'heroId': null,
+      'factionId': null,
+      'lore': 'Una patada con todo el cuerpo detrás. Sin estilo, pero con consecuencias.',
+    },
+
+    // Agarre
+    {
+      'id': 'neutral_grapple_basic',
+      'name': 'Agarre Básico',
+      'category': 'grapple',
+      'rarity': 'neutral',
+      'staminaCost': 2,
+      'baseDamage': 10,
+      'staminaBonus': null,
+      'requiresDice': false,
+      'heroId': null,
+      'factionId': null,
+      'lore': 'Tomar al otro. Sin técnica de proyección — solo control. A veces es suficiente.',
+    },
+    {
+      'id': 'neutral_grapple_lock',
+      'name': 'Llave Básica',
+      'category': 'grapple',
+      'rarity': 'neutral',
+      'staminaCost': 2,
+      'baseDamage': 12,
+      'staminaBonus': null,
+      'requiresDice': false,
+      'heroId': null,
+      'factionId': null,
+      'lore': 'Una presión sobre la articulación correcta. No importa el arte — duele igual.',
+    },
+
+    // Defensa
+    {
+      'id': 'neutral_defense_basic',
+      'name': 'Guardia Básica',
+      'category': 'defense',
+      'rarity': 'neutral',
+      'staminaCost': 1,
+      'baseDamage': null,
+      'staminaBonus': null,
+      'requiresDice': false,
+      'heroId': null,
+      'factionId': null,
+      'lore': 'Brazos arriba. Lo primero que enseñan. Y lo que más vidas salva.',
+    },
+    {
+      'id': 'neutral_defense_solid',
+      'name': 'Bloqueo Básico',
+      'category': 'defense',
+      'rarity': 'neutral',
+      'staminaCost': 2,
+      'baseDamage': null,
+      'staminaBonus': null,
+      'requiresDice': false,
+      'heroId': null,
+      'factionId': null,
+      'lore': 'Un bloqueo con intención. No solo los brazos — el cuerpo entero.',
+    },
+
+    // Esquive
+    {
+      'id': 'neutral_dodge_step',
+      'name': 'Paso Básico',
+      'category': 'dodge',
+      'rarity': 'neutral',
+      'staminaCost': 1,
+      'baseDamage': null,
+      'staminaBonus': 1,
+      'requiresDice': false,
+      'heroId': null,
+      'factionId': null,
+      'lore': 'Un paso lateral. Simple. El golpe pasa al lado y vos seguís en pie.',
+    },
+    {
+      'id': 'neutral_dodge_full',
+      'name': 'Esquive Básico',
+      'category': 'dodge',
+      'rarity': 'neutral',
+      'staminaCost': 2,
+      'baseDamage': null,
+      'staminaBonus': 2,
+      'requiresDice': false,
+      'heroId': null,
+      'factionId': null,
+      'lore': 'Un movimiento completo de evasión. Más amplio, más deliberado, más efectivo.',
+    },
+
+    // Copias adicionales para completar 20 cartas en el mazo:
+    // El mazo se compone de: Golpe Básico ×2, Golpe Fuerte ×2, Patada Básica ×2,
+    // Patada Fuerte ×2, Agarre Básico ×2, Llave Básica ×1, Guardia Básica ×3,
+    // Bloqueo Básico ×2, Paso Básico ×2, Esquive Básico ×2 = 20 cartas.
+    // Las copias se manejan a nivel de mazo del jugador, no como documentos duplicados.
+
+    // ── CARTAS DE FACCIÓN (una de puño por raza) ──────────────────────────
+    // Estas son las que el jugador compra al final del tutorial.
+
+    {
+      'id': 'shaolin_five_beasts',
+      'name': 'Golpe de las Cinco Bestias',
+      'category': 'punch',
+      'rarity': 'common',
+      'staminaCost': 2,
+      'baseDamage': 14,
+      'staminaBonus': null,
+      'requiresDice': false,
+      'heroId': null,
+      'factionId': 'shaolin',
+      'lore': 'El estilo Shaolin imita a cinco animales: tigre, grulla, serpiente, leopardo y dragón. Este golpe los invoca todos en un único movimiento encadenado.',
+      'shopCost': 80,          // costo en softCoins
+      'isTutorialCard': true,  // flag para identificarla en el tutorial
+    },
+    {
+      'id': 'ninja_shadow_kick',
+      'name': 'Patada Sombra',
+      'category': 'kick',
+      'rarity': 'common',
+      'staminaCost': 2,
+      'baseDamage': 14,
+      'staminaBonus': null,
+      'requiresDice': false,
+      'heroId': null,
+      'factionId': 'ninja',
+      'lore': 'La sombra siempre llega antes que el que la proyecta. Esta patada es la sombra del Ninja.',
+      'shopCost': 80,
+      'isTutorialCard': true,
+    },
+    {
+      'id': 'judoka_basic_projection',
+      'name': 'Proyección Básica',
+      'category': 'grapple',
+      'rarity': 'common',
+      'staminaCost': 2,
+      'baseDamage': 12,
+      'staminaBonus': null,
+      'requiresDice': false,
+      'heroId': null,
+      'factionId': 'judoka',
+      'lore': 'Usa el impulso del oponente en su contra. Si empuja, jalás. Si jala, empujás.',
+      'shopCost': 80,
+      'isTutorialCard': true,
+    },
+    {
+      'id': 'boxer_barrio_cross',
+      'name': 'Cruzado de Barrio',
+      'category': 'punch',
+      'rarity': 'common',
+      'staminaCost': 2,
+      'baseDamage': 14,
+      'staminaBonus': null,
+      'requiresDice': false,
+      'heroId': null,
+      'factionId': 'boxer',
+      'lore': 'Sin guardia, sin ritual. Solo el brazo derecho, toda la cadera, y que duela.',
+      'shopCost': 80,
+      'isTutorialCard': true,
+    },
+    {
+      'id': 'capoeira_meia_lua',
+      'name': 'Meia Lua',
+      'category': 'kick',
+      'rarity': 'common',
+      'staminaCost': 2,
+      'baseDamage': 14,
+      'staminaBonus': null,
+      'requiresDice': false,
+      'heroId': null,
+      'factionId': 'capoeira',
+      'lore': 'Media luna. El pie traza un arco que va de un extremo al otro. Si te llega, te lleva.',
+      'shopCost': 80,
+      'isTutorialCard': true,
+    },
+  ];
+}
