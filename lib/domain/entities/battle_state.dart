@@ -15,7 +15,7 @@ class CombatantState {
   final bool passiveUsed;
   final List<StatusEffect> statusEffects;
   // null = slot vacío
-  final List<GameCard?> plannedSequence; // 5 slots
+  final List<GameCard?> plannedSequence; // 3 slots
 
   const CombatantState({
     required this.hero,
@@ -26,7 +26,7 @@ class CombatantState {
     required this.discardPile,
     this.passiveUsed = false,
     this.statusEffects = const [],
-    this.plannedSequence = const [null, null, null, null, null],
+    this.plannedSequence = const [null, null, null],
   });
 
   bool get isAlive => currentHp > 0;

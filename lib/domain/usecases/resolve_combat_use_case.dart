@@ -162,7 +162,7 @@ class CombatEngine {
     double totalPlayerDamage = 0;
     double totalOpponentDamage = 0;
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 3; i++) {
       final result = resolveSlot(
         slotIndex: i,
         playerCard: player.plannedSequence[i],
@@ -197,7 +197,7 @@ class TutorialBotAI {
   /// La variedad genera algún daño al jugador (20-40%) pero sin optimizar.
   /// No usa cartas especiales ni estrategia profunda.
   static List<GameCard?> decideSequence(List<GameCard> hand) {
-    final sequence = List<GameCard?>.filled(5, null);
+    final sequence = List<GameCard?>.filled(3, null);
 
     // Separar cartas por tipo para variar la secuencia
     final attacks = hand.where((c) =>
@@ -211,22 +211,22 @@ class TutorialBotAI {
         c.category == CardCategory.dodge
     ).toList();
 
-    // Patrón: 3 ataques + 1 defensa + 1 vacío
+    // Patrón: 1-2 ataques + 1 defensa + 1 vacío
     // Mezcla entre tipos de ataque para no ser predecible
     int availableStamina = 10;
     int slotIndex = 0;
 
-    // Slot 1 y 2: atacar con cartas baratas
+    // Slot 1: atacar con cartas baratas
     for (final atk in attacks) {
-      if (slotIndex >= 4) break;
+      if (slotIndex >= 2) break;
       if (atk.staminaCost > availableStamina) continue;
       sequence[slotIndex] = atk;
       availableStamina -= atk.staminaCost;
       slotIndex++;
     }
 
-    // Slot 3 o 4: meter una defensa si hay stamina
-    if (slotIndex < 4 && defenses.isNotEmpty) {
+    // Slot 2: meter una defensa si hay stamina
+    if (slotIndex < 2 && defenses.isNotEmpty) {
       final def = defenses.firstWhere(
             (d) => d.staminaCost <= availableStamina,
         orElse: () => defenses.first,
@@ -237,7 +237,7 @@ class TutorialBotAI {
       }
     }
 
-    // Slot 5 siempre vacío (el bot "descansa")
+    // Slot 3 siempre vacío (el bot "descansa")
     return sequence;
   }
 

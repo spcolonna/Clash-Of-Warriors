@@ -182,6 +182,15 @@ class PlayerNotifier extends StateNotifier<PlayerProfile?> {
         .catchError((e) => print('[PlayerNotifier] updateDeck: $e'));
   }
 
+  /// Cambia el héroe activo del jugador (usado desde el deck builder).
+  Future<void> updateActiveHero(String heroId) async {
+    if (state == null) return;
+    state = state!.copyWith(activeHeroId: heroId);
+    _svc
+        .updateActiveHero(uid: state!.uid, heroId: heroId)
+        .catchError((e) => print('[PlayerNotifier] updateActiveHero: $e'));
+  }
+
   Future<void> addSoftCoins(int amount) async {
     if (state == null) return;
     state = state!.copyWith(softCoins: state!.softCoins + amount);

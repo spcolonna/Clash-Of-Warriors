@@ -124,6 +124,14 @@ class FirebaseGameService {
     await _users.doc(uid).update({'deckCardIds': deckCardIds});
   }
 
+  /// Cambia el héroe activo del jugador.
+  Future<void> updateActiveHero({
+    required String uid,
+    required String heroId,
+  }) async {
+    await _users.doc(uid).update({'activeHeroId': heroId});
+  }
+
   // ── ECONOMÍA ───────────────────────────────────────────────────────────
 
   Future<void> addSoftCoins(String uid, int amount) async {

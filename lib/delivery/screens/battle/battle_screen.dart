@@ -174,7 +174,7 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
     if (state.roundHistory.isEmpty) return;
     final lastRound = state.roundHistory.last;
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 3; i++) {
       if (!mounted) return;
       setState(() => _resolvingSlot = i);
 
@@ -291,7 +291,7 @@ class _OpponentArea extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
             children: List.generate(
-              5,
+              3,
                   (i) => Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -562,7 +562,7 @@ class _SlotsArea extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Row(
             children: List.generate(
-              5,
+              3,
                   (i) => Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2),

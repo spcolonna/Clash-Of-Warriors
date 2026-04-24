@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../state/providers.dart';
 import '../../widgets/tutorial_spotlight_overlay.dart';
 import '../help/how_to_play_screen.dart';
+import '../premium_shop/premium_shop_screen.dart';
 import '../shell/main_shell_scaffold.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -81,6 +82,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
+                  _SecondaryActionCard(
+                    icon: '🏆',
+                    title: 'Tienda Premium',
+                    subtitle: 'Héroes legendarios, tokens y packs exclusivos',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const PremiumShopScreen(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   _SecondaryActionCard(
                     icon: '📖',
                     title: 'Cómo jugar',

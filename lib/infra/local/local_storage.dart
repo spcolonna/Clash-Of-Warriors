@@ -3,7 +3,7 @@
 ///
 /// Dependencia: shared_preferences: ^2.x
 
-import '../../domain/entities/player.dart';
+import '../../domain/entities/player_profile.dart';
 
 abstract class LocalStorage {
   Future<void> saveProfile(PlayerProfile profile);

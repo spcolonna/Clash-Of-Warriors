@@ -81,12 +81,12 @@ class BattleNotifier extends Notifier<BattleState> {
     required HeroEntity botHero,
   }) {
     final deck = NeutralCardsData.buildStarterDeck()..shuffle(Random());
-    final hand = deck.take(7).toList();
-    final remainingDeck = deck.skip(7).toList();
+    final hand = deck.take(5).toList();
+    final remainingDeck = deck.skip(5).toList();
 
     final botDeck = NeutralCardsData.buildStarterDeck()..shuffle(Random());
-    final botHand = botDeck.take(7).toList();
-    final botRemainingDeck = botDeck.skip(7).toList();
+    final botHand = botDeck.take(5).toList();
+    final botRemainingDeck = botDeck.skip(5).toList();
 
     final weakenedBot = botHero.copyWith(maxHp: 5); // seba
 
@@ -99,7 +99,7 @@ class BattleNotifier extends Notifier<BattleState> {
         hand: hand,
         deck: remainingDeck,
         discardPile: [],
-        plannedSequence: List.filled(5, null),
+        plannedSequence: List.filled(3, null),
       ),
       opponent: CombatantState(
         hero: weakenedBot,
@@ -108,7 +108,7 @@ class BattleNotifier extends Notifier<BattleState> {
         hand: botHand,
         deck: botRemainingDeck,
         discardPile: [],
-        plannedSequence: List.filled(5, null),
+        plannedSequence: List.filled(3, null),
       ),
       currentRound: 1,
       roundHistory: [],
@@ -117,7 +117,7 @@ class BattleNotifier extends Notifier<BattleState> {
 
   void placeCardInSlot(GameCard card, int slotIndex) {
     final player = state.player;
-    if (slotIndex < 0 || slotIndex >= 5) return;
+    if (slotIndex < 0 || slotIndex >= 3) return;
     if (!player.hand.contains(card)) return;
 
     final currentSequence = List<GameCard?>.from(player.plannedSequence);
@@ -243,11 +243,11 @@ class BattleNotifier extends Notifier<BattleState> {
     state = state.copyWith(
       phase: BattlePhase.planning,
       player: player.copyWith(
-        plannedSequence: List.filled(5, null),
+        plannedSequence: List.filled(3, null),
         currentStamina: player.hero.maxStamina,
       ),
       opponent: opponent.copyWith(
-        plannedSequence: List.filled(5, null),
+        plannedSequence: List.filled(3, null),
         currentStamina: opponent.hero.maxStamina,
       ),
     );
@@ -262,7 +262,7 @@ class BattleNotifier extends Notifier<BattleState> {
       discard.add(card);
     }
 
-    while (hand.length < 7) {
+    while (hand.length < 5) {
       if (deck.isEmpty) {
         if (discard.isEmpty) break;
         deck = List<GameCard>.from(discard)..shuffle(Random());
@@ -279,7 +279,7 @@ class BattleNotifier extends Notifier<BattleState> {
       hand: hand,
       deck: deck,
       discardPile: discard,
-      plannedSequence: List.filled(5, null),
+      plannedSequence: List.filled(3, null),
     );
   }
 }

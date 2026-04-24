@@ -5,3 +5,11 @@ build/
 .cache/
 .DS_Store
 .env*
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+*.g.dart
+*.freezed.dart
