@@ -76,25 +76,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Helper que crea una página con fade + slide suave.
+/// Transición slide puro — Transform.translate, sin saveLayer, sin FadeTransition.
+/// FadeTransition requiere un offscreen buffer (saveLayer) en cada frame,
+/// igual que Opacity. Solo SlideTransition usa GPU matrix: mucho más barato.
 CustomTransitionPage<T> _fadeSlidePage<T>(Widget child) =>
     CustomTransitionPage<T>(
       child: child,
-      transitionDuration: const Duration(milliseconds: 350),
+      transitionDuration: const Duration(milliseconds: 280),
+      reverseTransitionDuration: const Duration(milliseconds: 220),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        final curved = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOut,
-        );
-        return FadeTransition(
-          opacity: curved,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0.1, 0),
-              end: Offset.zero,
-            ).animate(curved),
-            child: child,
-          ),
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1.0, 0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          )),
+          child: child,
         );
       },
     );

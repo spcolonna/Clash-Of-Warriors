@@ -287,24 +287,22 @@ class _OpponentArea extends StatelessWidget {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            children: List.generate(
-              3,
-                  (i) => Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: _OpponentSlot(
-                    card: opponent.plannedSequence[i],
-                    phase: battle.phase,
-                    isResolving: resolvingSlot == i,
-                    height: (maxHeight * 0.45).clamp(60.0, 85.0),
-                  ),
-                ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(3, (i) {
+            final slotH = (maxHeight * 0.45).clamp(60.0, 85.0);
+            final slotW = slotH / 1.5;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: _OpponentSlot(
+                card: opponent.plannedSequence[i],
+                phase: battle.phase,
+                isResolving: resolvingSlot == i,
+                width: slotW,
+                height: slotH,
               ),
-            ),
-          ),
+            );
+          }),
         ),
       ],
     );
@@ -481,12 +479,14 @@ class _OpponentSlot extends StatelessWidget {
   final GameCard? card;
   final BattlePhase phase;
   final bool isResolving;
+  final double width;
   final double height;
 
   const _OpponentSlot({
     this.card,
     required this.phase,
     required this.isResolving,
+    required this.width,
     required this.height,
   });
 
@@ -497,6 +497,7 @@ class _OpponentSlot extends StatelessWidget {
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
+      width: width,
       height: height,
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A2E),
@@ -508,7 +509,7 @@ class _OpponentSlot extends StatelessWidget {
       ),
       child: Center(
         child: isRevealed && card != null
-            ? GameCardWidget(card: card!, width: height * 0.65)
+            ? GameCardWidget(card: card!, width: width)
             : Icon(Icons.help_outline,
             color: Colors.white10, size: height * 0.3),
       ),
@@ -558,35 +559,33 @@ class _SlotsArea extends ConsumerWidget {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            children: List.generate(
-              3,
-                  (i) => Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: _PlayerSlot(
-                    slotIndex: i,
-                    card: player.plannedSequence[i],
-                    isResolving: resolvingSlot == i,
-                    height: (maxHeight * 0.55).clamp(80.0, 110.0),
-                    slotResult: battle.roundHistory.isNotEmpty
-                        ? battle.roundHistory.last.slotResults
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(3, (i) {
+            final slotH = (maxHeight * 0.55).clamp(80.0, 110.0);
+            final slotW = slotH / 1.5;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: _PlayerSlot(
+                slotIndex: i,
+                card: player.plannedSequence[i],
+                isResolving: resolvingSlot == i,
+                width: slotW,
+                height: slotH,
+                slotResult: battle.roundHistory.isNotEmpty
+                    ? battle.roundHistory.last.slotResults
                         .where((r) => r.slotIndex == i)
                         .firstOrNull
-                        : null,
-                    onDrop: (card) => ref
-                        .read(battleProvider.notifier)
-                        .placeCardInSlot(card, i),
-                    onTap: () => ref
-                        .read(battleProvider.notifier)
-                        .removeCardFromSlot(i),
-                  ),
-                ),
+                    : null,
+                onDrop: (card) => ref
+                    .read(battleProvider.notifier)
+                    .placeCardInSlot(card, i),
+                onTap: () => ref
+                    .read(battleProvider.notifier)
+                    .removeCardFromSlot(i),
               ),
-            ),
-          ),
+            );
+          }),
         ),
       ],
     );
@@ -598,6 +597,7 @@ class _PlayerSlot extends StatelessWidget {
   final GameCard? card;
   final bool isResolving;
   final SlotResult? slotResult;
+  final double width;
   final double height;
   final void Function(GameCard) onDrop;
   final VoidCallback onTap;
@@ -607,6 +607,7 @@ class _PlayerSlot extends StatelessWidget {
     this.card,
     required this.isResolving,
     this.slotResult,
+    required this.width,
     required this.height,
     required this.onDrop,
     required this.onTap,
@@ -621,6 +622,7 @@ class _PlayerSlot extends StatelessWidget {
           onTap: onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
+            width: width,
             height: height,
             decoration: BoxDecoration(
               color: candidateData.isNotEmpty
@@ -643,7 +645,7 @@ class _PlayerSlot extends StatelessWidget {
               child: Text('${slotIndex + 1}',
                   style: const TextStyle(color: Colors.white24)),
             )
-                : GameCardWidget(card: card!, width: height * 0.65),
+                : GameCardWidget(card: card!, width: width),
           ),
         );
       },

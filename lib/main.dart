@@ -17,8 +17,14 @@ void main() async {
   ]);
 
   await Firebase.initializeApp();
-  final seedService = GameSeedService();
-  await seedService.runIfNeeded();
+  try {
+    final seedService = GameSeedService();
+    await seedService.runIfNeeded();
+  } catch (e) {
+    // El seed check requiere auth — se omite en dispositivos sin sesión activa.
+    // El seed se ejecuta la primera vez desde una sesión autenticada.
+    debugPrint('[main] Seed check omitido: $e');
+  }
   
   await AdMobService().initialize();
 
