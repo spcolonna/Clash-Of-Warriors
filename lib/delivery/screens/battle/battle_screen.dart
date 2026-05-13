@@ -14,6 +14,7 @@ import '../../widgets/deck_counter_widget.dart';
 import '../../widgets/game_card_widget.dart';
 import '../../widgets/hero_stats_dialog.dart';
 import '../../widgets/player_hand_widget.dart';
+import '../../widgets/card_conjure_overlay.dart';
 import '../../widgets/slot_clash_animator.dart';
 import '../help/how_to_play_screen.dart';
 import '../heroes/character_select_screen.dart';
@@ -31,6 +32,7 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
   late AnimationController _entryController;
   bool _handReady = false;
   Widget? _activeClash;
+  GameCard? _conjuredCard;
 
   @override
   void initState() {
@@ -113,6 +115,8 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
                           battle: battle,
                           resolvingSlot: _resolvingSlot,
                           maxHeight: availableHeight * 0.22,
+                          onCardConjured: (card) =>
+                              setState(() => _conjuredCard = card),
                         ),
                         const Spacer(),
                         Column(
@@ -158,6 +162,16 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
               ],
             );
           }),
+          if (_conjuredCard != null)
+            Positioned.fill(
+              child: CardConjureOverlay(
+                key: UniqueKey(),
+                card: _conjuredCard!,
+                onComplete: () {
+                  if (mounted) setState(() => _conjuredCard = null);
+                },
+              ),
+            ),
           if (_activeClash != null) Positioned.fill(child: _activeClash!),
         ],
       ),
@@ -521,11 +535,13 @@ class _SlotsArea extends ConsumerWidget {
   final BattleState battle;
   final int resolvingSlot;
   final double maxHeight;
+  final void Function(GameCard) onCardConjured;
 
   const _SlotsArea({
     required this.battle,
     required this.resolvingSlot,
     required this.maxHeight,
+    required this.onCardConjured,
   });
 
   @override
@@ -577,9 +593,10 @@ class _SlotsArea extends ConsumerWidget {
                         .where((r) => r.slotIndex == i)
                         .firstOrNull
                     : null,
-                onDrop: (card) => ref
-                    .read(battleProvider.notifier)
-                    .placeCardInSlot(card, i),
+                onDrop: (card) {
+                  ref.read(battleProvider.notifier).placeCardInSlot(card, i);
+                  onCardConjured(card);
+                },
                 onTap: () => ref
                     .read(battleProvider.notifier)
                     .removeCardFromSlot(i),
