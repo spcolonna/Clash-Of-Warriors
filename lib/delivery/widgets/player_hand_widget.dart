@@ -61,6 +61,23 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
   }
 
   @override
+  void didUpdateWidget(PlayerHandWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldTotal = oldWidget.cards.length + (oldWidget.passive != null ? 1 : 0);
+    final newTotal = widget.cards.length + (widget.passive != null ? 1 : 0);
+    if (newTotal > oldTotal) {
+      for (int i = oldTotal; i < newTotal; i++) {
+        final controller = AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 450),
+        );
+        _dealControllers.add(controller);
+        controller.forward();
+      }
+    }
+  }
+
+  @override
   void dispose() {
     for (final c in _dealControllers) {
       c.dispose();

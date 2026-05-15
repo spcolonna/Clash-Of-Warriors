@@ -1,7 +1,6 @@
 // lib/delivery/widgets/shop/shop_card_item.dart
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../state/shop_provider.dart';
 
 class ShopCardItem extends StatelessWidget {
@@ -69,12 +68,12 @@ class ShopCardItem extends StatelessWidget {
                           color: const Color(0xFFEAEAEA),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Center(
-                          child: Text(
-                            _categoryEmoji(card.category),
-                            style: GoogleFonts.notoColorEmoji(
-                              textStyle: const TextStyle(fontSize: 40),
-                            ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image.asset(
+                            _categoryImagePath(card.category),
+                            fit: BoxFit.cover,
+                            width: double.infinity,
                           ),
                         ),
                       ),
@@ -134,6 +133,15 @@ class ShopCardItem extends StatelessWidget {
     );
   }
 
+  String _categoryImagePath(String category) => switch (category) {
+    'punch'   => 'assets/images/defaultCards/card_punch.png',
+    'kick'    => 'assets/images/defaultCards/card_kick.png',
+    'grapple' => 'assets/images/defaultCards/card_grapple.png',
+    'defense' => 'assets/images/defaultCards/card_defense.png',
+    'dodge'   => 'assets/images/defaultCards/card_dodge.png',
+    _         => 'assets/images/defaultCards/card_punch.png',
+  };
+
   Color _rarityColor(String rarity) => switch (rarity) {
         'common' => const Color(0xFF888888),
         'rare' => const Color(0xFF2980B9),
@@ -142,14 +150,6 @@ class ShopCardItem extends StatelessWidget {
         _ => const Color(0xFFB0B0B0),
       };
 
-  String _categoryEmoji(String category) => switch (category) {
-        'punch' => '👊',
-        'kick' => '🦵',
-        'grapple' => '🤼',
-        'defense' => '🛡️',
-        'dodge' => '💨',
-        _ => '❓',
-      };
 }
 
 class _StateBadge extends StatelessWidget {
@@ -192,12 +192,8 @@ class _StateBadge extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            '🪙',
-            style: GoogleFonts.notoColorEmoji(
-              textStyle: const TextStyle(fontSize: 12),
-            ),
-          ),
+          Icon(Icons.monetization_on, size: 12,
+              color: canAfford ? const Color(0xFFF5B800) : Colors.grey),
           const SizedBox(width: 4),
           Text(
             '$cost',

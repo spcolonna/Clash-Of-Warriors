@@ -244,7 +244,6 @@ class _GameCardWidgetState extends State<GameCardWidget>
                                 : _categoryColor(card.category),
                             fontSize: badgeH * 0.40,
                             fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
                           ),
                         ),
                       ],

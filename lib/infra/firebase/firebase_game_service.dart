@@ -164,6 +164,24 @@ class FirebaseGameService {
     });
   }
 
+  Future<void> spendCoinsAndUnlockHero({
+    required String uid,
+    required String heroId,
+    required int cost,
+  }) async {
+    await _db.runTransaction((tx) async {
+      final ref = _users.doc(uid);
+      final snap = await tx.get(ref);
+      final data = snap.data() as Map<String, dynamic>;
+      final current = data['softCoins'] as int? ?? 0;
+      if (current < cost) throw Exception('Monedas insuficientes');
+      tx.update(ref, {
+        'softCoins': current - cost,
+        'unlockedHeroIds': FieldValue.arrayUnion([heroId]),
+      });
+    });
+  }
+
   Future<void> grantBundle({
     required String uid,
     required String heroId,

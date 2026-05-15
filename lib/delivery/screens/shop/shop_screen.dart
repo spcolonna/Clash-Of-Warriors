@@ -7,14 +7,17 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
+import '../../../domain/entities/hero_entity.dart';
+import '../../../domain/entities/player_profile.dart';
+import '../../../infra/local/heroes_data.dart';
 import '../../state/providers.dart';
 import '../../state/shop_provider.dart';
 import '../../widgets/shop/shop_card_item.dart';
 import '../../widgets/shop/confirm_purchase_dialog.dart';
 import '../../widgets/shop/faction_row_header.dart';
 import '../../widgets/tutorial_spotlight_overlay.dart';
+import '../heroes/character_select_screen.dart'; // factionColor
 
 class ShopScreen extends ConsumerStatefulWidget {
   const ShopScreen({super.key});
@@ -65,9 +68,15 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                     ),
                     data: (factions) => ListView.builder(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      itemCount: factions.length,
+                      itemCount: factions.length + 1,
                       itemBuilder: (context, index) {
-                        final faction = factions[index];
+                        if (index == 0) {
+                          return _HeroesSection(
+                            player: player,
+                            onHeroPurchase: (hero) => _onHeroPurchase(hero),
+                          );
+                        }
+                        final faction = factions[index - 1];
                         final isUnlocked =
                             player.selectedFactionId == faction.id;
 
@@ -137,6 +146,88 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
       );
     }
   }
+
+  void _onHeroPurchase(HeroEntity hero) async {
+    const heroPrice = _HeroShopCard.price;
+    final player = ref.read(playerProvider);
+    if (player == null) return;
+
+    final canAfford = player.softCoins >= heroPrice;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Desbloquear ${hero.name}',
+          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(hero.title, style: const TextStyle(color: Color(0xFF8A8A9A), fontSize: 13)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.monetization_on, size: 16, color: Color(0xFFF5B800)),
+                const SizedBox(width: 4),
+                Text(
+                  '$heroPrice monedas',
+                  style: const TextStyle(color: Color(0xFFF5B800), fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '(saldo: ${player.softCoins})',
+                  style: TextStyle(
+                    color: canAfford ? Colors.white54 : Colors.red.shade300,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: canAfford ? () => Navigator.of(context).pop(true) : null,
+            child: Text(
+              'Comprar',
+              style: TextStyle(
+                color: canAfford ? const Color(0xFFF5B800) : Colors.white24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final success = await ref.read(playerProvider.notifier).purchaseHeroWithCoins(
+      heroId: hero.id,
+      coinCost: heroPrice,
+    );
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      success
+          ? SnackBar(
+              content: Text('¡${hero.name} desbloqueado! Seleccionalo desde Mazo.'),
+              backgroundColor: const Color(0xFF27AE60),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            )
+          : const SnackBar(content: Text('No tenés suficientes monedas')),
+    );
+  }
 }
 
 class _ShopHeader extends ConsumerWidget {
@@ -158,13 +249,13 @@ class _ShopHeader extends ConsumerWidget {
                 'Tienda',
                 style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
               ),
-              _CurrencyChip(icon: '🪙', value: softCoins, color: const Color(0xFFF5B800)),
+              _CurrencyChip(icon: Icons.monetization_on, value: softCoins, color: const Color(0xFFF5B800)),
             ],
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              _CurrencyChip(icon: '💎', value: tokens, color: const Color(0xFFB39DDB)),
+              _CurrencyChip(icon: Icons.diamond, value: tokens, color: const Color(0xFFB39DDB)),
               const SizedBox(width: 10),
               GestureDetector(
                 onTap: () => _showTokenConvertSheet(context, ref, tokens),
@@ -201,7 +292,7 @@ class _ShopHeader extends ConsumerWidget {
 }
 
 class _CurrencyChip extends StatelessWidget {
-  final String icon;
+  final IconData icon;
   final int value;
   final Color color;
   const _CurrencyChip({required this.icon, required this.value, required this.color});
@@ -217,7 +308,7 @@ class _CurrencyChip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(icon, style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 16))),
+          Icon(icon, size: 16, color: color),
           const SizedBox(width: 6),
           Text('$value', style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.bold)),
         ],
@@ -352,6 +443,229 @@ class _ConvertOption extends StatelessWidget {
     );
   }
 }
+
+// ─── HEROES SECTION ──────────────────────────────────────────────────────────
+
+class _HeroesSection extends StatelessWidget {
+  final PlayerProfile player;
+  final void Function(HeroEntity) onHeroPurchase;
+
+  const _HeroesSection({required this.player, required this.onHeroPurchase});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 4, 16, 10),
+          child: Text(
+            'Héroes',
+            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
+        SizedBox(
+          height: 192,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: HeroesData.starterHeroes.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, i) {
+              final hero = HeroesData.starterHeroes[i];
+              final isActive = hero.id == player.activeHeroId;
+              final isUnlocked = player.unlockedHeroIds.contains(hero.id);
+              return _HeroShopCard(
+                hero: hero,
+                isActive: isActive,
+                isUnlocked: isUnlocked,
+                playerCoins: player.softCoins,
+                onPurchase: () => onHeroPurchase(hero),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        const Divider(color: Colors.white12, height: 1),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+}
+
+class _HeroShopCard extends StatelessWidget {
+  static const int price = 500;
+
+  final HeroEntity hero;
+  final bool isActive;
+  final bool isUnlocked;
+  final int playerCoins;
+  final VoidCallback onPurchase;
+
+  const _HeroShopCard({
+    required this.hero,
+    required this.isActive,
+    required this.isUnlocked,
+    required this.playerCoins,
+    required this.onPurchase,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = factionColor(hero.faction);
+    final canAfford = playerCoins >= price;
+
+    return GestureDetector(
+      onTap: (!isUnlocked && canAfford) ? onPurchase : null,
+      child: Container(
+        width: 112,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A2E),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isActive
+                ? const Color(0xFFFFD700)
+                : color.withValues(alpha: 0.3),
+            width: isActive ? 2 : 1,
+          ),
+        ),
+        child: Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Portrait
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                      child: SizedBox(
+                        height: 96,
+                        child: Image.asset(
+                          hero.imagePath,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: color.withValues(alpha: 0.2),
+                            child: Center(child: Icon(Icons.sports_mma, color: color, size: 40)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Oscurecer si bloqueado
+                    if (!isUnlocked)
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                        child: Container(
+                          height: 96,
+                          color: Colors.black.withValues(alpha: 0.45),
+                          child: const Center(
+                            child: Icon(Icons.lock, color: Colors.white54, size: 24),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                // Info
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          children: [
+                            Text(
+                              hero.name,
+                              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
+                            Text(
+                              hero.title,
+                              style: const TextStyle(color: Color(0xFF8A8A9A), fontSize: 9),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                        if (isUnlocked && !isActive)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF27AE60).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'DESBLOQUEADO',
+                              style: TextStyle(color: Color(0xFF27AE60), fontSize: 7, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        else if (!isUnlocked)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: canAfford
+                                  ? const Color(0xFFF5B800).withValues(alpha: 0.12)
+                                  : Colors.white.withValues(alpha: 0.04),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: canAfford
+                                    ? const Color(0xFFF5B800).withValues(alpha: 0.4)
+                                    : Colors.white12,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.monetization_on, size: 9,
+                                    color: canAfford ? const Color(0xFFF5B800) : Colors.white30),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '$price',
+                                  style: TextStyle(
+                                    color: canAfford ? const Color(0xFFF5B800) : Colors.white30,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // Badge ACTIVO
+            if (isActive)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFD700),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: const Text(
+                    'ACTIVO',
+                    style: TextStyle(color: Colors.black, fontSize: 7, fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _FactionRow extends StatelessWidget {
   final FactionShop faction;

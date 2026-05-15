@@ -1,5 +1,4 @@
-import 'package:flutter/cupertino.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 
@@ -20,12 +19,7 @@ class MiniChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            icon,
-            style: GoogleFonts.notoColorEmoji(
-              textStyle: const TextStyle(fontSize: 9),
-            ),
-          ),
+          Text(icon, style: const TextStyle(fontSize: 9)),
           const SizedBox(width: 2),
           Text(
             value,

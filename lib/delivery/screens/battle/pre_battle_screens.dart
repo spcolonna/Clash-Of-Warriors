@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../infra/local/heroes_data.dart';
 import '../../state/battle_provider.dart';
 import '../../state/providers.dart';
@@ -13,12 +12,22 @@ class PreBattleScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playerHero = ref.watch(selectedHeroForBattleProvider);
+    // Resolve hero: prefer selectedHeroForBattleProvider, fallback to active hero
+    var playerHero = ref.watch(selectedHeroForBattleProvider);
+    if (playerHero == null) {
+      final player = ref.watch(playerProvider);
+      final activeHeroId = player?.activeHeroId;
+      if (activeHeroId != null) {
+        playerHero = HeroesData.findById(activeHeroId);
+      }
+    }
 
     if (playerHero == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    final player = ref.watch(playerProvider);
+    final isArena = player?.tutorialBattleComplete ?? false;
     final botHero = HeroesData.tutorialBotFor(playerHero.faction.name);
     final fColor = factionColor(playerHero.faction);
     final bColor = factionColor(botHero.faction);
@@ -38,16 +47,30 @@ class PreBattleScreen extends ConsumerWidget {
           SafeArea(
             child: Column(
               children: [
-                const SizedBox(height: 40),
+                // Botón cancelar (solo en arena, no en tutorial)
+                SizedBox(
+                  height: 40,
+                  child: isArena
+                      ? Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: const Icon(Icons.arrow_back_ios, color: Colors.white70, size: 20),
+                            onPressed: () => context.go('/home'),
+                          ),
+                        )
+                      : null,
+                ),
                 // Título
-                const Text(
-                  'Primera Batalla',
-                  style: TextStyle(color: Colors.white70, fontSize: 13, letterSpacing: 2, fontWeight: FontWeight.bold),
+                Text(
+                  isArena ? 'ARENA' : 'PRIMERA BATALLA',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13, letterSpacing: 2, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Un rival te espera',
-                  style: TextStyle(
+                Text(
+                  isArena ? 'Elegí tu dificultad' : 'Un rival te espera',
+                  style: const TextStyle(
                     color: Color(0xFFF0F0F0),
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -265,7 +288,7 @@ class PreBattleScreen extends ConsumerWidget {
                     );
                   }),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -348,12 +371,7 @@ class _HeroPreviewCard extends StatelessWidget {
                 errorBuilder: (_, __, ___) => Container(
                   color: color.withOpacity(0.15),
                   child: Center(
-                    child: Text(
-                      factionEmoji(hero.faction),
-                      style: GoogleFonts.notoColorEmoji(
-                        textStyle: const TextStyle(fontSize: 40),
-                      ),
-                    ),
+                    child: Icon(Icons.sports_mma, size: 40, color: color),
                   ),
                 ),
               ),

@@ -7,7 +7,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../infra/local/heroes_data.dart';
 import '../../../domain/entities/hero_entity.dart';
@@ -363,12 +362,7 @@ class _FallbackEmoji extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text(
-        _factionEmoji(hero.faction),
-        style: GoogleFonts.notoColorEmoji(
-          textStyle: const TextStyle(fontSize: 26),
-        ),
-      ),
+      child: Icon(Icons.sports_mma, size: 26, color: _factionColor(hero.faction)),
     );
   }
 }
@@ -515,10 +509,3 @@ Color _factionColor(Faction faction) => switch (faction) {
       Faction.capoeira => const Color(0xFF2E7D32),
     };
 
-String _factionEmoji(Faction faction) => switch (faction) {
-      Faction.shaolin => '🥋',
-      Faction.ninja => '🥷',
-      Faction.judoka => '🤼',
-      Faction.boxer => '🥊',
-      Faction.capoeira => '🎭',
-    };

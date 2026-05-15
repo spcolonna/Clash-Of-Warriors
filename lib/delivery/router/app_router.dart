@@ -38,12 +38,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (player == null) return null;
 
       if (player.isOnboardingComplete) {
-        if (location == '/character-select' || location == '/login') return '/home';
+        if (location == '/' || location == '/character-select' || location == '/login') return '/home';
         return null;
       }
 
       if (player.selectedFactionId == null) {
-        if (location == '/character-select') return null;
+        if (location == '/' || location == '/character-select') return null;
         return '/character-select';
       }
 
@@ -52,7 +52,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/pre-battle';
       }
 
-      if (location == '/character-select' || location == '/login') return '/home';
+      if (location == '/' || location == '/character-select' || location == '/login') return '/home';
       return null;
     },
     routes: [

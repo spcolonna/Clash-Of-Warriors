@@ -216,6 +216,28 @@ class PlayerNotifier extends StateNotifier<PlayerProfile?> {
     _svc.addTokens(state!.uid, amount);
   }
 
+  Future<bool> purchaseHeroWithCoins({
+    required String heroId,
+    required int coinCost,
+  }) async {
+    if (state == null || state!.softCoins < coinCost) return false;
+    try {
+      await _svc.spendCoinsAndUnlockHero(
+        uid: state!.uid,
+        heroId: heroId,
+        cost: coinCost,
+      );
+      state = state!.copyWith(
+        softCoins: state!.softCoins - coinCost,
+        unlockedHeroIds: [...state!.unlockedHeroIds, heroId],
+      );
+      return true;
+    } catch (e) {
+      print('[PlayerNotifier] purchaseHeroWithCoins: $e');
+      return false;
+    }
+  }
+
   Future<bool> purchaseHeroWithTokens({
     required String heroId,
     required int tokenCost,

@@ -1,5 +1,4 @@
-import 'package:flutter/cupertino.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/material.dart';
 
 class HeroAvatar extends StatelessWidget {
   final String emoji;
@@ -31,21 +30,11 @@ class HeroAvatar extends StatelessWidget {
           imagePath!,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => Center(
-            child: Text(
-              emoji,
-              style: GoogleFonts.notoColorEmoji(
-                textStyle: TextStyle(fontSize: size * 0.5),
-              ),
-            ),
+            child: Text(emoji, style: TextStyle(fontSize: size * 0.5)),
           ),
         )
             : Center(
-          child: Text(
-            emoji,
-            style: GoogleFonts.notoColorEmoji(
-              textStyle: TextStyle(fontSize: size * 0.5),
-            ),
-          ),
+          child: Text(emoji, style: TextStyle(fontSize: size * 0.5)),
         ),
       ),
     );

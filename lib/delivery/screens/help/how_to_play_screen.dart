@@ -1,7 +1,6 @@
 // lib/delivery/screens/help/how_to_play_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../domain/entities/game_card.dart';
 
@@ -208,9 +207,7 @@ class _MatchupTable extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
                 child: Text(
                   row.$1,
-                  style: GoogleFonts.notoColorEmoji(
-                    textStyle: const TextStyle(fontSize: 18),
-                  ),
+                  style: const TextStyle(fontSize: 18),
                 ),
               ),
               // Nombre del tipo
@@ -234,9 +231,7 @@ class _MatchupTable extends StatelessWidget {
               // Emoji ganado 1
               Text(
                 _emoji(row.$4),
-                style: GoogleFonts.notoColorEmoji(
-                  textStyle: const TextStyle(fontSize: 16),
-                ),
+                style: const TextStyle(fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               // Nombre ganado 1
@@ -250,9 +245,7 @@ class _MatchupTable extends StatelessWidget {
               // Emoji ganado 2
               Text(
                 _emoji(row.$5),
-                style: GoogleFonts.notoColorEmoji(
-                  textStyle: const TextStyle(fontSize: 16),
-                ),
+                style: const TextStyle(fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               // Nombre ganado 2

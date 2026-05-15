@@ -117,8 +117,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     title: 'Cómo jugar',
                     subtitle: 'Tabla de choques, cálculo de daño y stats',
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const HowToPlayScreen(),
+                      PageRouteBuilder(
+                        pageBuilder: (_, __, ___) => const HowToPlayScreen(),
+                        transitionDuration: Duration.zero,
+                        reverseTransitionDuration: Duration.zero,
                       ),
                     ),
                   ),

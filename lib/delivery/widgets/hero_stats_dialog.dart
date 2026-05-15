@@ -1,7 +1,6 @@
 // lib/delivery/widgets/hero_stats_dialog.dart
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../domain/entities/hero_entity.dart';
 import '../screens/heroes/character_select_screen.dart'; // factionColor, factionEmoji, factionName
 
@@ -41,13 +40,7 @@ class HeroStatsDialog extends StatelessWidget {
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 40),
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.8, end: 1.0),
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutBack,
-        builder: (context, scale, child) =>
-            Transform.scale(scale: scale, child: child),
-        child: Container(
+      child: Container(
           decoration: BoxDecoration(
             color: const Color(0xFF1A1A2E),
             borderRadius: BorderRadius.circular(20),
@@ -71,11 +64,10 @@ class HeroStatsDialog extends StatelessWidget {
                         errorBuilder: (_, __, ___) => Container(
                           color: color.withOpacity(0.15),
                           child: Center(
-                            child: Text(
-                              factionEmoji(hero.faction),
-                              style: GoogleFonts.notoColorEmoji(
-                                textStyle: const TextStyle(fontSize: 60),
-                              ),
+                            child: Icon(
+                              Icons.sports_mma,
+                              size: 60,
+                              color: color,
                             ),
                           ),
                         ),
@@ -230,7 +222,6 @@ class HeroStatsDialog extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 }
@@ -259,9 +250,7 @@ class _CurrentStatBar extends StatelessWidget {
           children: [
             Text(
               emoji,
-              style: GoogleFonts.notoColorEmoji(
-                textStyle: const TextStyle(fontSize: 12),
-              ),
+              style: const TextStyle(fontSize: 12),
             ),
             const SizedBox(width: 4),
             Text(

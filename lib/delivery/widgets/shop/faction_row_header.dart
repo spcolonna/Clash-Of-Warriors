@@ -1,7 +1,6 @@
 // lib/delivery/widgets/shop/faction_row_header.dart
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class FactionRowHeader extends StatelessWidget {
   final String factionId;
@@ -18,18 +17,12 @@ class FactionRowHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _factionColor(factionId);
-    final emoji = _factionEmoji(factionId);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          Text(
-            emoji,
-            style: GoogleFonts.notoColorEmoji(
-              textStyle: const TextStyle(fontSize: 22),
-            ),
-          ),
+          Icon(_factionIcon(factionId), color: color, size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -90,12 +83,12 @@ class FactionRowHeader extends StatelessWidget {
         _ => Colors.white,
       };
 
-  String _factionEmoji(String id) => switch (id) {
-        'shaolin' => '🏯',
-        'ninja' => '🥷',
-        'judoka' => '🥋',
-        'boxer' => '🥊',
-        'capoeira' => '💃',
-        _ => '⚔️',
+  IconData _factionIcon(String id) => switch (id) {
+        'shaolin'  => Icons.self_improvement,
+        'ninja'    => Icons.visibility_off,
+        'judoka'   => Icons.people,
+        'boxer'    => Icons.sports_mma,
+        'capoeira' => Icons.music_note,
+        _          => Icons.sports_mma,
       };
 }

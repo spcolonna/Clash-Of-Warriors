@@ -1,7 +1,6 @@
 // lib/delivery/widgets/deck/deck_card_tile.dart
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class DeckCardTile extends StatefulWidget {
   final String cardId;
@@ -83,13 +82,8 @@ class _DeckCardTileState extends State<DeckCardTile>
                           color: const Color(0xFFEAEAEA),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Center(
-                          child: Text(
-                            '🃏',
-                            style: GoogleFonts.notoColorEmoji(
-                              textStyle: const TextStyle(fontSize: 28),
-                            ),
-                          ),
+                        child: const Center(
+                          child: Icon(Icons.style, size: 28, color: Color(0xFF8A8A9A)),
                         ),
                       ),
                     ),
