@@ -98,7 +98,7 @@ class PreBattleScreen extends ConsumerWidget {
                               ),
                               child: Column(
                                 children: [
-                                  const Icon(Icons.sports_kabaddi, size: 14, color: Colors.black87),
+                                  const Text('VS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.black87, letterSpacing: 1)),
                                   const Text(
                                     'RIVALIDAD',
                                     style: TextStyle(
@@ -263,12 +263,12 @@ class PreBattleScreen extends ConsumerWidget {
                         isArena: isArena,
                         difficulty: difficulty,
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('⚔️', style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 18))),
-                          const SizedBox(width: 10),
-                          const Text('Comenzar Batalla', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          Icon(Icons.sports_mma, color: Colors.white, size: 20),
+                          SizedBox(width: 10),
+                          Text('Comenzar Batalla', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
                         ],
                       ),
                     );

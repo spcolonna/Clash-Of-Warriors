@@ -4,7 +4,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../domain/entities/battle_state.dart';
 import '../../../domain/entities/game_card.dart';
@@ -38,7 +37,11 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('[NAV] BattleScreen.build START ${DateTime.now().millisecondsSinceEpoch}');
+    final bt0 = DateTime.now().millisecondsSinceEpoch;
+    debugPrint('[BATTLE] build start: $bt0');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint('[BATTLE] first frame: ${DateTime.now().millisecondsSinceEpoch - bt0}ms');
+    });
     final battle = ref.watch(battleProvider);
 
     ref.listen(battleProvider, (prev, next) {
@@ -365,18 +368,14 @@ class _HeroAvatar extends StatelessWidget {
           errorBuilder: (_, __, ___) => Center(
             child: Text(
               emoji,
-              style: GoogleFonts.notoColorEmoji(
-                textStyle: TextStyle(fontSize: size * 0.5),
-              ),
+              style: TextStyle(fontSize: size * 0.5),
             ),
           ),
         )
             : Center(
           child: Text(
             emoji,
-            style: GoogleFonts.notoColorEmoji(
-              textStyle: TextStyle(fontSize: size * 0.5),
-            ),
+            style: TextStyle(fontSize: size * 0.5),
           ),
         ),
       ),
@@ -764,15 +763,24 @@ class _ActionBar extends StatelessWidget {
               color: const Color(0xFFE74C3C),
               disabledColor: const Color(0xFF2A2A3E),
               onPressed: isPlanning && hasAnyCard ? onConfirm : null,
-              child: Text(
-                isPlanning ? '⚔️  Confirmar' : '⏳  Resolviendo...',
-                style: GoogleFonts.notoColorEmoji(
-                  textStyle: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isPlanning ? Icons.sports_mma : Icons.hourglass_bottom,
                     color: Colors.white,
+                    size: 18,
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isPlanning ? 'Confirmar' : 'Resolviendo...',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

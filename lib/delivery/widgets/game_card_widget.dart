@@ -12,7 +12,6 @@
 // Para ajustar, cambiá los factores de cada SizedBox.
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../domain/entities/game_card.dart';
 
 class GameCardWidget extends StatefulWidget {
@@ -207,9 +206,7 @@ class _GameCardWidgetState extends State<GameCardWidget>
                     child: Center(
                       child: Text(
                         _isPassive ? '✨' : _categoryEmoji(card.category),
-                        style: GoogleFonts.notoColorEmoji(
-                          textStyle: TextStyle(fontSize: imageH * 0.65),
-                        ),
+                        style: TextStyle(fontSize: imageH * 0.65),
                       ),
                     ),
                   ),
@@ -236,9 +233,7 @@ class _GameCardWidgetState extends State<GameCardWidget>
                       children: [
                         Text(
                           _isPassive ? '⭐' : _categoryEmoji(card.category),
-                          style: GoogleFonts.notoColorEmoji(
-                            textStyle: TextStyle(fontSize: badgeH * 0.55),
-                          ),
+                          style: TextStyle(fontSize: badgeH * 0.55),
                         ),
                         SizedBox(width: width * 0.02),
                         Text(
