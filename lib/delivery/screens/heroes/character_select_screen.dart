@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import '../../../domain/entities/hero_entity.dart';
 import '../../../infra/local/heroes_data.dart';
 import '../../state/providers.dart';
-import '../../widgets/tap_scale_button.dart';
 import 'mini_chip.dart';
 
 class CharacterSelectScreen extends ConsumerStatefulWidget {
@@ -36,12 +35,17 @@ class _CharacterSelectScreenState extends ConsumerState<CharacterSelectScreen> {
           context,
         );
       }
-      // Fondo y bot-heroes de pre-battle: listos antes de que el usuario navegue
+      // Fondo y bot-heroes de pre-battle con las mismas dimensiones que usa _HeroPreviewCard
       precacheImage(const AssetImage('assets/images/pre_battle_bg.png'), context);
       for (final hero in _heroes) {
+        // héroe del jugador en pre-battle (misma clave que _HeroPreviewCard usa)
+        precacheImage(
+          ResizeImage(AssetImage(hero.imagePath), width: 300, height: 200),
+          context,
+        );
         final bot = HeroesData.tutorialBotFor(hero.faction.name);
         precacheImage(
-          ResizeImage(AssetImage(bot.imagePath), width: 200, height: 150),
+          ResizeImage(AssetImage(bot.imagePath), width: 300, height: 200),
           context,
         );
       }
@@ -145,25 +149,32 @@ class _CharacterSelectScreenState extends ConsumerState<CharacterSelectScreen> {
             // ── Botón confirmar ──────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: TapScaleButton(
-                color: color,
-                onPressed: () => _onConfirm(hero),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Elegir ${hero.name}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                        color: Colors.white,
+              child: GestureDetector(
+                onTap: () => _onConfirm(hero),
+                child: Container(
+                  width: double.infinity,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Elegir ${hero.name}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.arrow_forward_rounded,
-                        size: 20, color: Colors.white),
-                  ],
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_rounded,
+                          size: 20, color: Colors.white),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -340,9 +351,9 @@ class _HeroCard extends StatelessWidget {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                MiniChip(icon: '❤️', value: '${hero.maxHp}'),
+                                Flexible(child: MiniChip(icon: '❤️', value: '${hero.maxHp}')),
                                 const SizedBox(width: 4),
-                                MiniChip(icon: '⚡', value: '${hero.maxStamina}'),
+                                Flexible(child: MiniChip(icon: '⚡', value: '${hero.maxStamina}')),
                               ],
                             ),
                           ],

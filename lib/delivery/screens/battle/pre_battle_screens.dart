@@ -13,31 +13,38 @@ class PreBattleScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    debugPrint('[NAV] PreBattleScreen.build START ${DateTime.now().millisecondsSinceEpoch}');
+    final t0 = DateTime.now().millisecondsSinceEpoch;
+    debugPrint('[FRAME] build start: $t0');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint('[FRAME] postFrame (layout+paint done): ${DateTime.now().millisecondsSinceEpoch - t0}ms');
+    });
     final playerHero = ref.watch(selectedHeroForBattleProvider);
+    debugPrint('[FRAME] after watch: ${DateTime.now().millisecondsSinceEpoch - t0}ms');
 
     if (playerHero == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final botHero = HeroesData.tutorialBotFor(playerHero.faction.name);
+    debugPrint('[FRAME] after botHero: ${DateTime.now().millisecondsSinceEpoch - t0}ms');
     final fColor = factionColor(playerHero.faction);
     final bColor = factionColor(botHero.faction);
 
+    debugPrint('[FRAME] returning widget: ${DateTime.now().millisecondsSinceEpoch - t0}ms');
     return Scaffold(
-      // Quitamos el color de fondo sólido
-      body: Container(
-        // --- CONFIGURACIÓN DEL FONDO ---
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/pre_battle_bg.png'),
+      backgroundColor: const Color(0xFF0D0D1A),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Imagen de fondo: carga async, no bloquea el primer frame
+          Image.asset(
+            'assets/images/pre_battle_bg.png',
             fit: BoxFit.cover,
+            frameBuilder: (_, child, frame, sync) =>
+                (sync || frame != null) ? child : const SizedBox.shrink(),
           ),
-        ),
-        child: Container(
-          // Añadimos un ligero velo oscuro (opcional) para que los textos blancos resalten más
-          color: Colors.black.withOpacity(0.2),
-          child: SafeArea(
+          ColoredBox(color: Colors.black.withValues(alpha: 0.2)),
+          SafeArea(
             child: Column(
               children: [
                 const SizedBox(height: 40),
@@ -51,9 +58,8 @@ class PreBattleScreen extends ConsumerWidget {
                   'Un rival te espera',
                   style: TextStyle(
                     color: Color(0xFFF0F0F0),
-                    fontSize: 28, // Un poco más grande para que sea épico
+                    fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    shadows: [Shadow(blurRadius: 10, color: Colors.black)], // Sombra para legibilidad
                   ),
                 ),
 
@@ -92,12 +98,7 @@ class PreBattleScreen extends ConsumerWidget {
                               ),
                               child: Column(
                                 children: [
-                                  Text(
-                                    '⚔️',
-                                    style: GoogleFonts.notoColorEmoji(
-                                      textStyle: const TextStyle(fontSize: 12),
-                                    ),
-                                  ),
+                                  const Icon(Icons.sports_kabaddi, size: 14, color: Colors.black87),
                                   const Text(
                                     'RIVALIDAD',
                                     style: TextStyle(
@@ -164,11 +165,7 @@ class PreBattleScreen extends ConsumerWidget {
                   ),
                   child: Row(
                     children: [
-                      Text('🃏',
-                        style: GoogleFonts.notoColorEmoji(
-                          textStyle: const TextStyle(fontSize: 20),
-                        ),
-                      ),
+                      const Text('🃏', style: TextStyle(fontSize: 20)),
                       const SizedBox(width: 12),
                       const Expanded(
                         child: Column(
@@ -281,7 +278,7 @@ class PreBattleScreen extends ConsumerWidget {
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -350,8 +347,12 @@ class _HeroPreviewCard extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               height: 100,
-              child: Image.asset(
-                hero.imagePath,
+              child: Image(
+                image: ResizeImage(
+                  AssetImage(hero.imagePath),
+                  width: 300,
+                  height: 200,
+                ),
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
                   color: color.withOpacity(0.15),
@@ -383,9 +384,9 @@ class _HeroPreviewCard extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
-          _MiniStatBar(label: '❤️', value: hero.maxHp, max: 92, color: Colors.red),
+          _MiniStatBar(icon: Icons.favorite, value: hero.maxHp, max: 92, color: Colors.red),
           const SizedBox(height: 4),
-          _MiniStatBar(label: '⚡', value: hero.maxStamina, max: 14, color: Colors.amber),
+          _MiniStatBar(icon: Icons.bolt, value: hero.maxStamina, max: 14, color: Colors.amber),
         ],
       ),
     );
@@ -393,13 +394,13 @@ class _HeroPreviewCard extends StatelessWidget {
 }
 
 class _MiniStatBar extends StatelessWidget {
-  final String label;
+  final IconData icon;
   final int value;
   final int max;
   final Color color;
 
   const _MiniStatBar({
-    required this.label,
+    required this.icon,
     required this.value,
     required this.max,
     required this.color,
@@ -409,12 +410,7 @@ class _MiniStatBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(
-          label,
-          style: GoogleFonts.notoColorEmoji(
-            textStyle: const TextStyle(fontSize: 10),
-          ),
-        ),
+        Icon(icon, size: 10, color: color),
         const SizedBox(width: 4),
         Expanded(
           child: ClipRRect(
