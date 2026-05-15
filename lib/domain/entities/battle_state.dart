@@ -5,6 +5,8 @@ import 'hero_entity.dart';
 
 enum BattlePhase { planning, resolving, roundEnd, battleEnd }
 
+enum BotDifficulty { easy, normal, hard }
+
 class CombatantState {
   final HeroEntity hero;
   final int currentHp;
@@ -125,6 +127,9 @@ class BattleState {
   final int currentRound;
   final List<RoundResult> roundHistory;
   final bool? playerWon; // null = en curso
+  final bool isTutorial; // false = batalla de arena con bot IA escalable
+  final BotDifficulty? botDifficulty; // null = tutorial
+  final bool passiveJustUnlocked; // true solo el round en que se inyecta la pasiva
 
   const BattleState({
     required this.phase,
@@ -133,6 +138,9 @@ class BattleState {
     this.currentRound = 1,
     this.roundHistory = const [],
     this.playerWon,
+    this.isTutorial = true,
+    this.botDifficulty,
+    this.passiveJustUnlocked = false,
   });
 
   bool get isBattleOver => playerWon != null;
@@ -144,6 +152,9 @@ class BattleState {
     int? currentRound,
     List<RoundResult>? roundHistory,
     bool? playerWon,
+    bool? isTutorial,
+    BotDifficulty? botDifficulty,
+    bool? passiveJustUnlocked,
   }) =>
       BattleState(
         phase: phase ?? this.phase,
@@ -152,5 +163,8 @@ class BattleState {
         currentRound: currentRound ?? this.currentRound,
         roundHistory: roundHistory ?? this.roundHistory,
         playerWon: playerWon ?? this.playerWon,
+        isTutorial: isTutorial ?? this.isTutorial,
+        botDifficulty: botDifficulty ?? this.botDifficulty,
+        passiveJustUnlocked: passiveJustUnlocked ?? this.passiveJustUnlocked,
       );
 }

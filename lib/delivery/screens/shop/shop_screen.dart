@@ -53,7 +53,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
           body: SafeArea(
             child: Column(
               children: [
-                _ShopHeader(softCoins: player.softCoins),
+                _ShopHeader(softCoins: player.softCoins, tokens: player.tokens),
                 Expanded(
                   child: shopState.when(
                     loading: () => const Center(child: CircularProgressIndicator()),
@@ -139,53 +139,215 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
   }
 }
 
-class _ShopHeader extends StatelessWidget {
+class _ShopHeader extends ConsumerWidget {
   final int softCoins;
-  const _ShopHeader({required this.softCoins});
+  final int tokens;
+  const _ShopHeader({required this.softCoins, required this.tokens});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Tienda',
+                style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+              ),
+              _CurrencyChip(icon: '🪙', value: softCoins, color: const Color(0xFFF5B800)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _CurrencyChip(icon: '💎', value: tokens, color: const Color(0xFFB39DDB)),
+              const SizedBox(width: 10),
+              GestureDetector(
+                onTap: () => _showTokenConvertSheet(context, ref, tokens),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFB39DDB).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFB39DDB).withValues(alpha: 0.4)),
+                  ),
+                  child: const Text(
+                    'Convertir →',
+                    style: TextStyle(color: Color(0xFFB39DDB), fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTokenConvertSheet(BuildContext context, WidgetRef ref, int currentTokens) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _TokenConvertSheet(currentTokens: currentTokens, ref: ref),
+    );
+  }
+}
+
+class _CurrencyChip extends StatelessWidget {
+  final String icon;
+  final int value;
+  final Color color;
+  const _CurrencyChip({required this.icon, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A2E),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(icon, style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 16))),
+          const SizedBox(width: 6),
+          Text('$value', style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+}
+
+class _TokenConvertSheet extends StatelessWidget {
+  final int currentTokens;
+  final WidgetRef ref;
+
+  const _TokenConvertSheet({required this.currentTokens, required this.ref});
+
+  static const _options = [
+    (tokenCost: 100, coins: 500),
+    (tokenCost: 250, coins: 1500),
+    (tokenCost: 500, coins: 3500),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Tienda',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-            ),
+            '💎 → 🪙  Convertir Tokens',
+            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFF5B800).withOpacity(0.3)),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  '🪙',
-                  style: GoogleFonts.notoColorEmoji(
-                    textStyle: const TextStyle(fontSize: 16),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '$softCoins',
-                  style: const TextStyle(
-                    color: Color(0xFFF5B800),
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
+          const SizedBox(height: 4),
+          Text(
+            'Saldo actual: $currentTokens tokens',
+            style: const TextStyle(color: Color(0xFF8A8A9A), fontSize: 13),
           ),
+          const SizedBox(height: 20),
+          ..._options.map((opt) => _ConvertOption(
+            tokenCost: opt.tokenCost,
+            coins: opt.coins,
+            canAfford: currentTokens >= opt.tokenCost,
+            onTap: () async {
+              Navigator.of(context).pop();
+              final success = await ref.read(playerProvider.notifier).convertTokensToSoftCoins(
+                tokenCost: opt.tokenCost,
+                softCoinAmount: opt.coins,
+              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  success
+                    ? SnackBar(
+                        content: Text('+${opt.coins} monedas añadidas'),
+                        backgroundColor: const Color(0xFF27AE60),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      )
+                    : const SnackBar(content: Text('Tokens insuficientes')),
+                );
+              }
+            },
+          )),
         ],
+      ),
+    );
+  }
+}
+
+class _ConvertOption extends StatelessWidget {
+  final int tokenCost;
+  final int coins;
+  final bool canAfford;
+  final VoidCallback onTap;
+
+  const _ConvertOption({
+    required this.tokenCost,
+    required this.coins,
+    required this.canAfford,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: GestureDetector(
+        onTap: canAfford ? onTap : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: canAfford
+                ? const Color(0xFFB39DDB).withValues(alpha: 0.1)
+                : Colors.white.withValues(alpha: 0.03),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: canAfford
+                  ? const Color(0xFFB39DDB).withValues(alpha: 0.4)
+                  : Colors.white12,
+            ),
+          ),
+          child: Row(
+            children: [
+              Text(
+                '$tokenCost 💎',
+                style: TextStyle(
+                  color: canAfford ? const Color(0xFFB39DDB) : Colors.white30,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.arrow_forward, color: Color(0xFF8A8A9A), size: 16),
+              const SizedBox(width: 8),
+              Text(
+                '$coins 🪙',
+                style: TextStyle(
+                  color: canAfford ? const Color(0xFFF5B800) : Colors.white30,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              if (!canAfford)
+                const Text(
+                  'Sin saldo',
+                  style: TextStyle(color: Colors.white30, fontSize: 11),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

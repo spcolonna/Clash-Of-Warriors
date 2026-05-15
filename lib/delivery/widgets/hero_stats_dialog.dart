@@ -117,6 +117,17 @@ class HeroStatsDialog extends StatelessWidget {
                                 fontSize: 12,
                               ),
                             ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: List.generate(5, (i) => Padding(
+                                padding: const EdgeInsets.only(right: 2),
+                                child: Icon(
+                                  i < hero.stars ? Icons.star : Icons.star_border,
+                                  color: Colors.amber,
+                                  size: 14,
+                                ),
+                              )),
+                            ),
                           ],
                         ),
                       ),
@@ -175,20 +186,20 @@ class HeroStatsDialog extends StatelessWidget {
                 ),
               ),
 
-              // Stats del héroe
+              // Stats del héroe (con bonus por estrellas)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                 child: Column(
                   children: [
-                    _StatRow(label: 'Puño',    value: hero.stats.punch,   max: 12, color: color),
+                    _StatRow(label: 'Puño',    value: hero.stats.punch   + (hero.stars - 1), max: 14, color: color),
                     const SizedBox(height: 6),
-                    _StatRow(label: 'Patada',  value: hero.stats.kick,    max: 12, color: color),
+                    _StatRow(label: 'Patada',  value: hero.stats.kick    + (hero.stars - 1), max: 14, color: color),
                     const SizedBox(height: 6),
-                    _StatRow(label: 'Agarre',  value: hero.stats.grapple, max: 12, color: color),
+                    _StatRow(label: 'Agarre',  value: hero.stats.grapple + (hero.stars - 1), max: 14, color: color),
                     const SizedBox(height: 6),
-                    _StatRow(label: 'Defensa', value: hero.stats.defense, max: 12, color: color),
+                    _StatRow(label: 'Defensa', value: hero.stats.defense + (hero.stars - 1), max: 14, color: color),
                     const SizedBox(height: 6),
-                    _StatRow(label: 'Esquive', value: hero.stats.dodge,   max: 12, color: color),
+                    _StatRow(label: 'Esquive', value: hero.stats.dodge   + (hero.stars - 1), max: 14, color: color),
                   ],
                 ),
               ),

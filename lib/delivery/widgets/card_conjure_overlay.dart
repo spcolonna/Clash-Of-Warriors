@@ -117,7 +117,7 @@ class _CardConjureOverlayState extends State<CardConjureOverlay>
 
     return AnimatedBuilder(
       animation: _ctrl,
-      builder: (context, _) => Stack(
+      builder: (context, cardChild) => Stack(
         fit: StackFit.expand,
         children: [
           // ── Scrim ──────────────────────────────────────────────────────────
@@ -179,24 +179,19 @@ class _CardConjureOverlayState extends State<CardConjureOverlay>
                     ),
                     const SizedBox(height: 16),
 
-                    // Carta con doble glow (cercano + lejano)
+                    // Carta con glow único (reducido de blurRadius: 55+110)
                     Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: color.withValues(alpha: _glow.value * 0.65),
-                            blurRadius: 55,
-                            spreadRadius: 10,
-                          ),
-                          BoxShadow(
-                            color: color.withValues(alpha: _glow.value * 0.25),
-                            blurRadius: 110,
-                            spreadRadius: 28,
+                            color: color.withValues(alpha: _glow.value * 0.7),
+                            blurRadius: 22,
+                            spreadRadius: 6,
                           ),
                         ],
                       ),
-                      child: GameCardWidget(card: widget.card, width: cardW),
+                      child: cardChild,
                     ),
                   ],
                 ),
@@ -205,6 +200,7 @@ class _CardConjureOverlayState extends State<CardConjureOverlay>
           ),
         ],
       ),
+      child: GameCardWidget(card: widget.card, width: cardW),
     );
   }
 }

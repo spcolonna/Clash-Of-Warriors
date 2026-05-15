@@ -1,20 +1,24 @@
 // lib/delivery/screens/premium_shop/premium_shop_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../infra/config/premium_shop_config.dart';
+import '../../state/providers.dart';
 
-class PremiumShopScreen extends StatelessWidget {
+class PremiumShopScreen extends ConsumerWidget {
   const PremiumShopScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = ref.watch(playerProvider)?.tokens ?? 0;
+
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
       body: CustomScrollView(
         slivers: [
-          _PremiumShopAppBar(),
+          _PremiumShopAppBar(tokens: tokens),
           SliverToBoxAdapter(
             child: _SectionHeader(
               icon: '🏆',
@@ -22,23 +26,23 @@ class PremiumShopScreen extends StatelessWidget {
               subtitle: 'Héroe + cartas + tokens al mejor precio',
             ),
           ),
-          SliverToBoxAdapter(child: _BundlesSection()),
+          const SliverToBoxAdapter(child: _BundlesSection()),
           SliverToBoxAdapter(
             child: _SectionHeader(
-              icon: '🪙',
+              icon: '💎',
               title: 'Tokens',
               subtitle: 'Recarga tu economía de juego',
             ),
           ),
-          SliverToBoxAdapter(child: _TokenPacksSection()),
+          const SliverToBoxAdapter(child: _TokenPacksSection()),
           SliverToBoxAdapter(
             child: _SectionHeader(
               icon: '⚔️',
               title: 'Héroes',
-              subtitle: 'Desbloquea guerreros únicos',
+              subtitle: 'Desbloquea guerreros únicos con tokens',
             ),
           ),
-          SliverToBoxAdapter(child: _HeroesSection()),
+          const SliverToBoxAdapter(child: _HeroesSection()),
           const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
@@ -49,6 +53,9 @@ class PremiumShopScreen extends StatelessWidget {
 // ─── APP BAR ────────────────────────────────────────────────────────────────
 
 class _PremiumShopAppBar extends StatelessWidget {
+  final int tokens;
+  const _PremiumShopAppBar({required this.tokens});
+
   @override
   Widget build(BuildContext context) {
     return SliverAppBar(
@@ -59,6 +66,31 @@ class _PremiumShopAppBar extends StatelessWidget {
         icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
         onPressed: () => Navigator.of(context).pop(),
       ),
+      actions: [
+        Container(
+          margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2D0050),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFB39DDB).withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            children: [
+              Text('💎', style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 14))),
+              const SizedBox(width: 6),
+              Text(
+                '$tokens',
+                style: const TextStyle(
+                  color: Color(0xFFB39DDB),
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: const BoxDecoration(
@@ -78,12 +110,7 @@ class _PremiumShopAppBar extends StatelessWidget {
                   const SizedBox(height: 48),
                   Row(
                     children: [
-                      Text(
-                        '🏆',
-                        style: GoogleFonts.notoColorEmoji(
-                          textStyle: const TextStyle(fontSize: 26),
-                        ),
-                      ),
+                      Text('🏆', style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 26))),
                       const SizedBox(width: 10),
                       const Text(
                         'Tienda Premium',
@@ -126,31 +153,13 @@ class _SectionHeader extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(
-            icon,
-            style: GoogleFonts.notoColorEmoji(
-              textStyle: const TextStyle(fontSize: 22),
-            ),
-          ),
+          Text(icon, style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 22))),
           const SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: Color(0xFF8A8A9A),
-                  fontSize: 11,
-                ),
-              ),
+              Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(subtitle, style: const TextStyle(color: Color(0xFF8A8A9A), fontSize: 11)),
             ],
           ),
         ],
@@ -161,9 +170,11 @@ class _SectionHeader extends StatelessWidget {
 
 // ─── SECCIÓN BUNDLES ────────────────────────────────────────────────────────
 
-class _BundlesSection extends StatelessWidget {
+class _BundlesSection extends ConsumerWidget {
+  const _BundlesSection();
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final bundles = PremiumShopConfig.bundles;
     return SizedBox(
       height: 300,
@@ -172,16 +183,39 @@ class _BundlesSection extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         itemCount: bundles.length,
         separatorBuilder: (_, __) => const SizedBox(width: 14),
-        itemBuilder: (context, i) => _BundleCard(bundle: bundles[i]),
+        itemBuilder: (context, i) => _BundleCard(
+          bundle: bundles[i],
+          onPurchase: () => _onBundlePurchase(context, ref, bundles[i]),
+        ),
       ),
     );
+  }
+
+  Future<void> _onBundlePurchase(BuildContext context, WidgetRef ref, PremiumBundle bundle) async {
+    final confirmed = await _showPurchaseDialog(
+      context: context,
+      title: bundle.name,
+      body: 'Simulando compra de \$${_formatPrice(bundle.priceUsd)} USD\n\nRecibirás:\n• ${bundle.tokenAmount} tokens\n• Héroe: ${bundle.heroName}\n• ${bundle.cardCount} cartas de mazo',
+      confirmLabel: 'Confirmar',
+    );
+    if (!confirmed || !context.mounted) return;
+    await ref.read(playerProvider.notifier).grantBundle(
+      heroId: bundle.heroId,
+      tokenAmount: bundle.tokenAmount,
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(_successSnackBar(
+        '+${bundle.tokenAmount} tokens y ${bundle.heroName} desbloqueado',
+      ));
+    }
   }
 }
 
 class _BundleCard extends StatelessWidget {
   final PremiumBundle bundle;
+  final VoidCallback onPurchase;
 
-  const _BundleCard({required this.bundle});
+  const _BundleCard({required this.bundle, required this.onPurchase});
 
   @override
   Widget build(BuildContext context) {
@@ -189,10 +223,7 @@ class _BundleCard extends StatelessWidget {
       width: 190,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            Color(bundle.heroGradientStart),
-            Color(bundle.heroGradientEnd),
-          ],
+          colors: [Color(bundle.heroGradientStart), Color(bundle.heroGradientEnd)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -203,7 +234,7 @@ class _BundleCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: bundle.isHighlighted
-                ? const Color(0xFFFFD700).withOpacity(0.2)
+                ? const Color(0xFFFFD700).withValues(alpha: 0.2)
                 : Colors.black38,
             blurRadius: 16,
             offset: const Offset(0, 6),
@@ -217,71 +248,39 @@ class _BundleCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Hero icon placeholder
                 Container(
                   width: double.infinity,
                   height: 88,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.06),
+                    color: Colors.white.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
                     child: Text(
                       _heroEmoji(bundle.heroId),
-                      style: GoogleFonts.notoColorEmoji(
-                        textStyle: const TextStyle(fontSize: 44),
-                      ),
+                      style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 44)),
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  bundle.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    height: 1.2,
-                  ),
-                ),
+                Text(bundle.name, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, height: 1.2)),
                 const SizedBox(height: 4),
                 Text(
                   bundle.description,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
-                    fontSize: 10,
-                  ),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 10),
                 ),
                 const SizedBox(height: 10),
                 _BundleContentsRow(bundle: bundle),
                 const Spacer(),
-                _PriceButton(
-                  priceUsd: bundle.priceUsd,
-                  onTap: () => _onPurchase(context),
-                ),
+                _PriceButton(priceUsd: bundle.priceUsd, onTap: onPurchase),
               ],
             ),
           ),
           if (bundle.badgeText != null)
-            Positioned(
-              top: 10,
-              right: 10,
-              child: _Badge(text: bundle.badgeText!),
-            ),
+            Positioned(top: 10, right: 10, child: _Badge(text: bundle.badgeText!)),
         ],
-      ),
-    );
-  }
-
-  void _onPurchase(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Comprando ${bundle.name}… (próximamente)'),
-        backgroundColor: const Color(0xFF1A1A2E),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -300,10 +299,7 @@ class _BundleContentsRow extends StatelessWidget {
         const SizedBox(height: 2),
         _ContentLine(icon: '🃏', text: '${bundle.cardCount} Cartas de mazo'),
         const SizedBox(height: 2),
-        _ContentLine(
-          icon: '🪙',
-          text: '${bundle.tokenAmount} Tokens',
-        ),
+        _ContentLine(icon: '💎', text: '${bundle.tokenAmount} Tokens'),
       ],
     );
   }
@@ -318,20 +314,9 @@ class _ContentLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(
-          icon,
-          style: GoogleFonts.notoColorEmoji(
-            textStyle: const TextStyle(fontSize: 11),
-          ),
-        ),
+        Text(icon, style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 11))),
         const SizedBox(width: 4),
-        Text(
-          text,
-          style: const TextStyle(
-            color: Color(0xFFB0B0B0),
-            fontSize: 10,
-          ),
-        ),
+        Text(text, style: const TextStyle(color: Color(0xFFB0B0B0), fontSize: 10)),
       ],
     );
   }
@@ -339,9 +324,11 @@ class _ContentLine extends StatelessWidget {
 
 // ─── SECCIÓN TOKEN PACKS ────────────────────────────────────────────────────
 
-class _TokenPacksSection extends StatelessWidget {
+class _TokenPacksSection extends ConsumerWidget {
+  const _TokenPacksSection();
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final packs = PremiumShopConfig.tokenPacks;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -355,15 +342,35 @@ class _TokenPacksSection extends StatelessWidget {
           childAspectRatio: 1.1,
         ),
         itemCount: packs.length,
-        itemBuilder: (context, i) => _TokenPackCard(pack: packs[i]),
+        itemBuilder: (context, i) => _TokenPackCard(
+          pack: packs[i],
+          onPurchase: () => _onPackPurchase(context, ref, packs[i]),
+        ),
       ),
     );
+  }
+
+  Future<void> _onPackPurchase(BuildContext context, WidgetRef ref, TokenPack pack) async {
+    final confirmed = await _showPurchaseDialog(
+      context: context,
+      title: pack.name,
+      body: 'Simulando compra de \$${_formatPrice(pack.priceUsd)} USD\n\nRecibirás ${pack.totalTokens} tokens'
+          '${pack.bonusTokens > 0 ? ' (+${pack.bonusTokens} de regalo)' : ''}.',
+      confirmLabel: 'Confirmar',
+    );
+    if (!confirmed || !context.mounted) return;
+    await ref.read(playerProvider.notifier).addTokens(pack.totalTokens);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(_successSnackBar('+${pack.totalTokens} tokens añadidos'));
+    }
   }
 }
 
 class _TokenPackCard extends StatelessWidget {
   final TokenPack pack;
-  const _TokenPackCard({required this.pack});
+  final VoidCallback onPurchase;
+
+  const _TokenPackCard({required this.pack, required this.onPurchase});
 
   @override
   Widget build(BuildContext context) {
@@ -377,7 +384,7 @@ class _TokenPackCard extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(16),
         border: isPopular
-            ? Border.all(color: const Color(0xFFF5B800).withOpacity(0.6))
+            ? Border.all(color: const Color(0xFFF5B800).withValues(alpha: 0.6))
             : Border.all(color: Colors.white10),
       ),
       child: Stack(
@@ -390,20 +397,11 @@ class _TokenPackCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      pack.icon,
-                      style: GoogleFonts.notoColorEmoji(
-                        textStyle: const TextStyle(fontSize: 28),
-                      ),
-                    ),
+                    Text(pack.icon, style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 28))),
                     const Spacer(),
                     Text(
                       '\$${_formatPrice(pack.priceUsd)}',
-                      style: const TextStyle(
-                        color: Color(0xFFFFD700),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
+                      style: const TextStyle(color: Color(0xFFFFD700), fontSize: 16, fontWeight: FontWeight.w900),
                     ),
                   ],
                 ),
@@ -411,25 +409,17 @@ class _TokenPackCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${_formatTokens(pack.totalTokens)} 🪙',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      '${_formatTokens(pack.totalTokens)} 💎',
+                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     if (pack.bonusTokens > 0)
                       Text(
                         '+${pack.bonusTokens} de regalo',
-                        style: const TextStyle(
-                          color: Color(0xFFF5B800),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: const TextStyle(color: Color(0xFFF5B800), fontSize: 10, fontWeight: FontWeight.w600),
                       ),
                     const SizedBox(height: 6),
                     GestureDetector(
-                      onTap: () => _onPurchase(context),
+                      onTap: onPurchase,
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -440,11 +430,7 @@ class _TokenPackCard extends StatelessWidget {
                         child: const Center(
                           child: Text(
                             'Comprar',
-                            style: TextStyle(
-                              color: Color(0xFF0D0D0D),
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: TextStyle(color: Color(0xFF0D0D0D), fontSize: 12, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -455,23 +441,8 @@ class _TokenPackCard extends StatelessWidget {
             ),
           ),
           if (pack.badgeText != null)
-            Positioned(
-              top: 8,
-              left: 8,
-              child: _Badge(text: pack.badgeText!),
-            ),
+            Positioned(top: 8, left: 8, child: _Badge(text: pack.badgeText!)),
         ],
-      ),
-    );
-  }
-
-  void _onPurchase(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Comprando ${pack.name}… (próximamente)'),
-        backgroundColor: const Color(0xFF1A1A2E),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -479,26 +450,85 @@ class _TokenPackCard extends StatelessWidget {
 
 // ─── SECCIÓN HÉROES ─────────────────────────────────────────────────────────
 
-class _HeroesSection extends StatelessWidget {
+class _HeroesSection extends ConsumerWidget {
+  const _HeroesSection();
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final heroes = PremiumShopConfig.heroOffers;
+    final unlockedIds = ref.watch(playerProvider)?.unlockedHeroIds ?? [];
+    final currentTokens = ref.watch(playerProvider)?.tokens ?? 0;
+
     return SizedBox(
-      height: 220,
+      height: 240,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         itemCount: heroes.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, i) => _HeroCard(hero: heroes[i]),
+        itemBuilder: (context, i) {
+          final hero = heroes[i];
+          final isOwned = unlockedIds.contains(hero.heroId);
+          final cost = _tokenCostForRarity(hero.rarity);
+          return _HeroCard(
+            hero: hero,
+            isOwned: isOwned,
+            tokenCost: cost,
+            canAfford: currentTokens >= cost,
+            onPurchase: isOwned ? null : () => _onHeroPurchase(context, ref, hero, cost, currentTokens),
+          );
+        },
       ),
     );
+  }
+
+  Future<void> _onHeroPurchase(
+    BuildContext context,
+    WidgetRef ref,
+    HeroOffer hero,
+    int cost,
+    int currentTokens,
+  ) async {
+    if (currentTokens < cost) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        _errorSnackBar('No tenés suficientes tokens (necesitás $cost 💎)'),
+      );
+      return;
+    }
+    final confirmed = await _showPurchaseDialog(
+      context: context,
+      title: hero.name,
+      body: 'Gastarás $cost tokens.\n\nSaldo actual: $currentTokens 💎\nSaldo final: ${currentTokens - cost} 💎',
+      confirmLabel: 'Desbloquear',
+    );
+    if (!confirmed || !context.mounted) return;
+    final success = await ref.read(playerProvider.notifier).purchaseHeroWithTokens(
+      heroId: hero.heroId,
+      tokenCost: cost,
+    );
+    if (!context.mounted) return;
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(_successSnackBar('${hero.name} desbloqueado'));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(_errorSnackBar('No se pudo completar la compra'));
+    }
   }
 }
 
 class _HeroCard extends StatelessWidget {
   final HeroOffer hero;
-  const _HeroCard({required this.hero});
+  final bool isOwned;
+  final int tokenCost;
+  final bool canAfford;
+  final VoidCallback? onPurchase;
+
+  const _HeroCard({
+    required this.hero,
+    required this.isOwned,
+    required this.tokenCost,
+    required this.canAfford,
+    required this.onPurchase,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -508,21 +538,14 @@ class _HeroCard extends StatelessWidget {
       width: 150,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            Color(hero.gradientStart),
-            Color(hero.gradientEnd),
-          ],
+          colors: [Color(hero.gradientStart), Color(hero.gradientEnd)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: rarityColor.withOpacity(0.5)),
+        border: Border.all(color: rarityColor.withValues(alpha: 0.5)),
         boxShadow: [
-          BoxShadow(
-            color: rarityColor.withOpacity(0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
+          BoxShadow(color: rarityColor.withValues(alpha: 0.15), blurRadius: 12, offset: const Offset(0, 4)),
         ],
       ),
       child: Stack(
@@ -532,98 +555,86 @@ class _HeroCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Hero portrait
                 Container(
                   width: double.infinity,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
                     child: Text(
                       _heroEmoji(hero.heroId),
-                      style: GoogleFonts.notoColorEmoji(
-                        textStyle: const TextStyle(fontSize: 36),
-                      ),
+                      style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 36)),
                     ),
                   ),
                 ),
                 const SizedBox(height: 8),
-                // Rarity badge
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: rarityColor.withOpacity(0.2),
+                    color: rarityColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: rarityColor.withOpacity(0.5),
-                      width: 0.5,
-                    ),
+                    border: Border.all(color: rarityColor.withValues(alpha: 0.5), width: 0.5),
                   ),
                   child: Text(
                     hero.rarity.label,
-                    style: TextStyle(
-                      color: rarityColor,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
+                    style: TextStyle(color: rarityColor, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  hero.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  hero.description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.55),
-                    fontSize: 9,
-                    height: 1.3,
-                  ),
-                ),
+                Text(hero.name, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                 const Spacer(),
-                _PriceButton(
-                  priceUsd: hero.priceUsd,
-                  onTap: () => _onPurchase(context),
-                ),
+                if (isOwned)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.green.withValues(alpha: 0.5)),
+                    ),
+                    child: const Center(
+                      child: Text('COMPRADO', style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                  )
+                else
+                  GestureDetector(
+                    onTap: onPurchase,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 7),
+                      decoration: BoxDecoration(
+                        color: canAfford
+                            ? const Color(0xFFB39DDB).withValues(alpha: 0.2)
+                            : Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: canAfford
+                              ? const Color(0xFFB39DDB).withValues(alpha: 0.6)
+                              : Colors.white24,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$tokenCost 💎',
+                          style: TextStyle(
+                            color: canAfford ? const Color(0xFFB39DDB) : Colors.white38,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
           if (hero.isNew)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: _Badge(text: 'NUEVO', color: const Color(0xFF00C853)),
-            ),
+            Positioned(top: 8, right: 8, child: _Badge(text: 'NUEVO', color: const Color(0xFF00C853))),
           if (hero.isFeatured && !hero.isNew)
-            Positioned(
-              top: 8,
-              right: 8,
-              child:
-                  _Badge(text: 'DESTACADO', color: const Color(0xFFFFD700)),
-            ),
+            Positioned(top: 8, right: 8, child: _Badge(text: 'DESTACADO', color: const Color(0xFFFFD700))),
         ],
-      ),
-    );
-  }
-
-  void _onPurchase(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Comprando ${hero.name}… (próximamente)'),
-        backgroundColor: const Color(0xFF1A1A2E),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -645,9 +656,7 @@ class _PriceButton extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFFD700), Color(0xFFE65100)],
-          ),
+          gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFE65100)]),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Center(
@@ -657,13 +666,7 @@ class _PriceButton extends StatelessWidget {
               color: Colors.white,
               fontSize: 13,
               fontWeight: FontWeight.w900,
-              shadows: [
-                Shadow(
-                  color: Colors.black45,
-                  blurRadius: 4,
-                  offset: Offset(0, 1),
-                ),
-              ],
+              shadows: [Shadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 1))],
             ),
           ),
         ),
@@ -676,57 +679,100 @@ class _Badge extends StatelessWidget {
   final String text;
   final Color color;
 
-  const _Badge({
-    required this.text,
-    this.color = const Color(0xFFFFD700),
-  });
+  const _Badge({required this.text, this.color = const Color(0xFFFFD700)});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(6),
-      ),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(6)),
       child: Text(
         text,
-        style: const TextStyle(
-          color: Colors.black,
-          fontSize: 8,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0.5,
-        ),
+        style: const TextStyle(color: Colors.black, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 0.5),
       ),
     );
   }
 }
 
+// ─── DIALOG DE CONFIRMACIÓN ─────────────────────────────────────────────────
+
+Future<bool> _showPurchaseDialog({
+  required BuildContext context,
+  required String title,
+  required String body,
+  required String confirmLabel,
+}) async {
+  return await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      content: Text(body, style: const TextStyle(color: Color(0xFFB0B0C8), height: 1.5)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Cancelar', style: TextStyle(color: Color(0xFF8A8A9A))),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFB39DDB),
+            foregroundColor: Colors.black,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: Text(confirmLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ),
+      ],
+    ),
+  ) ?? false;
+}
+
+SnackBar _successSnackBar(String message) => SnackBar(
+  content: Text(message),
+  backgroundColor: const Color(0xFF27AE60),
+  behavior: SnackBarBehavior.floating,
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+);
+
+SnackBar _errorSnackBar(String message) => SnackBar(
+  content: Text(message),
+  backgroundColor: const Color(0xFFE74C3C),
+  behavior: SnackBarBehavior.floating,
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+);
+
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
+int _tokenCostForRarity(HeroRarity rarity) => switch (rarity) {
+  HeroRarity.rare       => 500,
+  HeroRarity.epic       => 1000,
+  HeroRarity.legendary  => 1500,
+};
+
 String _heroEmoji(String heroId) => switch (heroId) {
-      'ninja' => '🥷',
-      'samurai' => '⚔️',
-      'viking' => '🪓',
-      'spartan' => '🛡️',
-      'gladiator' => '🏟️',
-      'muaythai' => '🥊',
-      'monk' => '🧘',
-      'templar' => '✝️',
-      'karate' => '🥋',
-      'kungfu' => '🐉',
-      'sumo' => '🏆',
-      'wrestler' => '💪',
-      'capoeira' => '🎭',
-      'berserker' => '🔥',
-      'pirate' => '🏴‍☠️',
-      'amazon' => '🏹',
-      'shaman' => '🌿',
-      'mongol' => '🐎',
-      'taichi' => '☯️',
-      'wushu' => '🌀',
-      _ => '⚔️',
-    };
+  'ninja'     => '🥷',
+  'samurai'   => '⚔️',
+  'viking'    => '🪓',
+  'spartan'   => '🛡️',
+  'gladiator' => '🏟️',
+  'muaythai'  => '🥊',
+  'monk'      => '🧘',
+  'templar'   => '✝️',
+  'karate'    => '🥋',
+  'kungfu'    => '🐉',
+  'sumo'      => '🏆',
+  'wrestler'  => '💪',
+  'capoeira'  => '🎭',
+  'berserker' => '🔥',
+  'pirate'    => '🏴‍☠️',
+  'amazon'    => '🏹',
+  'shaman'    => '🌿',
+  'mongol'    => '🐎',
+  'taichi'    => '☯️',
+  'wushu'     => '🌀',
+  _           => '⚔️',
+};
 
 String _formatPrice(double price) =>
     price == price.floorToDouble() ? price.toInt().toString() : price.toStringAsFixed(2);

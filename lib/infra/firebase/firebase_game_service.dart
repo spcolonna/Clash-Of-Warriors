@@ -142,6 +142,39 @@ class FirebaseGameService {
     await _users.doc(uid).update({'medals': FieldValue.increment(amount)});
   }
 
+  Future<void> addTokens(String uid, int amount) async {
+    await _users.doc(uid).update({'tokens': FieldValue.increment(amount)});
+  }
+
+  Future<void> spendTokensAndUnlockHero({
+    required String uid,
+    required String heroId,
+    required int cost,
+  }) async {
+    await _db.runTransaction((tx) async {
+      final ref = _users.doc(uid);
+      final snap = await tx.get(ref);
+      final data = snap.data() as Map<String, dynamic>;
+      final current = data['tokens'] as int? ?? 0;
+      if (current < cost) throw Exception('Tokens insuficientes');
+      tx.update(ref, {
+        'tokens': current - cost,
+        'unlockedHeroIds': FieldValue.arrayUnion([heroId]),
+      });
+    });
+  }
+
+  Future<void> grantBundle({
+    required String uid,
+    required String heroId,
+    required int tokenAmount,
+  }) async {
+    await _users.doc(uid).update({
+      'tokens': FieldValue.increment(tokenAmount),
+      'unlockedHeroIds': FieldValue.arrayUnion([heroId]),
+    });
+  }
+
   // ── SEED ───────────────────────────────────────────────────────────────
 
   Future<bool> isSeedLoaded() async {

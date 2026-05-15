@@ -3,8 +3,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../infra/local/heroes_data.dart';
 import '../../state/providers.dart';
 import '../../widgets/tutorial_spotlight_overlay.dart';
 import '../help/how_to_play_screen.dart';
@@ -52,6 +54,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   _ResourceBar(
                     softCoins: player.softCoins,
                     medals: player.medals,
+                    tokens: player.tokens,
                   ),
                   const SizedBox(height: 32),
                   const Text(
@@ -76,9 +79,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const Spacer(),
                   _PrimaryActionCard(
                     title: '⚔️ Entrar a la Arena',
-                    subtitle: 'Buscar combate contra otro guerrero',
+                    subtitle: 'Elegí dificultad y combatí contra la IA',
                     onTap: () {
-                      // TODO: matchmaking real
+                      final activeHeroId = player.activeHeroId;
+                      if (activeHeroId == null) return;
+                      final hero = HeroesData.findById(activeHeroId);
+                      ref.read(selectedHeroForBattleProvider.notifier).state = hero;
+                      context.go('/pre-battle');
                     },
                   ),
                   const SizedBox(height: 16),
@@ -144,20 +151,23 @@ class _ShopTabSpotlight extends ConsumerWidget {
 class _ResourceBar extends StatelessWidget {
   final int softCoins;
   final int medals;
+  final int tokens;
 
-  const _ResourceBar({required this.softCoins, required this.medals});
+  const _ResourceBar({
+    required this.softCoins,
+    required this.medals,
+    required this.tokens,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _ResourceChip(
-          icon: '🪙',
-          value: softCoins,
-          color: const Color(0xFFF5B800),
-        ),
-        const SizedBox(width: 12),
+        _ResourceChip(icon: '🪙', value: softCoins, color: const Color(0xFFF5B800)),
+        const SizedBox(width: 8),
         _ResourceChip(icon: '🏅', value: medals, color: Colors.amber),
+        const SizedBox(width: 8),
+        _ResourceChip(icon: '💎', value: tokens, color: const Color(0xFFB39DDB)),
       ],
     );
   }

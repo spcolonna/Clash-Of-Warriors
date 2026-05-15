@@ -13,9 +13,12 @@ import '../../state/battle_provider.dart';
 import '../../widgets/deck_counter_widget.dart';
 import '../../widgets/game_card_widget.dart';
 import '../../widgets/hero_stats_dialog.dart';
+import '../../widgets/passive_ready_banner.dart';
 import '../../widgets/player_hand_widget.dart';
 import '../../widgets/card_conjure_overlay.dart';
 import '../../widgets/slot_clash_animator.dart';
+import '../../widgets/stamina_globe.dart';
+import '../../widgets/tap_scale_button.dart';
 import '../help/how_to_play_screen.dart';
 import '../heroes/character_select_screen.dart';
 
@@ -26,32 +29,16 @@ class BattleScreen extends ConsumerStatefulWidget {
   ConsumerState<BattleScreen> createState() => _BattleScreenState();
 }
 
-class _BattleScreenState extends ConsumerState<BattleScreen>
-    with TickerProviderStateMixin {
+class _BattleScreenState extends ConsumerState<BattleScreen> {
   int _resolvingSlot = -1;
-  late AnimationController _entryController;
   bool _handReady = false;
   Widget? _activeClash;
   GameCard? _conjuredCard;
-
-  @override
-  void initState() {
-    super.initState();
-    _entryController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    _entryController.forward();
-  }
-
-  @override
-  void dispose() {
-    _entryController.dispose();
-    super.dispose();
-  }
+  bool _showPassiveBanner = false;
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('[NAV] BattleScreen.build START ${DateTime.now().millisecondsSinceEpoch}');
     final battle = ref.watch(battleProvider);
 
     ref.listen(battleProvider, (prev, next) {
@@ -94,7 +81,7 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
                     ),
                   ),
                 ),
-                const _BattleDivider(),
+                _BattleDivider(round: battle.currentRound),
                 Expanded(
                   flex: 60,
                   child: Container(
@@ -173,6 +160,21 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
               ),
             ),
           if (_activeClash != null) Positioned.fill(child: _activeClash!),
+          if (_showPassiveBanner)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: PassiveReadyBanner(
+                  passiveCard: battle.player.hero.passive,
+                  faction: battle.player.hero.faction,
+                  onDismissed: () =>
+                      setState(() => _showPassiveBanner = false),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -212,6 +214,9 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
     final endState = ref.read(battleProvider);
     if (!endState.isBattleOver) {
       notifier.startNextRound();
+      if (mounted && ref.read(battleProvider).passiveJustUnlocked) {
+        setState(() => _showPassiveBanner = true);
+      }
     }
   }
 
@@ -231,28 +236,27 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
 }
 
 class _BattleDivider extends StatelessWidget {
-  const _BattleDivider();
+  final int round;
+  const _BattleDivider({required this.round});
+
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-            child: Divider(
-                color: Colors.white.withOpacity(0.1), thickness: 1)),
+        Expanded(child: Divider(color: Colors.white.withOpacity(0.1), thickness: 1)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Text(
-            "VS",
+            "VS · Round $round",
             style: TextStyle(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withOpacity(0.35),
               fontWeight: FontWeight.bold,
-              fontSize: 12,
+              fontSize: 11,
+              letterSpacing: 1,
             ),
           ),
         ),
-        Expanded(
-            child: Divider(
-                color: Colors.white.withOpacity(0.1), thickness: 1)),
+        Expanded(child: Divider(color: Colors.white.withOpacity(0.1), thickness: 1)),
       ],
     );
   }
@@ -562,15 +566,21 @@ class _SlotsArea extends ConsumerWidget {
                     max: player.hero.maxHp,
                     color: color),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               _HeroAvatar(
                 emoji: factionEmoji(player.hero.faction),
                 color: color,
                 size: 50,
                 imagePath: player.hero.imagePath,
-                hero: player.hero,                    // ← nuevo
-                currentHp: battle.player.currentHp,  // ← nuevo
-                currentStamina: battle.player.currentStamina, // ← nuevo
+                hero: player.hero,
+                currentHp: battle.player.currentHp,
+                currentStamina: battle.player.currentStamina,
+              ),
+              const SizedBox(width: 8),
+              StaminaGlobe(
+                currentStamina: player.currentStamina,
+                remainingStamina: player.remainingStamina,
+                size: 54,
               ),
             ],
           ),
@@ -580,12 +590,17 @@ class _SlotsArea extends ConsumerWidget {
           children: List.generate(3, (i) {
             final slotH = (maxHeight * 0.55).clamp(80.0, 110.0);
             final slotW = slotH / 1.5;
+            final blockedSlots = player.statusEffects
+                .where((e) => e.type == StatusEffectType.slotBlocked)
+                .map((e) => e.value)
+                .toList();
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: _PlayerSlot(
                 slotIndex: i,
                 card: player.plannedSequence[i],
                 isResolving: resolvingSlot == i,
+                isBlocked: blockedSlots.contains(i),
                 width: slotW,
                 height: slotH,
                 slotResult: battle.roundHistory.isNotEmpty
@@ -613,6 +628,7 @@ class _PlayerSlot extends StatelessWidget {
   final int slotIndex;
   final GameCard? card;
   final bool isResolving;
+  final bool isBlocked;
   final SlotResult? slotResult;
   final double width;
   final double height;
@@ -623,6 +639,7 @@ class _PlayerSlot extends StatelessWidget {
     required this.slotIndex,
     this.card,
     required this.isResolving,
+    this.isBlocked = false,
     this.slotResult,
     required this.width,
     required this.height,
@@ -632,6 +649,28 @@ class _PlayerSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isBlocked) {
+      return Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.5), width: 1.5),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.block, color: Colors.red, size: 18),
+              const SizedBox(height: 2),
+              Text('${slotIndex + 1}', style: const TextStyle(color: Colors.red, fontSize: 10)),
+            ],
+          ),
+        ),
+      );
+    }
+
     return DragTarget<GameCard>(
       onAcceptWithDetails: (details) => onDrop(details.data),
       builder: (context, candidateData, rejectedData) {
@@ -719,27 +758,19 @@ class _ActionBar extends StatelessWidget {
           const SizedBox(width: 12),
           // Botón confirmar — ocupa el resto
           Expanded(
-            child: SizedBox(
+            child: TapScaleButton(
               height: 52,
-              child: ElevatedButton(
-                onPressed: isPlanning && hasAnyCard ? onConfirm : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE74C3C),
-                  disabledBackgroundColor: const Color(0xFF2A2A3E),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 0,
-                ),
-                child: Text(
-                  isPlanning ? '⚔️  Confirmar' : '⏳  Resolviendo...',
-                  style: GoogleFonts.notoColorEmoji(
-                    textStyle: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+              borderRadius: 14,
+              color: const Color(0xFFE74C3C),
+              disabledColor: const Color(0xFF2A2A3E),
+              onPressed: isPlanning && hasAnyCard ? onConfirm : null,
+              child: Text(
+                isPlanning ? '⚔️  Confirmar' : '⏳  Resolviendo...',
+                style: GoogleFonts.notoColorEmoji(
+                  textStyle: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
               ),

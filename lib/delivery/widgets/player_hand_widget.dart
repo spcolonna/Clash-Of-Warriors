@@ -48,7 +48,7 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
   }
 
   Future<void> _startDealAnimation() async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 400));
     for (int i = 0; i < _dealControllers.length; i++) {
       if (!mounted) return;
       _dealControllers[i].forward();

@@ -14,6 +14,7 @@ import '../../infra/local/neutral_cards_data.dart';
 import '../../infra/services/admob_service.dart';
 import '../../infra/services/game_seed_service.dart';
 import '../../infra/sound/sound_service.dart';
+import '../../domain/entities/battle_state.dart' show BotDifficulty;
 
 // ── Servicios singleton ────────────────────────────────────────────────────
 
@@ -202,8 +203,74 @@ class PlayerNotifier extends StateNotifier<PlayerProfile?> {
     state = state!.copyWith(medals: state!.medals + amount);
     _svc.addMedals(state!.uid, amount);
   }
+
+  Future<void> addTokens(int amount) async {
+    if (state == null) return;
+    state = state!.copyWith(tokens: state!.tokens + amount);
+    _svc.addTokens(state!.uid, amount);
+  }
+
+  Future<bool> purchaseHeroWithTokens({
+    required String heroId,
+    required int tokenCost,
+  }) async {
+    if (state == null || state!.tokens < tokenCost) return false;
+    try {
+      await _svc.spendTokensAndUnlockHero(
+        uid: state!.uid,
+        heroId: heroId,
+        cost: tokenCost,
+      );
+      state = state!.copyWith(
+        tokens: state!.tokens - tokenCost,
+        unlockedHeroIds: [...state!.unlockedHeroIds, heroId],
+      );
+      return true;
+    } catch (e) {
+      print('[PlayerNotifier] purchaseHeroWithTokens: $e');
+      return false;
+    }
+  }
+
+  Future<void> grantBundle({
+    required String heroId,
+    required int tokenAmount,
+  }) async {
+    if (state == null) return;
+    final alreadyOwned = state!.unlockedHeroIds.contains(heroId);
+    state = state!.copyWith(
+      tokens: state!.tokens + tokenAmount,
+      unlockedHeroIds: alreadyOwned
+          ? state!.unlockedHeroIds
+          : [...state!.unlockedHeroIds, heroId],
+    );
+    await _svc.grantBundle(
+      uid: state!.uid,
+      heroId: heroId,
+      tokenAmount: tokenAmount,
+    );
+  }
+
+  Future<bool> convertTokensToSoftCoins({
+    required int tokenCost,
+    required int softCoinAmount,
+  }) async {
+    if (state == null || state!.tokens < tokenCost) return false;
+    state = state!.copyWith(
+      tokens: state!.tokens - tokenCost,
+      softCoins: state!.softCoins + softCoinAmount,
+    );
+    _svc.addTokens(state!.uid, -tokenCost);
+    _svc.addSoftCoins(state!.uid, softCoinAmount);
+    return true;
+  }
 }
 
 // ── Game State ─────────────────────────────────────────────────────────────
 
 final selectedHeroProvider = StateProvider<GameHero?>((ref) => null);
+
+// ── Dificultad de arena (se resetea a normal en cada pre-batalla) ──────────
+
+final selectedDifficultyProvider =
+    StateProvider<BotDifficulty>((ref) => BotDifficulty.normal);

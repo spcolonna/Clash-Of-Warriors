@@ -13,13 +13,34 @@ import '../../state/providers.dart';
 class EndBattleScreen extends ConsumerWidget {
   const EndBattleScreen({super.key});
 
-  static const int medalReward = 25;
-  static const int coinReward = 150;
+  static const int tutorialMedalReward = 25;
+  static const int tutorialCoinReward = 150;
+  static const int arenaMedalReward = 15;
+  static const int arenaCoinReward = 100;
+  static const int tutorialTokenReward = 5;
+  static const int arenaTokenRewardEasy = 1;
+  static const int arenaTokenRewardNormal = 2;
+  static const int arenaTokenRewardHard = 3;
+
+  int _tokenReward(bool isTutorial, BotDifficulty? difficulty) {
+    if (isTutorial) return tutorialTokenReward;
+    return switch (difficulty) {
+      BotDifficulty.easy   => arenaTokenRewardEasy,
+      BotDifficulty.normal => arenaTokenRewardNormal,
+      BotDifficulty.hard   => arenaTokenRewardHard,
+      null                 => arenaTokenRewardNormal,
+    };
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final battle = ref.watch(battleProvider);
     final playerWon = battle.playerWon ?? true;
+    final isTutorial = battle.isTutorial;
+
+    final medals = isTutorial ? tutorialMedalReward : arenaMedalReward;
+    final coins  = isTutorial ? tutorialCoinReward  : arenaCoinReward;
+    final tokens = _tokenReward(isTutorial, battle.botDifficulty);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
@@ -56,26 +77,14 @@ class EndBattleScreen extends ConsumerWidget {
               if (playerWon) ...[
                 const Text(
                   'RECOMPENSAS',
-                  style: TextStyle(
-                    color: Color(0xFF8A8A9A),
-                    fontSize: 11,
-                    letterSpacing: 2,
-                  ),
+                  style: TextStyle(color: Color(0xFF8A8A9A), fontSize: 11, letterSpacing: 2),
                 ),
                 const SizedBox(height: 16),
-                _RewardRow(
-                  emoji: '🏅',
-                  label: 'Medallas',
-                  value: '+$medalReward',
-                  color: Colors.amber,
-                ),
+                _RewardRow(emoji: '🏅', label: 'Medallas', value: '+$medals', color: Colors.amber),
                 const SizedBox(height: 12),
-                _RewardRow(
-                  emoji: '🪙',
-                  label: 'Monedas',
-                  value: '+$coinReward',
-                  color: const Color(0xFF27AE60),
-                ),
+                _RewardRow(emoji: '🪙', label: 'Monedas',  value: '+$coins',  color: const Color(0xFF27AE60)),
+                const SizedBox(height: 12),
+                _RewardRow(emoji: '💎', label: 'Tokens',   value: '+$tokens', color: const Color(0xFFB39DDB)),
               ],
               const SizedBox(height: 32),
               Container(
@@ -88,70 +97,94 @@ class EndBattleScreen extends ConsumerWidget {
                   children: [
                     _StatLine('Rounds jugados', '${battle.currentRound - 1}'),
                     const SizedBox(height: 8),
-                    _StatLine(
-                      'Daño total infligido',
-                      '${battle.roundHistory.fold<double>(0, (s, r) => s + r.totalPlayerDamage).round()}',
-                    ),
+                    _StatLine('Daño total infligido',
+                        '${battle.roundHistory.fold<double>(0, (s, r) => s + r.totalPlayerDamage).round()}'),
                     const SizedBox(height: 8),
-                    _StatLine(
-                      'Daño total recibido',
-                      '${battle.roundHistory.fold<double>(0, (s, r) => s + r.totalOpponentDamage).round()}',
-                    ),
+                    _StatLine('Daño total recibido',
+                        '${battle.roundHistory.fold<double>(0, (s, r) => s + r.totalOpponentDamage).round()}'),
                   ],
                 ),
               ),
               const Spacer(),
+
+              // Botón Revancha
               SizedBox(
                 width: double.infinity,
-                height: 56,
+                height: 52,
+                child: OutlinedButton(
+                  onPressed: () {
+                    final playerHero = ref.read(selectedHeroForBattleProvider);
+                    if (playerHero == null) return;
+                    final botHero = HeroesData.tutorialBotFor(playerHero.faction.name);
+                    if (isTutorial) {
+                      ref.read(battleProvider.notifier).initTutorialBattle(
+                        playerHero: playerHero,
+                        botHero: botHero,
+                      );
+                    } else {
+                      final difficulty = ref.read(selectedDifficultyProvider);
+                      ref.read(battleProvider.notifier).initArenaBattle(
+                        playerHero: playerHero,
+                        botHero: botHero,
+                        difficulty: difficulty,
+                      );
+                    }
+                    context.go('/battle');
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white70,
+                    side: const BorderSide(color: Colors.white24),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: const Text('⚔️  Revancha',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Botón Continuar
+              SizedBox(
+                width: double.infinity,
+                height: 52,
                 child: ElevatedButton(
                   onPressed: () async {
-                    // Asegurarnos de que el player esté cargado
                     if (ref.read(playerProvider) == null) {
                       final user = FirebaseAuth.instance.currentUser;
                       if (user != null) {
-                        await ref
-                            .read(playerProvider.notifier)
-                            .loadPlayer(user.uid);
+                        await ref.read(playerProvider.notifier).loadPlayer(user.uid);
                       }
                     }
-
                     final player = ref.read(playerProvider);
                     if (playerWon && player != null) {
-                      final playerHero =
-                      ref.read(selectedHeroForBattleProvider);
-                      final rivalHeroId = playerHero != null
-                          ? HeroesData
-                          .tutorialBotFor(playerHero.faction.name)
-                          .id
-                          : '';
-
-                      // NO await — corre en background, estado local ya se actualiza
-                      ref.read(playerProvider.notifier).completeTutorialBattle(
-                        medals: medalReward,
-                        coins: coinReward,
-                        rivalHeroId: rivalHeroId,
-                      );
+                      if (isTutorial && !player.tutorialBattleComplete) {
+                        // Solo la primera vez
+                        final playerHero = ref.read(selectedHeroForBattleProvider);
+                        final rivalHeroId = playerHero != null
+                            ? HeroesData.tutorialBotFor(playerHero.faction.name).id
+                            : '';
+                        ref.read(playerProvider.notifier).completeTutorialBattle(
+                          medals: medals,
+                          coins: coins,
+                          rivalHeroId: rivalHeroId,
+                        );
+                        ref.read(playerProvider.notifier).addTokens(tokens);
+                      } else if (!isTutorial) {
+                        // Arena: sumar recompensas sin completar tutorial
+                        ref.read(playerProvider.notifier).addMedals(medals);
+                        ref.read(playerProvider.notifier).addSoftCoins(coins);
+                        ref.read(playerProvider.notifier).addTokens(tokens);
+                      }
                     }
-
-                    // Navegar de inmediato
                     if (context.mounted) context.go('/home');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF27AE60),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'Continuar →',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: const Text('Continuar →',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(height: 32),

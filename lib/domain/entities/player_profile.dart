@@ -7,6 +7,7 @@ class PlayerProfile {
   final String? activeHeroId;
   final int softCoins;
   final int medals;
+  final int tokens;
   final List<String> unlockedHeroIds;
   final List<OwnedCard> ownedCards;
 
@@ -25,6 +26,7 @@ class PlayerProfile {
     this.activeHeroId,
     this.softCoins = 0,
     this.medals = 0,
+    this.tokens = 0,
     this.unlockedHeroIds = const [],
     this.ownedCards = const [],
     this.deckCardIds = const [],
@@ -39,6 +41,7 @@ class PlayerProfile {
     String? activeHeroId,
     int? softCoins,
     int? medals,
+    int? tokens,
     List<String>? unlockedHeroIds,
     List<OwnedCard>? ownedCards,
     List<String>? deckCardIds,
@@ -53,6 +56,7 @@ class PlayerProfile {
         activeHeroId: activeHeroId ?? this.activeHeroId,
         softCoins: softCoins ?? this.softCoins,
         medals: medals ?? this.medals,
+        tokens: tokens ?? this.tokens,
         unlockedHeroIds: unlockedHeroIds ?? this.unlockedHeroIds,
         ownedCards: ownedCards ?? this.ownedCards,
         deckCardIds: deckCardIds ?? this.deckCardIds,
@@ -69,6 +73,7 @@ class PlayerProfile {
     'activeHeroId': activeHeroId,
     'softCoins': softCoins,
     'medals': medals,
+    'tokens': tokens,
     'unlockedHeroIds': unlockedHeroIds,
     'ownedCards': ownedCards.map((c) => c.toMap()).toList(),
     'deckCardIds': deckCardIds,
@@ -85,6 +90,7 @@ class PlayerProfile {
         activeHeroId: data['activeHeroId'],
         softCoins: data['softCoins'] ?? 0,
         medals: data['medals'] ?? 0,
+        tokens: data['tokens'] ?? 0,
         unlockedHeroIds: List<String>.from(data['unlockedHeroIds'] ?? []),
         ownedCards: (data['ownedCards'] as List<dynamic>? ?? [])
             .map((e) => OwnedCard.fromMap(e as Map<String, dynamic>))

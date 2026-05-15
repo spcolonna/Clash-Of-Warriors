@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../infra/local/heroes_data.dart';
 import '../../state/battle_provider.dart';
-import '../../state/onboarding_provider.dart';
 import '../../state/providers.dart';
 import '../heroes/character_select_screen.dart';
+import '../../widgets/tap_scale_button.dart';
 import 'package:go_router/go_router.dart';
 
 class PreBattleScreen extends ConsumerWidget {
@@ -13,6 +13,7 @@ class PreBattleScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    debugPrint('[NAV] PreBattleScreen.build START ${DateTime.now().millisecondsSinceEpoch}');
     final playerHero = ref.watch(selectedHeroForBattleProvider);
 
     if (playerHero == null) {
@@ -192,44 +193,89 @@ class PreBattleScreen extends ConsumerWidget {
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
 
-                // Botón de batalla (se mantiene igual, resalta bien sobre el fondo)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                  child: Center(
-                    child: ElevatedButton(
-                      onPressed: () => _startBattle(context, ref, playerHero, botHero),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE74C3C),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                // Selector de dificultad (solo en batallas de arena)
+                Consumer(builder: (context, ref, _) {
+                  final player = ref.watch(playerProvider);
+                  if (player == null || !player.tutorialBattleComplete) {
+                    return const SizedBox.shrink();
+                  }
+                  final difficulty = ref.watch(selectedDifficultyProvider);
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'DIFICULTAD',
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 11,
+                            letterSpacing: 2,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        elevation: 8,
-                        shadowColor: Colors.black54,
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            _DifficultyChip(
+                              label: 'Fácil',
+                              difficulty: BotDifficulty.easy,
+                              selected: difficulty == BotDifficulty.easy,
+                              color: Colors.green,
+                              onTap: () => ref.read(selectedDifficultyProvider.notifier).state = BotDifficulty.easy,
+                            ),
+                            const SizedBox(width: 8),
+                            _DifficultyChip(
+                              label: 'Normal',
+                              difficulty: BotDifficulty.normal,
+                              selected: difficulty == BotDifficulty.normal,
+                              color: Colors.orange,
+                              onTap: () => ref.read(selectedDifficultyProvider.notifier).state = BotDifficulty.normal,
+                            ),
+                            const SizedBox(width: 8),
+                            _DifficultyChip(
+                              label: 'Difícil',
+                              difficulty: BotDifficulty.hard,
+                              selected: difficulty == BotDifficulty.hard,
+                              color: Colors.red,
+                              onTap: () => ref.read(selectedDifficultyProvider.notifier).state = BotDifficulty.hard,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+
+                const SizedBox(height: 24),
+
+                // Botón de batalla
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  child: Consumer(builder: (context, ref, _) {
+                    final player = ref.watch(playerProvider);
+                    final difficulty = ref.watch(selectedDifficultyProvider);
+                    final isArena = player?.tutorialBattleComplete ?? false;
+                    return TapScaleButton(
+                      color: const Color(0xFFE74C3C),
+                      height: 56,
+                      borderRadius: 16,
+                      onPressed: () => _startBattle(
+                        context, ref, playerHero, botHero,
+                        isArena: isArena,
+                        difficulty: difficulty,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            '⚔️',
-                            style: GoogleFonts.notoColorEmoji(
-                              textStyle: const TextStyle(fontSize: 18),
-                            ),
-                          ),
-                          const SizedBox(width: 10), // <--- CONTROL EXACTO DEL ESPACIO AQUÍ
-                          Text(
-                            'Comenzar Batalla',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          Text('⚔️', style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 18))),
+                          const SizedBox(width: 10),
+                          const Text('Comenzar Batalla', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                         ],
                       ),
-                    ),
-                  ),
+                    );
+                  }),
                 ),
                 const SizedBox(height: 32),
               ],
@@ -240,11 +286,26 @@ class PreBattleScreen extends ConsumerWidget {
     );
   }
 
-  void _startBattle(BuildContext context, WidgetRef ref, dynamic playerHero, dynamic botHero) {
-    ref.read(battleProvider.notifier).initTutorialBattle(
-      playerHero: playerHero,
-      botHero: botHero,
-    );
+  void _startBattle(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic playerHero,
+    dynamic botHero, {
+    bool isArena = false,
+    BotDifficulty difficulty = BotDifficulty.normal,
+  }) {
+    if (isArena) {
+      ref.read(battleProvider.notifier).initArenaBattle(
+        playerHero: playerHero,
+        botHero: botHero,
+        difficulty: difficulty,
+      );
+    } else {
+      ref.read(battleProvider.notifier).initTutorialBattle(
+        playerHero: playerHero,
+        botHero: botHero,
+      );
+    }
     context.go('/battle');
   }
 
@@ -372,6 +433,52 @@ class _MiniStatBar extends StatelessWidget {
           style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
         ),
       ],
+    );
+  }
+}
+
+class _DifficultyChip extends StatelessWidget {
+  final String label;
+  final BotDifficulty difficulty;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _DifficultyChip({
+    required this.label,
+    required this.difficulty,
+    required this.selected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? color.withValues(alpha: 0.2) : const Color(0xFF1A1A2E),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? color : Colors.white12,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: selected ? color : Colors.white54,
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

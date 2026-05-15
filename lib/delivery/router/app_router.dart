@@ -20,15 +20,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       if (player == null) return null;
 
-      final onboardingRoutes = [
-        '/character-select',
-        '/pre-battle',
-        '/battle',
-        '/end-battle',
-      ];
-
       if (player.isOnboardingComplete) {
-        if (onboardingRoutes.contains(location)) return '/home';
+        // Solo bloqueamos character-select; las rutas de batalla quedan libres
+        // para batallas de arena post-tutorial.
+        if (location == '/character-select') return '/home';
         return null;
       }
 
@@ -82,8 +77,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 CustomTransitionPage<T> _fadeSlidePage<T>(Widget child) =>
     CustomTransitionPage<T>(
       child: child,
-      transitionDuration: const Duration(milliseconds: 280),
-      reverseTransitionDuration: const Duration(milliseconds: 220),
+      transitionDuration: const Duration(milliseconds: 200),
+      reverseTransitionDuration: const Duration(milliseconds: 160),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         return SlideTransition(
           position: Tween<Offset>(
@@ -91,7 +86,7 @@ CustomTransitionPage<T> _fadeSlidePage<T>(Widget child) =>
             end: Offset.zero,
           ).animate(CurvedAnimation(
             parent: animation,
-            curve: Curves.easeOutCubic,
+            curve: Curves.easeOut,
           )),
           child: child,
         );

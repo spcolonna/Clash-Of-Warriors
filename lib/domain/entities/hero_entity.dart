@@ -65,21 +65,28 @@ class HeroEntity {
     this.stars = 1,
   });
 
-  /// Daño efectivo de una carta para este héroe
+  // +1 a cada stat por cada estrella adicional sobre la primera
+  static const int _statBonusPerStar = 1;
+
+  int _boostedStat(int base) =>
+      base + (stars - 1) * _statBonusPerStar;
+
+  /// Daño efectivo de una carta para este héroe.
+  /// Cada estrella adicional suma +1 al stat relevante.
   double effectiveDamage(GameCard card) {
     if (card.baseDamage == null) return 0;
-    final statValue = stats.statFor(card.category);
+    final statValue = _boostedStat(stats.statFor(card.category));
     final multiplier = statValue / 10.0;
     // Cartas del propio héroe tienen +10% sinergia
     final synergyBonus = card.heroId == id ? 1.1 : 1.0;
     return card.baseDamage! * multiplier * synergyBonus;
   }
 
-  /// Stamina recuperada por un esquive para este héroe
+  /// Stamina recuperada por un esquive para este héroe.
   double effectiveDodgeRecovery(GameCard card) {
     assert(card.category == CardCategory.dodge);
     final staminaBonus = card.staminaBonus ?? 0;
-    return staminaBonus * (stats.dodge / 10.0);
+    return staminaBonus * (_boostedStat(stats.dodge) / 10.0);
   }
 
   HeroEntity copyWith({

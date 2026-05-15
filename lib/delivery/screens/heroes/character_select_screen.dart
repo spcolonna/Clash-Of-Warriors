@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../domain/entities/hero_entity.dart';
 import '../../../infra/local/heroes_data.dart';
 import '../../state/providers.dart';
+import '../../widgets/tap_scale_button.dart';
 import 'mini_chip.dart';
 
 class CharacterSelectScreen extends ConsumerStatefulWidget {
@@ -17,41 +18,30 @@ class CharacterSelectScreen extends ConsumerStatefulWidget {
       _CharacterSelectScreenState();
 }
 
-class _CharacterSelectScreenState extends ConsumerState<CharacterSelectScreen>
-    with SingleTickerProviderStateMixin {
+class _CharacterSelectScreenState extends ConsumerState<CharacterSelectScreen> {
+  late final PageController _pageController;
   int _currentIndex = 0;
-  late final AnimationController _bounceCtrl;
-  late final Animation<double> _bounceAnim;
-  // Pre-built card widgets — never recreated, so IndexedStack.children are always
-  // the same object references. Flutter's updateChild identity check skips rebuild,
-  // preserving RepaintBoundary raster cache through the entire bounce animation.
-  late final List<Widget> _cards;
-
   final _heroes = HeroesData.starterHeroes;
 
   @override
   void initState() {
     super.initState();
-
-    _bounceCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 160),
-    );
-    _bounceAnim = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.94), weight: 1),
-      TweenSequenceItem(tween: Tween(begin: 0.94, end: 1.0), weight: 1),
-    ]).animate(CurvedAnimation(parent: _bounceCtrl, curve: Curves.easeInOut));
-
-    // isSelected: true for all — IndexedStack shows only one at a time so the
-    // visible card always has its faction border, which is the correct UX.
-    _cards = List.generate(_heroes.length, (i) => RepaintBoundary(
-      child: _HeroCard(hero: _heroes[i], isSelected: true),
-    ));
-
+    _pageController = PageController(viewportFraction: 0.92);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Hero images del carousel
       for (final hero in _heroes) {
         precacheImage(
           ResizeImage(AssetImage(hero.imagePath), width: 380, height: 260),
+          context,
+        );
+      }
+      // Fondo y bot-heroes de pre-battle: listos antes de que el usuario navegue
+      precacheImage(const AssetImage('assets/images/pre_battle_bg.png'), context);
+      for (final hero in _heroes) {
+        final bot = HeroesData.tutorialBotFor(hero.faction.name);
+        precacheImage(
+          ResizeImage(AssetImage(bot.imagePath), width: 200, height: 150),
           context,
         );
       }
@@ -60,29 +50,17 @@ class _CharacterSelectScreenState extends ConsumerState<CharacterSelectScreen>
 
   @override
   void dispose() {
-    _bounceCtrl.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
-  bool _animating = false;
-
-  Future<void> _goTo(int index) async {
+  void _goTo(int index) {
     if (index < 0 || index >= _heroes.length) return;
-    if (_animating) return;
-    _animating = true;
-    try {
-      // Fase 1: escala hacia abajo (80ms) — sobre la card actual
-      _bounceCtrl.value = 0;
-      await _bounceCtrl.animateTo(0.5);
-      if (!mounted) return;
-      // Fase 2: switch en el punto mínimo de escala (0.94) — el repaint
-      // queda oculto porque la card está ligeramente comprimida
-      setState(() => _currentIndex = index);
-      // Fase 3: escala de vuelta (80ms) — sobre la nueva card cacheada
-      await _bounceCtrl.animateTo(1.0);
-    } finally {
-      _animating = false;
-    }
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
@@ -114,47 +92,32 @@ class _CharacterSelectScreenState extends ConsumerState<CharacterSelectScreen>
             const SizedBox(height: 32),
 
             // ── Carousel ────────────────────────────────────────────────────
-            // IndexedStack: TODAS las cards pre-buildeadas, el swap solo cambia
-            // el índice visible — build=0ms durante el swipe.
-            // AnimatedBuilder aplica scale con GPU matrix sobre las capas
-            // cacheadas de RepaintBoundary — no repinta los children.
+            // PageView usa el scroll engine nativo de Flutter — corre en el
+            // raster thread, gestos continuos, física de página incorporada.
             Expanded(
-              child: GestureDetector(
-                onHorizontalDragEnd: (details) {
-                  final v = details.primaryVelocity ?? 0;
-                  if (v < -250) _goTo(_currentIndex + 1);
-                  if (v > 250)  _goTo(_currentIndex - 1);
-                },
-                child: Row(
-                  children: [
-                    // Flecha izquierda
-                    _NavArrow(
-                      icon: Icons.chevron_left_rounded,
-                      enabled: _currentIndex > 0,
-                      onTap: () => _goTo(_currentIndex - 1),
-                    ),
-                    Expanded(
-                      child: AnimatedBuilder(
-                        animation: _bounceAnim,
-                        // child: estable — IndexedStack no se reconstruye
-                        child: IndexedStack(
-                          index: _currentIndex,
-                          children: _cards,
-                        ),
-                        builder: (context, child) => Transform.scale(
-                          scale: _bounceAnim.value,
-                          child: child,
-                        ),
+              child: Row(
+                children: [
+                  _NavArrow(
+                    icon: Icons.chevron_left_rounded,
+                    enabled: _currentIndex > 0,
+                    onTap: () => _goTo(_currentIndex - 1),
+                  ),
+                  Expanded(
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: _heroes.length,
+                      onPageChanged: (i) => setState(() => _currentIndex = i),
+                      itemBuilder: (context, i) => RepaintBoundary(
+                        child: _HeroCard(hero: _heroes[i]),
                       ),
                     ),
-                    // Flecha derecha
-                    _NavArrow(
-                      icon: Icons.chevron_right_rounded,
-                      enabled: _currentIndex < _heroes.length - 1,
-                      onTap: () => _goTo(_currentIndex + 1),
-                    ),
-                  ],
-                ),
+                  ),
+                  _NavArrow(
+                    icon: Icons.chevron_right_rounded,
+                    enabled: _currentIndex < _heroes.length - 1,
+                    onTap: () => _goTo(_currentIndex + 1),
+                  ),
+                ],
               ),
             ),
 
@@ -182,34 +145,25 @@ class _CharacterSelectScreenState extends ConsumerState<CharacterSelectScreen>
             // ── Botón confirmar ──────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () => _onConfirm(hero),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: color,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Elegir ${hero.name}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
+              child: TapScaleButton(
+                color: color,
+                onPressed: () => _onConfirm(hero),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Elegir ${hero.name}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                        color: Colors.white,
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_rounded, size: 20),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.arrow_forward_rounded,
+                        size: 20, color: Colors.white),
+                  ],
                 ),
               ),
             ),
@@ -221,12 +175,19 @@ class _CharacterSelectScreenState extends ConsumerState<CharacterSelectScreen>
   }
 
   Future<void> _onConfirm(HeroEntity selected) async {
-    // Setear el héroe y navegar de inmediato — sin esperar Firebase
+    final t0 = DateTime.now();
+    debugPrint('[NAV] _onConfirm START');
+
     ref.read(selectedHeroForBattleProvider.notifier).state = selected;
-    if (!mounted) return;
-    context.go('/pre-battle');
-    // La escritura en Firebase ocurre en background
+    debugPrint('[NAV] selectedHero set: ${DateTime.now().difference(t0).inMilliseconds}ms');
+
     ref.read(playerProvider.notifier).selectFaction(selected.faction.name, selected.id);
+    debugPrint('[NAV] selectFaction called: ${DateTime.now().difference(t0).inMilliseconds}ms');
+
+    if (!mounted) return;
+    debugPrint('[NAV] context.go START: ${DateTime.now().difference(t0).inMilliseconds}ms');
+    context.go('/pre-battle');
+    debugPrint('[NAV] context.go DONE: ${DateTime.now().difference(t0).inMilliseconds}ms');
   }
 }
 
@@ -237,7 +198,8 @@ class _NavArrow extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
-  const _NavArrow({required this.icon, required this.enabled, required this.onTap});
+  const _NavArrow(
+      {required this.icon, required this.enabled, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -261,25 +223,19 @@ class _NavArrow extends StatelessWidget {
 
 class _HeroCard extends StatelessWidget {
   final HeroEntity hero;
-  final bool isSelected;
 
-  const _HeroCard({required this.hero, required this.isSelected});
+  const _HeroCard({required this.hero});
 
   @override
   Widget build(BuildContext context) {
     final color = factionColor(hero.faction);
 
-    // Container (no AnimatedContainer) — cambio instantáneo preserva el
-    // raster cache de RepaintBoundary durante el bounce del padre.
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isSelected ? color : Colors.transparent,
-          width: 2,
-        ),
+        border: Border.all(color: color, width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -419,19 +375,21 @@ class _HeroCard extends StatelessWidget {
   }
 }
 
-// ── StatRow sin ClipRRect ────────────────────────────────────────────────────
-// Reemplaza LinearProgressIndicator (que usa clip interno) con dos Container
-// simples — elimina 5 operaciones de clip por card.
+// ── StatRow ──────────────────────────────────────────────────────────────────
+// Sin LayoutBuilder — FractionallySizedBox ya es relativo al padre (Expanded),
+// elimina 25 layout callbacks (5 stats × 5 heroes) durante la animación.
 
 class _StatRow extends StatelessWidget {
   final String label;
   final int value;
   final Color color;
 
-  const _StatRow({required this.label, required this.value, required this.color});
+  const _StatRow(
+      {required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
+    final fill = (value / 12.0).clamp(0.0, 1.0);
     return Row(
       children: [
         SizedBox(
@@ -445,34 +403,27 @@ class _StatRow extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: LayoutBuilder(
-            builder: (_, constraints) {
-              final fill = (value / 12.0).clamp(0.0, 1.0);
-              return SizedBox(
-                height: 6,
-                child: Stack(
-                  children: [
-                    // fondo
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.textSecondary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                    // barra de progreso — sin ClipRRect
-                    FractionallySizedBox(
-                      widthFactor: fill,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                    ),
-                  ],
+          child: SizedBox(
+            height: 6,
+            child: Stack(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.textSecondary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
                 ),
-              );
-            },
+                FractionallySizedBox(
+                  widthFactor: fill,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(width: 6),
