@@ -52,5 +52,6 @@ flutter:
   assets:
     - assets/images/
     - assets/images/heros/
+    - assets/images/defaultCards/
     - assets/sounds/
     - assets/fonts/

@@ -194,21 +194,19 @@ class _GameCardWidgetState extends State<GameCardWidget>
                 height: imageH,
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: width * 0.05),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEAEAEA),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: const Color(0xFFCCCCCC),
-                        width: 1,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        _isPassive ? '✨' : _categoryEmoji(card.category),
-                        style: TextStyle(fontSize: imageH * 0.65),
-                      ),
-                    ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: _isPassive
+                        ? Container(
+                            color: const Color(0xFFF5B800).withValues(alpha: 0.15),
+                            child: const Center(child: Icon(Icons.auto_awesome, color: Color(0xFFF5B800))),
+                          )
+                        : Image.asset(
+                            _categoryImagePath(card.category),
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: imageH,
+                          ),
                   ),
                 ),
               ),
@@ -367,6 +365,14 @@ class _Bubble extends StatelessWidget {
     );
   }
 }
+
+String _categoryImagePath(CardCategory category) => switch (category) {
+  CardCategory.punch   => 'assets/images/defaultCards/card_punch.png',
+  CardCategory.kick    => 'assets/images/defaultCards/card_kick.png',
+  CardCategory.grapple => 'assets/images/defaultCards/card_grapple.png',
+  CardCategory.defense => 'assets/images/defaultCards/card_defense.png',
+  CardCategory.dodge   => 'assets/images/defaultCards/card_dodge.png',
+};
 
 Color _categoryColor(CardCategory category) => switch (category) {
   CardCategory.punch   => const Color(0xFFE74C3C),

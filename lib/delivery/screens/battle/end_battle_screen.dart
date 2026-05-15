@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../infra/local/heroes_data.dart';
 import '../../state/battle_provider.dart';
@@ -47,14 +46,14 @@ class EndBattleScreen extends ConsumerWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: [
-              const SizedBox(height: 48),
-              Text(
-                playerWon ? '🏆' : '💀',
-                style: GoogleFonts.notoColorEmoji(
-                  textStyle: const TextStyle(fontSize: 72),
-                ),
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+              const SizedBox(height: 32),
+              Icon(
+                playerWon ? Icons.emoji_events : Icons.sentiment_very_dissatisfied,
+                size: 72,
+                color: playerWon ? Colors.amber : Colors.red,
               ),
               const SizedBox(height: 16),
               Text(
@@ -80,11 +79,11 @@ class EndBattleScreen extends ConsumerWidget {
                   style: TextStyle(color: Color(0xFF8A8A9A), fontSize: 11, letterSpacing: 2),
                 ),
                 const SizedBox(height: 16),
-                _RewardRow(emoji: '🏅', label: 'Medallas', value: '+$medals', color: Colors.amber),
+                _RewardRow(icon: Icons.military_tech,   label: 'Medallas', value: '+$medals', color: Colors.amber),
                 const SizedBox(height: 12),
-                _RewardRow(emoji: '🪙', label: 'Monedas',  value: '+$coins',  color: const Color(0xFF27AE60)),
+                _RewardRow(icon: Icons.monetization_on, label: 'Monedas',  value: '+$coins',  color: const Color(0xFF27AE60)),
                 const SizedBox(height: 12),
-                _RewardRow(emoji: '💎', label: 'Tokens',   value: '+$tokens', color: const Color(0xFFB39DDB)),
+                _RewardRow(icon: Icons.diamond,         label: 'Tokens',   value: '+$tokens', color: const Color(0xFFB39DDB)),
               ],
               const SizedBox(height: 32),
               Container(
@@ -105,7 +104,7 @@ class EndBattleScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: 24),
 
               // Botón Revancha
               SizedBox(
@@ -190,6 +189,7 @@ class EndBattleScreen extends ConsumerWidget {
               const SizedBox(height: 32),
             ],
           ),
+          ),
         ),
       ),
     );
@@ -197,13 +197,13 @@ class EndBattleScreen extends ConsumerWidget {
 }
 
 class _RewardRow extends StatelessWidget {
-  final String emoji;
+  final IconData icon;
   final String label;
   final String value;
   final Color color;
 
   const _RewardRow({
-    required this.emoji,
+    required this.icon,
     required this.label,
     required this.value,
     required this.color,
@@ -220,12 +220,7 @@ class _RewardRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(
-            emoji,
-            style: GoogleFonts.notoColorEmoji(
-              textStyle: const TextStyle(fontSize: 24),
-            ),
-          ),
+          Icon(icon, size: 24, color: color),
           const SizedBox(width: 12),
           Text(
             label,
