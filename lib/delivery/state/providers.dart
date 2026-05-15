@@ -68,12 +68,18 @@ class PlayerNotifier extends StateNotifier<PlayerProfile?> {
   }
 
   Future<void> loadPlayer(String uid) async {
-    final repo = _ref.read(firestoreProvider);
-    var player = await repo.getPlayer(uid);
-    if (player == null) {
-      player = await _svc.createNewPlayer(uid);
+    debugPrint('[Player] loadPlayer START uid=$uid');
+    try {
+      final repo = _ref.read(firestoreProvider);
+      var player = await repo.getPlayer(uid);
+      if (player == null) {
+        player = await _svc.createNewPlayer(uid);
+      }
+      state = player;
+      debugPrint('[Player] loadPlayer DONE uid=$uid');
+    } catch (e) {
+      debugPrint('[Player] loadPlayer ERROR: $e');
     }
-    state = player;
   }
 
   /// Paso 1 — elegir facción + asignar mazo de 20 cartas neutrales.

@@ -186,19 +186,10 @@ class _CharacterSelectScreenState extends ConsumerState<CharacterSelectScreen> {
   }
 
   Future<void> _onConfirm(HeroEntity selected) async {
-    final t0 = DateTime.now();
-    debugPrint('[NAV] _onConfirm START');
-
     ref.read(selectedHeroForBattleProvider.notifier).state = selected;
-    debugPrint('[NAV] selectedHero set: ${DateTime.now().difference(t0).inMilliseconds}ms');
-
     ref.read(playerProvider.notifier).selectFaction(selected.faction.name, selected.id);
-    debugPrint('[NAV] selectFaction called: ${DateTime.now().difference(t0).inMilliseconds}ms');
-
     if (!mounted) return;
-    debugPrint('[NAV] context.go START: ${DateTime.now().difference(t0).inMilliseconds}ms');
     context.go('/pre-battle');
-    debugPrint('[NAV] context.go DONE: ${DateTime.now().difference(t0).inMilliseconds}ms');
   }
 }
 

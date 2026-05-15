@@ -39,13 +39,19 @@ class ClashOfStylesApp extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     final router = ref.watch(appRouterProvider);
 
-    // Listener global — carga el player apenas hay usuario logueado
-    ref.listen(authStateProvider, (prev, next) {
-      next.whenData((user) {
-        if (user != null && ref.read(playerProvider) == null) {
-          ref.read(playerProvider.notifier).loadPlayer(user.uid);
-        }
-      });
+    // Carga el player si hay usuario y aún no está en memoria.
+    // ref.watch (no listen) garantiza que esto corre en CADA build,
+    // incluida la primera vez que auth ya tiene valor.
+    final authState = ref.watch(authStateProvider);
+    debugPrint('[AUTH] state=${authState.runtimeType} user=${authState.value?.uid ?? "null"}');
+    authState.whenData((user) {
+      debugPrint('[AUTH] whenData user=${user?.uid ?? "null"} player=${ref.read(playerProvider) == null ? "null" : "loaded"}');
+      if (user != null && ref.read(playerProvider) == null) {
+        debugPrint('[AUTH] → scheduling loadPlayer');
+        Future.microtask(
+          () => ref.read(playerProvider.notifier).loadPlayer(user.uid),
+        );
+      }
     });
 
     return MaterialApp.router(

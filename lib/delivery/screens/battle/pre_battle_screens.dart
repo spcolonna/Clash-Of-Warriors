@@ -13,24 +13,15 @@ class PreBattleScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final t0 = DateTime.now().millisecondsSinceEpoch;
-    debugPrint('[FRAME] build start: $t0');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      debugPrint('[FRAME] postFrame (layout+paint done): ${DateTime.now().millisecondsSinceEpoch - t0}ms');
-    });
     final playerHero = ref.watch(selectedHeroForBattleProvider);
-    debugPrint('[FRAME] after watch: ${DateTime.now().millisecondsSinceEpoch - t0}ms');
 
     if (playerHero == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final botHero = HeroesData.tutorialBotFor(playerHero.faction.name);
-    debugPrint('[FRAME] after botHero: ${DateTime.now().millisecondsSinceEpoch - t0}ms');
     final fColor = factionColor(playerHero.faction);
     final bColor = factionColor(botHero.faction);
-
-    debugPrint('[FRAME] returning widget: ${DateTime.now().millisecondsSinceEpoch - t0}ms');
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D1A),
       body: Stack(

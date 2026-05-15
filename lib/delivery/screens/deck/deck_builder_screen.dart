@@ -265,12 +265,12 @@ class _HeroCard extends StatelessWidget {
         child: Stack(
           children: [
             Padding(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               child: Column(
                 children: [
                   // Avatar
                   _HeroPortrait(hero: hero, factionColor: factionColor),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   // Nombre
                   Text(
                     hero.name,
@@ -283,7 +283,6 @@ class _HeroCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 2),
                   Text(
                     hero.title,
                     style: const TextStyle(
@@ -294,7 +293,7 @@ class _HeroCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 2),
                   // Stats mini
                   _MiniStatBar(hero: hero),
                 ],

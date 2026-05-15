@@ -37,11 +37,6 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bt0 = DateTime.now().millisecondsSinceEpoch;
-    debugPrint('[BATTLE] build start: $bt0');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      debugPrint('[BATTLE] first frame: ${DateTime.now().millisecondsSinceEpoch - bt0}ms');
-    });
     final battle = ref.watch(battleProvider);
 
     ref.listen(battleProvider, (prev, next) {

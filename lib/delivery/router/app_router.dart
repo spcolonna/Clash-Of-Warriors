@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../screens/auth/login_screen.dart';
 import '../screens/battle/battle_screen.dart';
 import '../screens/battle/end_battle_screen.dart';
 import '../screens/battle/pre_battle_screens.dart';
@@ -12,18 +13,32 @@ import '../screens/shell/main_shell_scaffold.dart';
 import '../state/providers.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  // Notifica al router cuando auth o player cambian para re-evaluar redirects
+  final notifier = _RouterNotifier(ref);
+
   return GoRouter(
     initialLocation: '/',
+    refreshListenable: notifier,
     redirect: (context, state) {
-      final player = ref.read(playerProvider);
       final location = state.matchedLocation;
+      final authState = ref.read(authStateProvider);
 
+      // Auth todavía resolviendo — no redirigir (evita flash de login)
+      if (authState is AsyncLoading) return null;
+
+      // Sin usuario autenticado → login
+      final user = authState.value;
+      if (user == null) {
+        if (location == '/login') return null;
+        return '/login';
+      }
+
+      // Usuario autenticado — verificar onboarding
+      final player = ref.read(playerProvider);
       if (player == null) return null;
 
       if (player.isOnboardingComplete) {
-        // Solo bloqueamos character-select; las rutas de batalla quedan libres
-        // para batallas de arena post-tutorial.
-        if (location == '/character-select') return '/home';
+        if (location == '/character-select' || location == '/login') return '/home';
         return null;
       }
 
@@ -33,16 +48,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (!player.tutorialBattleComplete) {
-        if (['/pre-battle', '/battle', '/end-battle'].contains(location)) {
-          return null;
-        }
+        if (['/pre-battle', '/battle', '/end-battle'].contains(location)) return null;
         return '/pre-battle';
       }
 
-      if (location == '/character-select') return '/home';
+      if (location == '/character-select' || location == '/login') return '/home';
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/login',
+        pageBuilder: (_, __) => _fadeSlidePage(const LoginScreen()),
+      ),
       GoRoute(
         path: '/',
         pageBuilder: (_, __) => _fadeSlidePage(const CharacterSelectScreen()),
@@ -71,9 +88,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Transición slide puro — Transform.translate, sin saveLayer, sin FadeTransition.
-/// FadeTransition requiere un offscreen buffer (saveLayer) en cada frame,
-/// igual que Opacity. Solo SlideTransition usa GPU matrix: mucho más barato.
+/// Notifica al GoRouter cuando auth o player cambian,
+/// forzando re-evaluación del redirect sin necesidad de navegación manual.
+class _RouterNotifier extends ChangeNotifier {
+  _RouterNotifier(Ref ref) {
+    ref.listen(authStateProvider, (_, __) => notifyListeners());
+    ref.listen(playerProvider,    (_, __) => notifyListeners());
+  }
+}
+
 CustomTransitionPage<T> _fadeSlidePage<T>(Widget child) =>
     CustomTransitionPage<T>(
       child: child,

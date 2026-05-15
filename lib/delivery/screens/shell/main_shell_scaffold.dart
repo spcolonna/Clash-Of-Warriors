@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../deck/deck_builder_screen.dart';
 import '../home/home_screen.dart';
@@ -19,18 +18,13 @@ class MainShellScaffold extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 220),
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeIn,
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: animation,
-          child: child,
-        ),
-        child: KeyedSubtree(
-          key: ValueKey(activeTab),
-          child: _screenFor(activeTab),
-        ),
+      body: IndexedStack(
+        index: activeTab,
+        children: const [
+          HomeScreen(),
+          ShopScreen(),
+          DeckBuilderScreen(),
+        ],
       ),
       bottomNavigationBar: _BottomNav(
         active: activeTab,
@@ -39,18 +33,7 @@ class MainShellScaffold extends ConsumerWidget {
     );
   }
 
-  Widget _screenFor(int tab) {
-    switch (tab) {
-      case 0:
-        return const HomeScreen();
-      case 1:
-        return const ShopScreen();
-      case 2:
-        return const DeckBuilderScreen();
-      default:
-        return const HomeScreen();
-    }
-  }
+
 }
 
 class _BottomNav extends StatelessWidget {
@@ -74,21 +57,21 @@ class _BottomNav extends StatelessWidget {
             children: [
               _NavItem(
                 key: const GlobalObjectKey('nav_home'),
-                icon: '🏠',
+                icon: Icons.home_rounded,
                 label: 'Inicio',
                 active: active == 0,
                 onTap: () => onChanged(0),
               ),
               _NavItem(
                 key: const GlobalObjectKey('nav_shop'),
-                icon: '🃏',
+                icon: Icons.store_rounded,
                 label: 'Tienda',
                 active: active == 1,
                 onTap: () => onChanged(1),
               ),
               _NavItem(
                 key: const GlobalObjectKey('nav_deck'),
-                icon: '⚔️',
+                icon: Icons.style_rounded,
                 label: 'Mazo',
                 active: active == 2,
                 onTap: () => onChanged(2),
@@ -102,7 +85,7 @@ class _BottomNav extends StatelessWidget {
 }
 
 class _NavItem extends StatelessWidget {
-  final String icon;
+  final IconData icon;
   final String label;
   final bool active;
   final VoidCallback onTap;
@@ -128,12 +111,7 @@ class _NavItem extends StatelessWidget {
             AnimatedScale(
               scale: active ? 1.15 : 1.0,
               duration: const Duration(milliseconds: 200),
-              child: Text(
-                icon,
-                style: GoogleFonts.notoColorEmoji(
-                  textStyle: const TextStyle(fontSize: 22),
-                ),
-              ),
+              child: Icon(icon, size: 22, color: color),
             ),
             const SizedBox(height: 2),
             Text(

@@ -1,10 +1,8 @@
 // lib/delivery/screens/home/home_screen.dart
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../infra/local/heroes_data.dart';
 import '../../state/providers.dart';
@@ -21,22 +19,35 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _loadAttempted = false;
+
   @override
   Widget build(BuildContext context) {
+    final t0 = DateTime.now().millisecondsSinceEpoch;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint('[HOME] first frame: ${DateTime.now().millisecondsSinceEpoch - t0}ms');
+    });
+
     final player = ref.watch(playerProvider);
+    // Watch auth state — rebuild automático cuando Firebase Auth resuelve
+    final authState = ref.watch(authStateProvider);
 
     if (player == null) {
-      Future.microtask(() async {
-        final user = FirebaseAuth.instance.currentUser;
-        if (user != null) {
-          await ref.read(playerProvider.notifier).loadPlayer(user.uid);
-        }
-      });
+      debugPrint('[HOME] player=null auth=${authState.runtimeType} user=${authState.value?.uid ?? "null"} attempted=$_loadAttempted');
+      final user = authState.value;
+      if (user != null && !_loadAttempted) {
+        _loadAttempted = true;
+        debugPrint('[HOME] → scheduling loadPlayer');
+        Future.microtask(
+          () => ref.read(playerProvider.notifier).loadPlayer(user.uid),
+        );
+      }
       return const Scaffold(
         backgroundColor: Color(0xFF0D0D0D),
         body: Center(child: CircularProgressIndicator()),
       );
     }
+    _loadAttempted = false;
 
     final needsShopTutorial =
         player.tutorialBattleComplete && !player.starterCardPurchased;
@@ -78,7 +89,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   const Spacer(),
                   _PrimaryActionCard(
-                    title: '⚔️ Entrar a la Arena',
+                    icon: Icons.sports_mma,
+                    title: 'Entrar a la Arena',
                     subtitle: 'Elegí dificultad y combatí contra la IA',
                     onTap: () {
                       final activeHeroId = player.activeHeroId;
@@ -90,7 +102,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   const SizedBox(height: 16),
                   _SecondaryActionCard(
-                    icon: '🏆',
+                    icon: Icons.workspace_premium,
                     title: 'Tienda Premium',
                     subtitle: 'Héroes legendarios, tokens y packs exclusivos',
                     onTap: () => Navigator.of(context).push(
@@ -101,7 +113,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   const SizedBox(height: 12),
                   _SecondaryActionCard(
-                    icon: '📖',
+                    icon: Icons.help_outline,
                     title: 'Cómo jugar',
                     subtitle: 'Tabla de choques, cálculo de daño y stats',
                     onTap: () => Navigator.of(context).push(
@@ -163,18 +175,18 @@ class _ResourceBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _ResourceChip(icon: '🪙', value: softCoins, color: const Color(0xFFF5B800)),
+        _ResourceChip(icon: Icons.monetization_on, value: softCoins, color: const Color(0xFFF5B800)),
         const SizedBox(width: 8),
-        _ResourceChip(icon: '🏅', value: medals, color: Colors.amber),
+        _ResourceChip(icon: Icons.military_tech, value: medals, color: Colors.amber),
         const SizedBox(width: 8),
-        _ResourceChip(icon: '💎', value: tokens, color: const Color(0xFFB39DDB)),
+        _ResourceChip(icon: Icons.diamond, value: tokens, color: const Color(0xFFB39DDB)),
       ],
     );
   }
 }
 
 class _ResourceChip extends StatelessWidget {
-  final String icon;
+  final IconData icon;
   final int value;
   final Color color;
 
@@ -195,12 +207,7 @@ class _ResourceChip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(
-            icon,
-            style: GoogleFonts.notoColorEmoji(
-              textStyle: const TextStyle(fontSize: 16),
-            ),
-          ),
+          Icon(icon, size: 16, color: color),
           const SizedBox(width: 6),
           Text(
             '$value',
@@ -217,11 +224,13 @@ class _ResourceChip extends StatelessWidget {
 }
 
 class _PrimaryActionCard extends StatelessWidget {
+  final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
 
   const _PrimaryActionCard({
+    required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -250,25 +259,31 @@ class _PrimaryActionCard extends StatelessWidget {
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Text(
-              title,
-              style: GoogleFonts.notoColorEmoji(
-                textStyle: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 13,
+            Icon(icon, color: Colors.white, size: 28),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -280,7 +295,7 @@ class _PrimaryActionCard extends StatelessWidget {
 
 /// Card secundaria con estilo más discreto — usada para "Cómo jugar".
 class _SecondaryActionCard extends StatelessWidget {
-  final String icon;
+  final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
@@ -307,12 +322,7 @@ class _SecondaryActionCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Text(
-              icon,
-              style: GoogleFonts.notoColorEmoji(
-                textStyle: const TextStyle(fontSize: 24),
-              ),
-            ),
+            Icon(icon, size: 24, color: Colors.white70),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
