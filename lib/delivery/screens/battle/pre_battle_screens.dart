@@ -220,10 +220,13 @@ class PreBattleScreen extends ConsumerWidget {
                         const Text(
                           'DIFICULTAD',
                           style: TextStyle(
-                            color: Colors.white54,
-                            fontSize: 11,
-                            letterSpacing: 2,
+                            color: Colors.white,
+                            fontSize: 12,
+                            letterSpacing: 2.5,
                             fontWeight: FontWeight.bold,
+                            shadows: [
+                              Shadow(color: Colors.black87, blurRadius: 6, offset: Offset(0, 1)),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -464,22 +467,28 @@ class _DifficultyChip extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: selected ? color.withValues(alpha: 0.2) : const Color(0xFF1A1A2E),
+            color: selected ? color.withValues(alpha: 0.35) : Colors.black54,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selected ? color : Colors.white12,
-              width: selected ? 2 : 1,
+              color: selected ? color : Colors.white24,
+              width: selected ? 2.5 : 1,
             ),
+            boxShadow: selected
+                ? [BoxShadow(color: color.withValues(alpha: 0.45), blurRadius: 14, offset: const Offset(0, 3))]
+                : null,
           ),
           child: Text(
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: selected ? color : Colors.white54,
-              fontSize: 13,
+              color: Colors.white,
+              fontSize: 14,
               fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+              shadows: selected
+                  ? [Shadow(color: color.withValues(alpha: 0.8), blurRadius: 8)]
+                  : null,
             ),
           ),
         ),

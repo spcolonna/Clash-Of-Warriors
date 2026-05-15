@@ -106,8 +106,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     title: 'Tienda Premium',
                     subtitle: 'Héroes legendarios, tokens y packs exclusivos',
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const PremiumShopScreen(),
+                      PageRouteBuilder(
+                        pageBuilder: (_, __, ___) => const PremiumShopScreen(),
+                        transitionDuration: Duration.zero,
+                        reverseTransitionDuration: Duration.zero,
                       ),
                     ),
                   ),

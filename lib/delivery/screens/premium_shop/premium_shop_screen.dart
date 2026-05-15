@@ -2,8 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../../../infra/config/premium_shop_config.dart';
 import '../../state/providers.dart';
 
@@ -21,7 +19,7 @@ class PremiumShopScreen extends ConsumerWidget {
           _PremiumShopAppBar(tokens: tokens),
           SliverToBoxAdapter(
             child: _SectionHeader(
-              icon: '🏆',
+              icon: Icons.emoji_events,
               title: 'Packs Legendarios',
               subtitle: 'Héroe + cartas + tokens al mejor precio',
             ),
@@ -29,7 +27,7 @@ class PremiumShopScreen extends ConsumerWidget {
           const SliverToBoxAdapter(child: _BundlesSection()),
           SliverToBoxAdapter(
             child: _SectionHeader(
-              icon: '💎',
+              icon: Icons.diamond,
               title: 'Tokens',
               subtitle: 'Recarga tu economía de juego',
             ),
@@ -37,7 +35,7 @@ class PremiumShopScreen extends ConsumerWidget {
           const SliverToBoxAdapter(child: _TokenPacksSection()),
           SliverToBoxAdapter(
             child: _SectionHeader(
-              icon: '⚔️',
+              icon: Icons.sports_mma,
               title: 'Héroes',
               subtitle: 'Desbloquea guerreros únicos con tokens',
             ),
@@ -77,7 +75,7 @@ class _PremiumShopAppBar extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Text('💎', style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 14))),
+              const Icon(Icons.diamond, size: 14, color: Color(0xFFB39DDB)),
               const SizedBox(width: 6),
               Text(
                 '$tokens',
@@ -110,7 +108,7 @@ class _PremiumShopAppBar extends StatelessWidget {
                   const SizedBox(height: 48),
                   Row(
                     children: [
-                      Text('🏆', style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 26))),
+                      const Icon(Icons.emoji_events, size: 26, color: Colors.amber),
                       const SizedBox(width: 10),
                       const Text(
                         'Tienda Premium',
@@ -136,7 +134,7 @@ class _PremiumShopAppBar extends StatelessWidget {
 // ─── SECCIÓN HEADER ─────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
-  final String icon;
+  final IconData icon;
   final String title;
   final String subtitle;
 
@@ -153,7 +151,7 @@ class _SectionHeader extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(icon, style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 22))),
+          Icon(icon, size: 22, color: Colors.white70),
           const SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,11 +253,8 @@ class _BundleCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Center(
-                    child: Text(
-                      _heroEmoji(bundle.heroId),
-                      style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 44)),
-                    ),
+                  child: const Center(
+                    child: Icon(Icons.sports_mma, size: 44, color: Colors.white54),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -295,18 +290,18 @@ class _BundleContentsRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _ContentLine(icon: '🦸', text: '1 Héroe: ${bundle.heroName}'),
+        _ContentLine(icon: Icons.person, text: '1 Héroe: ${bundle.heroName}'),
         const SizedBox(height: 2),
-        _ContentLine(icon: '🃏', text: '${bundle.cardCount} Cartas de mazo'),
+        _ContentLine(icon: Icons.style, text: '${bundle.cardCount} Cartas de mazo'),
         const SizedBox(height: 2),
-        _ContentLine(icon: '💎', text: '${bundle.tokenAmount} Tokens'),
+        _ContentLine(icon: Icons.diamond, text: '${bundle.tokenAmount} Tokens'),
       ],
     );
   }
 }
 
 class _ContentLine extends StatelessWidget {
-  final String icon;
+  final IconData icon;
   final String text;
   const _ContentLine({required this.icon, required this.text});
 
@@ -314,7 +309,7 @@ class _ContentLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(icon, style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 11))),
+        Icon(icon, size: 11, color: const Color(0xFFB0B0B0)),
         const SizedBox(width: 4),
         Text(text, style: const TextStyle(color: Color(0xFFB0B0B0), fontSize: 10)),
       ],
@@ -397,7 +392,7 @@ class _TokenPackCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(pack.icon, style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 28))),
+                    const Icon(Icons.monetization_on, size: 28, color: Color(0xFFF5B800)),
                     const Spacer(),
                     Text(
                       '\$${_formatPrice(pack.priceUsd)}',
@@ -476,6 +471,7 @@ class _HeroesSection extends ConsumerWidget {
             tokenCost: cost,
             canAfford: currentTokens >= cost,
             onPurchase: isOwned ? null : () => _onHeroPurchase(context, ref, hero, cost, currentTokens),
+            onInfo: () => _showHeroPreviewDialog(context, hero, cost, isOwned),
           );
         },
       ),
@@ -521,6 +517,7 @@ class _HeroCard extends StatelessWidget {
   final int tokenCost;
   final bool canAfford;
   final VoidCallback? onPurchase;
+  final VoidCallback onInfo;
 
   const _HeroCard({
     required this.hero,
@@ -528,6 +525,7 @@ class _HeroCard extends StatelessWidget {
     required this.tokenCost,
     required this.canAfford,
     required this.onPurchase,
+    required this.onInfo,
   });
 
   @override
@@ -562,11 +560,8 @@ class _HeroCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Center(
-                    child: Text(
-                      _heroEmoji(hero.heroId),
-                      style: GoogleFonts.notoColorEmoji(textStyle: const TextStyle(fontSize: 36)),
-                    ),
+                  child: const Center(
+                    child: Icon(Icons.sports_mma, size: 36, color: Colors.white54),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -634,6 +629,23 @@ class _HeroCard extends StatelessWidget {
             Positioned(top: 8, right: 8, child: _Badge(text: 'NUEVO', color: const Color(0xFF00C853))),
           if (hero.isFeatured && !hero.isNew)
             Positioned(top: 8, right: 8, child: _Badge(text: 'DESTACADO', color: const Color(0xFFFFD700))),
+          Positioned(
+            bottom: 8,
+            right: 8,
+            child: GestureDetector(
+              onTap: onInfo,
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: const Icon(Icons.info_outline, size: 13, color: Colors.white70),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -694,6 +706,105 @@ class _Badge extends StatelessWidget {
   }
 }
 
+// ─── DIALOG PREVIEW DE HÉROE ────────────────────────────────────────────────
+
+void _showHeroPreviewDialog(
+  BuildContext context,
+  HeroOffer hero,
+  int tokenCost,
+  bool isOwned,
+) {
+  final rarityColor = Color(hero.rarity.colorHex);
+  showDialog<void>(
+    context: context,
+    barrierColor: Colors.black.withOpacity(0.7),
+    builder: (ctx) => Dialog(
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 40),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(hero.gradientStart), Color(hero.gradientEnd)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+                border: Border.all(color: rarityColor.withValues(alpha: 0.5), width: 2),
+              ),
+              child: const Icon(Icons.sports_mma, size: 36, color: Colors.white70),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              hero.name,
+              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: rarityColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: rarityColor.withValues(alpha: 0.5)),
+              ),
+              child: Text(
+                hero.rarity.label.toUpperCase(),
+                style: TextStyle(color: rarityColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              hero.description,
+              style: const TextStyle(color: Color(0xFFB0B0C8), fontSize: 13, height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            if (isOwned)
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle, size: 16, color: Colors.green),
+                  SizedBox(width: 6),
+                  Text('Ya desbloqueado', style: TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.bold)),
+                ],
+              )
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.diamond, size: 16, color: Color(0xFFB39DDB)),
+                  const SizedBox(width: 6),
+                  Text('$tokenCost tokens', style: const TextStyle(color: Color(0xFFB39DDB), fontSize: 13, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () => Navigator.of(ctx).pop(),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: rarityColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: rarityColor.withValues(alpha: 0.3)),
+                ),
+                child: const Text('Cerrar', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 // ─── DIALOG DE CONFIRMACIÓN ─────────────────────────────────────────────────
 
 Future<bool> _showPurchaseDialog({
@@ -750,29 +861,6 @@ int _tokenCostForRarity(HeroRarity rarity) => switch (rarity) {
   HeroRarity.legendary  => 1500,
 };
 
-String _heroEmoji(String heroId) => switch (heroId) {
-  'ninja'     => '🥷',
-  'samurai'   => '⚔️',
-  'viking'    => '🪓',
-  'spartan'   => '🛡️',
-  'gladiator' => '🏟️',
-  'muaythai'  => '🥊',
-  'monk'      => '🧘',
-  'templar'   => '✝️',
-  'karate'    => '🥋',
-  'kungfu'    => '🐉',
-  'sumo'      => '🏆',
-  'wrestler'  => '💪',
-  'capoeira'  => '🎭',
-  'berserker' => '🔥',
-  'pirate'    => '🏴‍☠️',
-  'amazon'    => '🏹',
-  'shaman'    => '🌿',
-  'mongol'    => '🐎',
-  'taichi'    => '☯️',
-  'wushu'     => '🌀',
-  _           => '⚔️',
-};
 
 String _formatPrice(double price) =>
     price == price.floorToDouble() ? price.toInt().toString() : price.toStringAsFixed(2);

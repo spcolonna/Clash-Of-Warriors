@@ -165,11 +165,11 @@ class _MatchupTable extends StatelessWidget {
   const _MatchupTable();
 
   static const _data = [
-    ('👊', 'Puño',    Color(0xFFE74C3C), CardCategory.kick,    CardCategory.dodge),
-    ('🦵', 'Patada',  Color(0xFFE67E22), CardCategory.grapple, CardCategory.defense),
-    ('🤼', 'Agarre',  Color(0xFF8E44AD), CardCategory.punch,   CardCategory.dodge),
-    ('🛡️', 'Defensa', Color(0xFF2980B9), CardCategory.punch,   CardCategory.grapple),
-    ('💨', 'Esquive', Color(0xFF27AE60), CardCategory.kick,    CardCategory.defense),
+    (Icons.sports_mma,      'Puño',    Color(0xFFE74C3C), CardCategory.kick,    CardCategory.dodge),
+    (Icons.sports_martial_arts,  'Patada',  Color(0xFFE67E22), CardCategory.grapple, CardCategory.defense),
+    (Icons.people_alt,      'Agarre',  Color(0xFF8E44AD), CardCategory.punch,   CardCategory.dodge),
+    (Icons.shield,          'Defensa', Color(0xFF2980B9), CardCategory.punch,   CardCategory.grapple),
+    (Icons.directions_run,  'Esquive', Color(0xFF27AE60), CardCategory.kick,    CardCategory.defense),
   ];
 
   @override
@@ -182,13 +182,13 @@ class _MatchupTable extends StatelessWidget {
       ),
       child: Table(
         columnWidths: const {
-          0: FixedColumnWidth(32),   // emoji
-          1: FixedColumnWidth(72),   // nombre
-          2: FixedColumnWidth(48),   // "gana a"
-          3: FixedColumnWidth(28),   // emoji1
-          4: FlexColumnWidth(),      // nombre1
-          5: FixedColumnWidth(28),   // emoji2
-          6: FlexColumnWidth(),      // nombre2
+          0: FixedColumnWidth(32),
+          1: FixedColumnWidth(72),
+          2: FixedColumnWidth(48),
+          3: FixedColumnWidth(28),
+          4: FlexColumnWidth(),
+          5: FixedColumnWidth(28),
+          6: FlexColumnWidth(),
         },
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         children: _data.map((row) {
@@ -202,15 +202,10 @@ class _MatchupTable extends StatelessWidget {
               ),
             ),
             children: [
-              // Emoji del tipo
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-                child: Text(
-                  row.$1,
-                  style: const TextStyle(fontSize: 18),
-                ),
+                child: Icon(row.$1, size: 18, color: row.$3),
               ),
-              // Nombre del tipo
               Text(
                 row.$2,
                 style: TextStyle(
@@ -219,7 +214,6 @@ class _MatchupTable extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              // "gana a"
               Text(
                 'gana a',
                 style: TextStyle(
@@ -228,13 +222,10 @@ class _MatchupTable extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              // Emoji ganado 1
-              Text(
-                _emoji(row.$4),
-                style: const TextStyle(fontSize: 16),
-                textAlign: TextAlign.center,
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Icon(_icon(row.$4), size: 16, color: _color(row.$4)),
               ),
-              // Nombre ganado 1
               Padding(
                 padding: const EdgeInsets.only(right: 4),
                 child: Text(
@@ -242,13 +233,7 @@ class _MatchupTable extends StatelessWidget {
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ),
-              // Emoji ganado 2
-              Text(
-                _emoji(row.$5),
-                style: const TextStyle(fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-              // Nombre ganado 2
+              Icon(_icon(row.$5), size: 16, color: _color(row.$5)),
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: Text(
@@ -263,12 +248,20 @@ class _MatchupTable extends StatelessWidget {
     );
   }
 
-  String _emoji(CardCategory c) => switch (c) {
-    CardCategory.punch   => '👊',
-    CardCategory.kick    => '🦵',
-    CardCategory.grapple => '🤼',
-    CardCategory.defense => '🛡️',
-    CardCategory.dodge   => '💨',
+  IconData _icon(CardCategory c) => switch (c) {
+    CardCategory.punch   => Icons.sports_mma,
+    CardCategory.kick    => Icons.sports_martial_arts,
+    CardCategory.grapple => Icons.people_alt,
+    CardCategory.defense => Icons.shield,
+    CardCategory.dodge   => Icons.directions_run,
+  };
+
+  Color _color(CardCategory c) => switch (c) {
+    CardCategory.punch   => const Color(0xFFE74C3C),
+    CardCategory.kick    => const Color(0xFFE67E22),
+    CardCategory.grapple => const Color(0xFF8E44AD),
+    CardCategory.defense => const Color(0xFF2980B9),
+    CardCategory.dodge   => const Color(0xFF27AE60),
   };
 
   String _label(CardCategory c) => switch (c) {

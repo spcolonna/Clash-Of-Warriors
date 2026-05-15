@@ -14,6 +14,7 @@ import '../../state/providers.dart';
 import '../../state/deck_builder_provider.dart';
 import '../../widgets/deck/deck_card_tile.dart';
 import '../../widgets/deck/deck_section_header.dart';
+import '../../widgets/hero_stats_dialog.dart';
 
 class DeckBuilderScreen extends ConsumerStatefulWidget {
   const DeckBuilderScreen({super.key});
@@ -209,6 +210,7 @@ class _HeroSelectorSection extends StatelessWidget {
             hero: hero,
             isActive: isActive,
             onTap: isActive ? null : () => onSelect(hero.id),
+            onInfo: () => HeroStatsDialog.show(context, hero: hero),
           );
         },
       ),
@@ -220,11 +222,13 @@ class _HeroCard extends StatelessWidget {
   final HeroEntity hero;
   final bool isActive;
   final VoidCallback? onTap;
+  final VoidCallback onInfo;
 
   const _HeroCard({
     required this.hero,
     required this.isActive,
     required this.onTap,
+    required this.onInfo,
   });
 
   @override
@@ -296,6 +300,24 @@ class _HeroCard extends StatelessWidget {
                   // Stats mini
                   _MiniStatBar(hero: hero),
                 ],
+              ),
+            ),
+            // Botón info
+            Positioned(
+              top: 4,
+              left: 4,
+              child: GestureDetector(
+                onTap: onInfo,
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: const Icon(Icons.info_outline, size: 12, color: Colors.white70),
+                ),
               ),
             ),
             // Badge ACTIVO

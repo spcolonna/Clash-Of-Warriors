@@ -19,16 +19,16 @@ class HeroStatsDialog extends StatelessWidget {
   static Future<void> show(
       BuildContext context, {
         required HeroEntity hero,
-        required int currentHp,
-        required int currentStamina,
+        int? currentHp,
+        int? currentStamina,
       }) {
     return showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.75),
       builder: (_) => HeroStatsDialog(
         hero: hero,
-        currentHp: currentHp,
-        currentStamina: currentStamina,
+        currentHp: currentHp ?? hero.maxHp,
+        currentStamina: currentStamina ?? hero.maxStamina,
       ),
     );
   }
