@@ -228,22 +228,32 @@ class _GameCardWidgetState extends State<GameCardWidget>
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          _isPassive ? '⭐' : _categoryEmoji(card.category),
-                          style: TextStyle(fontSize: badgeH * 0.55),
+                        Icon(
+                          _isPassive
+                              ? Icons.auto_awesome
+                              : _categoryIcon(card.category),
+                          size: badgeH * 0.52,
+                          color: _isPassive
+                              ? const Color(0xFFF5B800)
+                              : _categoryColor(card.category),
                         ),
                         SizedBox(width: width * 0.02),
-                        Text(
-                          _isPassive
-                              ? 'PASIVA'
-                              : _categoryLabel(card.category),
-                          style: TextStyle(
-                            color: _isPassive
-                                ? const Color(0xFFF5B800)
-                                : _categoryColor(card.category),
-                            fontSize: badgeH * 0.40,
-                            fontWeight: FontWeight.bold,
+                        Flexible(
+                          child: Text(
+                            _isPassive
+                                ? 'PASIVA'
+                                : _categoryLabel(card.category),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: TextStyle(
+                              color: _isPassive
+                                  ? const Color(0xFFF5B800)
+                                  : _categoryColor(card.category),
+                              fontSize: badgeH * 0.40,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
@@ -365,6 +375,14 @@ class _Bubble extends StatelessWidget {
   }
 }
 
+IconData _categoryIcon(CardCategory category) => switch (category) {
+  CardCategory.punch   => Icons.sports_mma,
+  CardCategory.kick    => Icons.sports_martial_arts,
+  CardCategory.grapple => Icons.people_alt,
+  CardCategory.defense => Icons.shield,
+  CardCategory.dodge   => Icons.directions_run,
+};
+
 String _categoryImagePath(CardCategory category) => switch (category) {
   CardCategory.punch   => 'assets/images/defaultCards/card_punch.png',
   CardCategory.kick    => 'assets/images/defaultCards/card_kick.png',
@@ -381,13 +399,6 @@ Color _categoryColor(CardCategory category) => switch (category) {
   CardCategory.dodge   => const Color(0xFF27AE60),
 };
 
-String _categoryEmoji(CardCategory category) => switch (category) {
-  CardCategory.punch   => '👊',
-  CardCategory.kick    => '🦵',
-  CardCategory.grapple => '🤼',
-  CardCategory.defense => '🛡️',
-  CardCategory.dodge   => '💨',
-};
 
 String _categoryLabel(CardCategory category) => switch (category) {
   CardCategory.punch   => 'PUÑO',
