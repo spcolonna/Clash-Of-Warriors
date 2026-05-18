@@ -10,7 +10,7 @@ class _Passives {
     category: CardCategory.punch,
     rarity: CardRarity.common,
     staminaCost: 3,
-    baseDamage: 14,
+    baseDamage: 22,
     heroId: 'puo_liu',
     factionId: 'shaolin',
   );
@@ -34,7 +34,7 @@ class _Passives {
     category: CardCategory.grapple,
     rarity: CardRarity.common,
     staminaCost: 4,
-    baseDamage: 24, // daño base × 2 — el doble del agarre más fuerte
+    baseDamage: 36, // daño base alto — el doble del agarre más fuerte
     heroId: 'ryoto',
     factionId: 'judoka',
   );
@@ -46,7 +46,7 @@ class _Passives {
     category: CardCategory.punch,
     rarity: CardRarity.common,
     staminaCost: 4,
-    baseDamage: 22,
+    baseDamage: 34,
     heroId: 'kai',
     factionId: 'boxer',
   );
@@ -58,7 +58,7 @@ class _Passives {
     category: CardCategory.kick,
     rarity: CardRarity.common,
     staminaCost: 4,
-    baseDamage: 14,
+    baseDamage: 22,
     heroId: 'mila',
     factionId: 'capoeira',
   );
@@ -73,7 +73,7 @@ class FactionStarterCards {
     category: CardCategory.punch,
     rarity: CardRarity.common,
     staminaCost: 2,
-    baseDamage: 14,
+    baseDamage: 22,
     factionId: 'shaolin',
   );
 
@@ -84,7 +84,7 @@ class FactionStarterCards {
     category: CardCategory.kick,
     rarity: CardRarity.common,
     staminaCost: 2,
-    baseDamage: 14,
+    baseDamage: 22,
     factionId: 'ninja',
   );
 
@@ -95,7 +95,7 @@ class FactionStarterCards {
     category: CardCategory.grapple,
     rarity: CardRarity.common,
     staminaCost: 2,
-    baseDamage: 12,
+    baseDamage: 20,
     factionId: 'judoka',
   );
 
@@ -106,7 +106,7 @@ class FactionStarterCards {
     category: CardCategory.punch,
     rarity: CardRarity.common,
     staminaCost: 2,
-    baseDamage: 14,
+    baseDamage: 22,
     factionId: 'boxer',
   );
 
@@ -117,7 +117,7 @@ class FactionStarterCards {
     category: CardCategory.kick,
     rarity: CardRarity.common,
     staminaCost: 2,
-    baseDamage: 14,
+    baseDamage: 22,
     factionId: 'capoeira',
   );
 

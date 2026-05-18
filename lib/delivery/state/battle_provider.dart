@@ -348,6 +348,13 @@ class BattleNotifier extends Notifier<BattleState> {
     );
   }
 
+  void surrender() {
+    state = state.copyWith(
+      phase: BattlePhase.battleEnd,
+      playerWon: false,
+    );
+  }
+
   void startNextRound() {
     // Resetear passiveJustUnlocked del round anterior
     state = state.copyWith(passiveJustUnlocked: false);

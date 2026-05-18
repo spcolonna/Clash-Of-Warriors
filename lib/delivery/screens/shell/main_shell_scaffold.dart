@@ -18,12 +18,57 @@ class MainShellScaffold extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
-      body: IndexedStack(
-        index: activeTab,
-        children: const [
-          HomeScreen(),
-          ShopScreen(),
-          DeckBuilderScreen(),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // ── Fondo panorámico ──────────────────────────────────────────────
+          // DecorationImage con alignment controla qué porción de la imagen
+          // se ve: alignment.x = -1 muestra el borde izquierdo, +1 el derecho.
+          // fit: BoxFit.cover llena el contenedor sin distorsión.
+          // El contenedor ocupa el 55% superior → menos zoom que a pantalla completa.
+          // tab 0 → borde izquierdo, tab 1 → centro, tab 2 → borde derecho
+          Builder(
+            builder: (context) {
+              const positions = [-1.0, 0.0, 1.0];
+              final targetAlignX = positions[activeTab];
+
+              return TweenAnimationBuilder<double>(
+                tween: Tween<double>(end: targetAlignX),
+                duration: const Duration(milliseconds: 700),
+                curve: Curves.easeInOut,
+                builder: (_, alignX, __) => Container(
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: const AssetImage('assets/images/bg_home.png'),
+                      fit: BoxFit.cover,
+                      // -1 = borde izquierdo de la imagen, +1 = borde derecho
+                      alignment: Alignment(alignX, 0.5),
+                    ),
+                  ),
+                  // Capa oscura encima para que el contenido sea legible
+                  foregroundDecoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0x660D0D0D), // 40% arriba
+                        Color(0x990D0D0D), // 60% abajo
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          // ── Contenido de tabs ─────────────────────────────────────────────
+          IndexedStack(
+            index: activeTab,
+            children: const [
+              HomeScreen(),
+              ShopScreen(),
+              DeckBuilderScreen(),
+            ],
+          ),
         ],
       ),
       bottomNavigationBar: _BottomNav(
@@ -32,8 +77,6 @@ class MainShellScaffold extends ConsumerWidget {
       ),
     );
   }
-
-
 }
 
 class _BottomNav extends StatelessWidget {

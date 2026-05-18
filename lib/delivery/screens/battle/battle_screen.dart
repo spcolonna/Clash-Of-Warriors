@@ -79,7 +79,13 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
                     ),
                   ),
                 ),
-                _BattleDivider(round: battle.currentRound),
+                _BattleDivider(
+                  round: battle.currentRound,
+                  roundHistory: battle.roundHistory,
+                  onShowLog: battle.roundHistory.isNotEmpty
+                      ? () => _showRoundLog(context, battle.roundHistory.last)
+                      : null,
+                ),
                 Expanded(
                   flex: 60,
                   child: Container(
@@ -218,6 +224,17 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
     }
   }
 
+  void _showRoundLog(BuildContext context, RoundResult last) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _RoundLogSheet(result: last),
+    );
+  }
+
   Future<void> _playSlotAnimation(SlotResult result) async {
     final completer = Completer<void>();
     setState(() {
@@ -235,7 +252,14 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
 
 class _BattleDivider extends StatelessWidget {
   final int round;
-  const _BattleDivider({required this.round});
+  final List<RoundResult> roundHistory;
+  final VoidCallback? onShowLog;
+
+  const _BattleDivider({
+    required this.round,
+    required this.roundHistory,
+    required this.onShowLog,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -244,14 +268,34 @@ class _BattleDivider extends StatelessWidget {
         Expanded(child: Divider(color: Colors.white.withOpacity(0.1), thickness: 1)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Text(
-            "VS · Round $round",
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.35),
-              fontWeight: FontWeight.bold,
-              fontSize: 11,
-              letterSpacing: 1,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "VS · Round $round",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.35),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                  letterSpacing: 1,
+                ),
+              ),
+              if (roundHistory.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: onShowLog,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white10,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: const Icon(Icons.history, size: 13, color: Colors.white60),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
         Expanded(child: Divider(color: Colors.white.withOpacity(0.1), thickness: 1)),
@@ -703,14 +747,14 @@ class _PlayerSlot extends StatelessWidget {
   }
 }
 
-class _ActionBar extends StatelessWidget {
+class _ActionBar extends ConsumerWidget {
   final BattleState battle;
   final VoidCallback onConfirm;
 
   const _ActionBar({required this.battle, required this.onConfirm});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final hasAnyCard = battle.player.plannedSequence.any((c) => c != null);
     final isPlanning = battle.phase == BattlePhase.planning;
 
@@ -749,6 +793,35 @@ class _ActionBar extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(width: 8),
+          // Botón rendirse — bandera blanca
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: isPlanning
+                  ? () => _confirmSurrender(context, ref)
+                  : null,
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A2E),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isPlanning ? Colors.white24 : Colors.white12,
+                  ),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.flag_outlined,
+                    color: isPlanning ? Colors.white54 : Colors.white24,
+                    size: 22,
+                  ),
+                ),
+              ),
+            ),
+          ),
           const SizedBox(width: 12),
           // Botón confirmar — ocupa el resto
           Expanded(
@@ -781,6 +854,207 @@ class _ActionBar extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _confirmSurrender(BuildContext context, WidgetRef ref) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Rendirse',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          '¿Seguro que querés abandonar el combate? Perderás esta batalla.',
+          style: TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              ref.read(battleProvider.notifier).surrender();
+            },
+            child: const Text(
+              'Rendirse',
+              style: TextStyle(color: Color(0xFFE74C3C), fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── LOG DE RONDA ─────────────────────────────────────────────────────────────
+
+class _RoundLogSheet extends StatelessWidget {
+  final RoundResult result;
+  const _RoundLogSheet({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final totalPlayer   = result.totalPlayerDamage.ceil();
+    final totalOpponent = result.totalOpponentDamage.ceil();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36, height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Ronda ${result.roundNumber}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...result.slotResults.map((s) => _SlotLogRow(slot: s)),
+          const Divider(color: Colors.white12, height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _DmgChip(value: totalPlayer,   label: 'infligido', color: const Color(0xFF27AE60)),
+              const SizedBox(width: 16),
+              _DmgChip(value: totalOpponent, label: 'recibido',  color: const Color(0xFFE74C3C)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SlotLogRow extends StatelessWidget {
+  final SlotResult slot;
+  const _SlotLogRow({required this.slot});
+
+  @override
+  Widget build(BuildContext context) {
+    final winner = slot.winner;
+    final Color resultColor = switch (winner) {
+      'player'   => const Color(0xFF27AE60),
+      'opponent' => const Color(0xFFE74C3C),
+      _          => Colors.white38,
+    };
+    final IconData resultIcon = switch (winner) {
+      'player'   => Icons.arrow_upward,
+      'opponent' => Icons.arrow_downward,
+      _          => Icons.remove,
+    };
+    final String resultLabel = switch (winner) {
+      'player'   => 'ganás',
+      'opponent' => 'perdés',
+      'tie'      => 'empate',
+      _          => 'vacío',
+    };
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 20,
+            child: Text(
+              '${slot.slotIndex + 1}',
+              style: const TextStyle(color: Colors.white38, fontSize: 11),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: _CardLabel(card: slot.playerCard, dmg: slot.playerDamageDealt, alignRight: false),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(resultIcon, size: 14, color: resultColor),
+              Text(
+                resultLabel,
+                style: TextStyle(color: resultColor, fontSize: 9, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _CardLabel(card: slot.opponentCard, dmg: slot.opponentDamageDealt, alignRight: true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CardLabel extends StatelessWidget {
+  final GameCard? card;
+  final double dmg;
+  final bool alignRight;
+  const _CardLabel({required this.card, required this.dmg, required this.alignRight});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          card?.name ?? '— vacío —',
+          style: TextStyle(
+            color: card != null ? Colors.white : Colors.white30,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: alignRight ? TextAlign.right : TextAlign.left,
+        ),
+        if (dmg > 0)
+          Text(
+            '-${dmg.ceil()} HP',
+            style: const TextStyle(color: Color(0xFFE74C3C), fontSize: 9),
+            textAlign: alignRight ? TextAlign.right : TextAlign.left,
+          ),
+      ],
+    );
+  }
+}
+
+class _DmgChip extends StatelessWidget {
+  final int value;
+  final String label;
+  final Color color;
+  const _DmgChip({required this.value, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$value HP',
+          style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        Text(label, style: const TextStyle(color: Colors.white38, fontSize: 10)),
+      ],
     );
   }
 }

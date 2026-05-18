@@ -21,12 +21,15 @@ class MiniChip extends StatelessWidget {
         children: [
           Text(icon, style: const TextStyle(fontSize: 9)),
           const SizedBox(width: 2),
-          Text(
-            value,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
+          Flexible(
+            child: Text(
+              value,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],

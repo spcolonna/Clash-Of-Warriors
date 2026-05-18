@@ -127,8 +127,6 @@ class CombatEngine {
     int? diceRoll,
     double tieFactor = 1.0,
   }) {
-    if (card.category == CardCategory.defense) return 0;
-    if (card.category == CardCategory.dodge) return 0;
     if (card.baseDamage == null) return 0;
 
     final stat = hero.stats.statFor(card.category);

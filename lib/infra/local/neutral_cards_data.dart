@@ -13,7 +13,7 @@ class NeutralCardsData {
     category: CardCategory.punch,
     rarity: CardRarity.neutral,
     staminaCost: 1,
-    baseDamage: 8,
+    baseDamage: 14,
   );
 
   static final GameCard golpeFuerte = GameCard(
@@ -23,7 +23,7 @@ class NeutralCardsData {
     category: CardCategory.punch,
     rarity: CardRarity.neutral,
     staminaCost: 2,
-    baseDamage: 14,
+    baseDamage: 22,
   );
 
   static final GameCard patadaBasica = GameCard(
@@ -33,7 +33,7 @@ class NeutralCardsData {
     category: CardCategory.kick,
     rarity: CardRarity.neutral,
     staminaCost: 1,
-    baseDamage: 7,
+    baseDamage: 12,
   );
 
   static final GameCard patadaFuerte = GameCard(
@@ -43,7 +43,7 @@ class NeutralCardsData {
     category: CardCategory.kick,
     rarity: CardRarity.neutral,
     staminaCost: 2,
-    baseDamage: 14,
+    baseDamage: 22,
   );
 
   static final GameCard agarreBasico = GameCard(
@@ -53,7 +53,7 @@ class NeutralCardsData {
     category: CardCategory.grapple,
     rarity: CardRarity.neutral,
     staminaCost: 2,
-    baseDamage: 10,
+    baseDamage: 17,
   );
 
   static final GameCard llaveBasica = GameCard(
@@ -63,7 +63,7 @@ class NeutralCardsData {
     category: CardCategory.grapple,
     rarity: CardRarity.neutral,
     staminaCost: 2,
-    baseDamage: 12,
+    baseDamage: 20,
   );
 
   static final GameCard guardiaBasica = GameCard(
@@ -73,6 +73,7 @@ class NeutralCardsData {
     category: CardCategory.defense,
     rarity: CardRarity.neutral,
     staminaCost: 1,
+    baseDamage: 10,
   );
 
   static final GameCard bloqueoBasico = GameCard(
@@ -82,6 +83,7 @@ class NeutralCardsData {
     category: CardCategory.defense,
     rarity: CardRarity.neutral,
     staminaCost: 2,
+    baseDamage: 16,
   );
 
   static final GameCard pasoBasico = GameCard(
@@ -91,6 +93,7 @@ class NeutralCardsData {
     category: CardCategory.dodge,
     rarity: CardRarity.neutral,
     staminaCost: 1,
+    baseDamage: 10,
   );
 
   static final GameCard esquiveBasico = GameCard(
@@ -100,6 +103,7 @@ class NeutralCardsData {
     category: CardCategory.dodge,
     rarity: CardRarity.neutral,
     staminaCost: 2,
+    baseDamage: 16,
   );
 
   // ── Mazo starter: 20 cartas ──────────────────────────────────────────────
