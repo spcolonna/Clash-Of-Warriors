@@ -37,10 +37,7 @@ class HeroAvatar extends StatelessWidget {
                 fit: BoxFit.contain,
                 filterQuality: FilterQuality.medium,
               )
-            : Text(
-                '⚔️',
-                style: TextStyle(fontSize: size * 0.4),
-              ),
+            : Icon(Icons.sports_mma, size: size * 0.4),
       ),
     );
   }

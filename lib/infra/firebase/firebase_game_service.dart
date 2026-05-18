@@ -237,6 +237,8 @@ class FirebaseGameService {
         {'requiredPoints': 10, 'type': 'tokens', 'amount': 5},
       ],
       'pointsPerWin': {'easy': 3, 'normal': 5, 'hard': 8},
+      'pointsPerWinSimple': {'easy': 2, 'normal': 3, 'hard': 5},
+      'features': {'simpleModeEnabled': false},
     }, SetOptions(merge: true));
 
     batch.set(_seedRef, {

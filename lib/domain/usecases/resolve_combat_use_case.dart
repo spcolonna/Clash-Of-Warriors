@@ -20,9 +20,18 @@ class CombatEngine {
     CardCategory.dodge:   [CardCategory.kick, CardCategory.defense],
   };
 
+  // Modo Normal: Puño > Patada > Defensa > Puño (RPS)
+  static const _simpleModeWinTable = <CardCategory, List<CardCategory>>{
+    CardCategory.punch:   [CardCategory.kick],
+    CardCategory.kick:    [CardCategory.defense],
+    CardCategory.defense: [CardCategory.punch],
+  };
+
   /// Determina si A vence a B según la tabla de choques.
-  static bool beats(CardCategory a, CardCategory b) =>
-      _winTable[a]?.contains(b) ?? false;
+  static bool beats(CardCategory a, CardCategory b, {GameMode mode = GameMode.expert}) {
+    final table = mode == GameMode.normal ? _simpleModeWinTable : _winTable;
+    return table[a]?.contains(b) ?? false;
+  }
 
   /// Resuelve un slot individual y retorna el resultado.
   static SlotResult resolveSlot({
@@ -31,6 +40,7 @@ class CombatEngine {
     required GameCard? opponentCard,
     required HeroEntity playerHero,
     required HeroEntity opponentHero,
+    GameMode mode = GameMode.expert,
   }) {
     // Ambos vacíos — nada ocurre
     if (playerCard == null && opponentCard == null) {
@@ -79,8 +89,8 @@ class CombatEngine {
       diceRoll = Random().nextInt(6) + 1;
     }
 
-    final playerWins = beats(playerCard.category, opponentCard.category);
-    final opponentWins = beats(opponentCard.category, playerCard.category);
+    final playerWins = beats(playerCard.category, opponentCard.category, mode: mode);
+    final opponentWins = beats(opponentCard.category, playerCard.category, mode: mode);
 
     if (playerWins) {
       final dmg = _calcDamage(playerCard, playerHero, diceRoll: diceRoll);
@@ -159,6 +169,7 @@ class CombatEngine {
     required CombatantState opponent,
     List<int> playerBlockedSlots = const [],
     List<int> opponentBlockedSlots = const [],
+    GameMode mode = GameMode.expert,
   }) {
     final slotResults = <SlotResult>[];
     double totalPlayerDamage = 0;
@@ -173,6 +184,7 @@ class CombatEngine {
         opponentCard: opponentCard,
         playerHero: player.hero,
         opponentHero: opponent.hero,
+        mode: mode,
       );
       slotResults.add(result);
       totalPlayerDamage += result.playerDamageDealt;
@@ -255,6 +267,12 @@ class TutorialBotAI {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class BotAI {
+  static const _simpleCategories = {
+    CardCategory.punch,
+    CardCategory.kick,
+    CardCategory.defense,
+  };
+
   /// Decide la secuencia del bot según la dificultad.
   /// [playerLastSequence] se usa en Hard para intentar contrarrestar.
   static List<GameCard?> decideSequence(
@@ -262,12 +280,17 @@ class BotAI {
     HeroEntity botHero,
     BotDifficulty difficulty, {
     List<GameCard?> playerLastSequence = const [],
-  }) =>
-      switch (difficulty) {
-        BotDifficulty.easy   => _easySequence(hand, botHero),
-        BotDifficulty.normal => _normalSequence(hand, botHero),
-        BotDifficulty.hard   => _hardSequence(hand, botHero, playerLastSequence),
-      };
+    GameMode mode = GameMode.expert,
+  }) {
+    final effectiveHand = mode == GameMode.normal
+        ? hand.where((c) => _simpleCategories.contains(c.category)).toList()
+        : hand;
+    return switch (difficulty) {
+      BotDifficulty.easy   => _easySequence(effectiveHand, botHero),
+      BotDifficulty.normal => _normalSequence(effectiveHand, botHero),
+      BotDifficulty.hard   => _hardSequence(effectiveHand, botHero, playerLastSequence, mode: mode),
+    };
+  }
 
   /// Fácil: orden aleatorio, llena hasta 3 slots respetando stamina.
   static List<GameCard?> _easySequence(List<GameCard> hand, HeroEntity hero) {
@@ -326,8 +349,9 @@ class BotAI {
   static List<GameCard?> _hardSequence(
     List<GameCard> hand,
     HeroEntity hero,
-    List<GameCard?> playerLastSequence,
-  ) {
+    List<GameCard?> playerLastSequence, {
+    GameMode mode = GameMode.expert,
+  }) {
     final sequence = _normalSequence(hand, hero);
     if (playerLastSequence.isEmpty) return sequence;
 
@@ -341,11 +365,11 @@ class BotAI {
       // Buscar una carta en mano que gane contra la categoría del jugador
       final usedCards = sequence.whereType<GameCard>().toList();
       final counter = hand.firstWhere(
-        (c) => !usedCards.contains(c) && CombatEngine.beats(c.category, playerCard.category),
+        (c) => !usedCards.contains(c) && CombatEngine.beats(c.category, playerCard.category, mode: mode),
         orElse: () => hand.first, // fallback — nunca se usa si isEmpty
       );
 
-      if (!CombatEngine.beats(counter.category, playerCard.category)) continue;
+      if (!CombatEngine.beats(counter.category, playerCard.category, mode: mode)) continue;
 
       // Verificar que la stamina alcance al hacer el swap
       final staminaWithoutSlot = sequence

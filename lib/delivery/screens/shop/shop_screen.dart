@@ -337,9 +337,14 @@ class _TokenConvertSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '💎 → 🪙  Convertir Tokens',
-            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              const Icon(Icons.diamond, size: 18, color: Color(0xFFB39DDB)),
+              const Text(' → ', style: TextStyle(color: Colors.white54, fontSize: 18)),
+              const Icon(Icons.monetization_on, size: 18, color: Color(0xFFF5B800)),
+              const SizedBox(width: 8),
+              const Text('Convertir Tokens', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
           ),
           const SizedBox(height: 4),
           Text(
@@ -412,24 +417,28 @@ class _ConvertOption extends StatelessWidget {
           child: Row(
             children: [
               Text(
-                '$tokenCost 💎',
+                '$tokenCost',
                 style: TextStyle(
                   color: canAfford ? const Color(0xFFB39DDB) : Colors.white30,
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              const SizedBox(width: 4),
+              Icon(Icons.diamond, size: 14, color: canAfford ? const Color(0xFFB39DDB) : Colors.white30),
               const SizedBox(width: 8),
               const Icon(Icons.arrow_forward, color: Color(0xFF8A8A9A), size: 16),
               const SizedBox(width: 8),
               Text(
-                '$coins 🪙',
+                '$coins',
                 style: TextStyle(
                   color: canAfford ? const Color(0xFFF5B800) : Colors.white30,
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              const SizedBox(width: 4),
+              Icon(Icons.monetization_on, size: 14, color: canAfford ? const Color(0xFFF5B800) : Colors.white30),
               const Spacer(),
               if (!canAfford)
                 const Text(

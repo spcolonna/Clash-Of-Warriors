@@ -56,18 +56,18 @@ class _PassiveReadyBannerState extends State<PassiveReadyBanner>
     Faction.capoeira => const Color(0xFF2E7D32),
   };
 
-  String _factionEmoji(Faction f) => switch (f) {
-    Faction.shaolin  => '🐉',
-    Faction.ninja    => '🌑',
-    Faction.judoka   => '⚔️',
-    Faction.boxer    => '🥊',
-    Faction.capoeira => '🌀',
+  IconData _factionIcon(Faction f) => switch (f) {
+    Faction.shaolin  => Icons.self_improvement,
+    Faction.ninja    => Icons.dark_mode,
+    Faction.judoka   => Icons.sports_martial_arts,
+    Faction.boxer    => Icons.sports_mma,
+    Faction.capoeira => Icons.directions_run,
   };
 
   @override
   Widget build(BuildContext context) {
     final color = _factionColor(widget.faction);
-    final emoji = _factionEmoji(widget.faction);
+    final icon = _factionIcon(widget.faction);
 
     return FadeTransition(
       opacity: _opacity,
@@ -90,7 +90,7 @@ class _PassiveReadyBannerState extends State<PassiveReadyBanner>
         ),
         child: Row(
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 28)),
+            Icon(icon, size: 28, color: Colors.white),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -126,13 +126,16 @@ class _PassiveReadyBannerState extends State<PassiveReadyBanner>
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.white24),
               ),
-              child: Text(
-                '⚡ ${widget.passiveCard.staminaCost}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.bolt, size: 14, color: Colors.white),
+                  const SizedBox(width: 2),
+                  Text(
+                    '${widget.passiveCard.staminaCost}',
+                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
             ),
           ],

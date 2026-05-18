@@ -9,7 +9,7 @@ import '../../domain/usecases/resolve_combat_use_case.dart';
 import '../../infra/local/neutral_cards_data.dart';
 import 'providers.dart' show gameConfigProvider;
 
-export '../../domain/entities/battle_state.dart' show BotDifficulty;
+export '../../domain/entities/battle_state.dart' show BotDifficulty, GameMode;
 
 final battleProvider = NotifierProvider<BattleNotifier, BattleState>(
   BattleNotifier.new,
@@ -81,28 +81,48 @@ class BattleNotifier extends Notifier<BattleState> {
     ),
   );
 
+  GameMode _gameMode = GameMode.expert;
+
+  static const _simpleCategories = {
+    CardCategory.punch,
+    CardCategory.kick,
+    CardCategory.defense,
+  };
+
   /// Batalla de arena contra bot con IA escalable (no tutorial).
   void initArenaBattle({
     required HeroEntity playerHero,
     required HeroEntity botHero,
     required BotDifficulty difficulty,
+    GameMode gameMode = GameMode.expert,
   }) {
     _botDifficulty = difficulty;
+    _gameMode = gameMode;
 
     final config = ref.read(gameConfigProvider).value;
     final firestoreCards = config?.cards ?? [];
 
-    final deck = (firestoreCards.isNotEmpty
-            ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
-            : NeutralCardsData.buildStarterDeck())
-        ..shuffle(Random());
+    var fullDeck = firestoreCards.isNotEmpty
+        ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
+        : NeutralCardsData.buildStarterDeck();
+
+    if (gameMode == GameMode.normal) {
+      fullDeck = fullDeck.where((c) => _simpleCategories.contains(c.category)).toList();
+    }
+
+    final deck = List<GameCard>.from(fullDeck)..shuffle(Random());
     final hand = deck.take(5).toList();
     final remainingDeck = deck.skip(5).toList();
 
-    final botDeck = (firestoreCards.isNotEmpty
-            ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
-            : NeutralCardsData.buildStarterDeck())
-        ..shuffle(Random());
+    final botFullDeck = firestoreCards.isNotEmpty
+        ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
+        : NeutralCardsData.buildStarterDeck();
+
+    var botFilteredDeck = gameMode == GameMode.normal
+        ? botFullDeck.where((c) => _simpleCategories.contains(c.category)).toList()
+        : botFullDeck;
+
+    final botDeck = List<GameCard>.from(botFilteredDeck)..shuffle(Random());
     final botHand = botDeck.take(5).toList();
     final botRemainingDeck = botDeck.skip(5).toList();
 
@@ -110,6 +130,7 @@ class BattleNotifier extends Notifier<BattleState> {
       phase: BattlePhase.planning,
       isTutorial: false,
       botDifficulty: difficulty,
+      gameMode: gameMode,
       player: CombatantState(
         hero: playerHero,
         currentHp: playerHero.maxHp,
@@ -261,6 +282,7 @@ class BattleNotifier extends Notifier<BattleState> {
             state.opponent.hero,
             _botDifficulty!,
             playerLastSequence: playerLastSequence,
+            mode: _gameMode,
           )
         : TutorialBotAI.decideSequence(state.opponent.hand);
 
@@ -280,6 +302,7 @@ class BattleNotifier extends Notifier<BattleState> {
       opponent: opponentWithSequence,
       playerBlockedSlots: playerBlockedSlots,
       opponentBlockedSlots: opponentBlockedSlots,
+      mode: _gameMode,
     );
 
     // Solo guardamos el resultado en el history; NO aplicamos el HP final.

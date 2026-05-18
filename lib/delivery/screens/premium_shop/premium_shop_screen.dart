@@ -403,9 +403,15 @@ class _TokenPackCard extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${_formatTokens(pack.totalTokens)} 💎',
-                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    Row(
+                      children: [
+                        Text(
+                          _formatTokens(pack.totalTokens),
+                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.diamond, size: 16, color: Color(0xFFB39DDB)),
+                      ],
                     ),
                     if (pack.bonusTokens > 0)
                       Text(
@@ -611,13 +617,20 @@ class _HeroCard extends StatelessWidget {
                         ),
                       ),
                       child: Center(
-                        child: Text(
-                          '$tokenCost 💎',
-                          style: TextStyle(
-                            color: canAfford ? const Color(0xFFB39DDB) : Colors.white38,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '$tokenCost',
+                              style: TextStyle(
+                                color: canAfford ? const Color(0xFFB39DDB) : Colors.white38,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            Icon(Icons.diamond, size: 10, color: canAfford ? const Color(0xFFB39DDB) : Colors.white38),
+                          ],
                         ),
                       ),
                     ),

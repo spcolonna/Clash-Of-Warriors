@@ -9,11 +9,12 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final player = ref.watch(playerProvider);
+    final authUser = ref.watch(authStateProvider).value;
     final sound = ref.read(soundProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('⚙️ AJUSTES', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.gold)),
+        title: const Text('AJUSTES', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.gold)),
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -31,11 +32,18 @@ class SettingsScreen extends ConsumerWidget {
             ),
             child: Column(
               children: [
-                Text(player?.name ?? 'Guerrero',
+                Text(authUser?.displayName ?? authUser?.email ?? 'Guerrero',
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white)),
                 const SizedBox(height: 4),
-                Text('🪙 ${player?.tokens ?? 0} tokens · ELO ${player?.elo ?? 1000}',
-                  style: const TextStyle(fontSize: 14, color: AppColors.accent, fontWeight: FontWeight.w700)),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.diamond, size: 14, color: AppColors.accent),
+                    const SizedBox(width: 4),
+                    Text('${player?.tokens ?? 0} tokens · ${player?.medals ?? 0} medallas',
+                      style: const TextStyle(fontSize: 14, color: AppColors.accent, fontWeight: FontWeight.w700)),
+                  ],
+                ),
                 if (player != null && ref.read(authProvider).isAnonymous) ...[
                   const SizedBox(height: 12),
                   SizedBox(

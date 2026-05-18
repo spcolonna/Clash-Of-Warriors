@@ -14,7 +14,7 @@ import '../../infra/local/neutral_cards_data.dart';
 import '../../infra/services/admob_service.dart';
 import '../../infra/services/game_seed_service.dart';
 import '../../infra/sound/sound_service.dart';
-import '../../domain/entities/battle_state.dart' show BotDifficulty;
+import '../../domain/entities/battle_state.dart' show BotDifficulty, GameMode;
 import '../../domain/entities/game_config.dart';
 import '../../infra/firebase/game_config_service.dart';
 import '../../infra/local/heroes_data.dart';
@@ -381,6 +381,16 @@ class GameConfigNotifier extends AsyncNotifier<GameConfig> {
         BotDifficulty.hard:   rawPoints['hard']    as int? ?? 8,
       };
 
+      final rawPointsSimple = settings['pointsPerWinSimple'] as Map<String, dynamic>? ?? {};
+      final pointsSimpleMap = {
+        BotDifficulty.easy:   rawPointsSimple['easy']   as int? ?? 2,
+        BotDifficulty.normal: rawPointsSimple['normal']  as int? ?? 3,
+        BotDifficulty.hard:   rawPointsSimple['hard']    as int? ?? 5,
+      };
+
+      final rawFeatures = settings['features'] as Map<String, dynamic>? ?? {};
+      final features = GameFeatures.fromMap(rawFeatures);
+
       // Aplicar stats de Firestore a HeroesData (fuente primaria del juego)
       if (heroes.isNotEmpty) {
         HeroesData.applyOverrides(heroes);
@@ -391,6 +401,8 @@ class GameConfigNotifier extends AsyncNotifier<GameConfig> {
         heroes: heroes,
         progressRewards: rewards,
         pointsPerWin: pointsMap,
+        pointsPerWinSimple: pointsSimpleMap,
+        features: features,
       );
     } catch (e) {
       debugPrint('[GameConfig] Error al cargar: $e — usando defaults');
@@ -407,3 +419,8 @@ final selectedHeroProvider = StateProvider<GameHero?>((ref) => null);
 
 final selectedDifficultyProvider =
     StateProvider<BotDifficulty>((ref) => BotDifficulty.normal);
+
+// ── Modo de juego seleccionado (Normal / Experto) ──────────────────────────
+
+final selectedGameModeProvider =
+    StateProvider<GameMode>((ref) => GameMode.expert);

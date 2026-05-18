@@ -2,6 +2,13 @@
 
 import 'battle_state.dart' show BotDifficulty;
 
+class GameFeatures {
+  final bool simpleModeEnabled;
+  const GameFeatures({this.simpleModeEnabled = false});
+  factory GameFeatures.fromMap(Map<String, dynamic> m) =>
+      GameFeatures(simpleModeEnabled: m['simpleModeEnabled'] as bool? ?? false);
+}
+
 class ProgressRewardConfig {
   final int requiredPoints;
   final String type; // 'coins' | 'tokens' | 'card'
@@ -42,12 +49,16 @@ class GameConfig {
 
   final List<ProgressRewardConfig> progressRewards;
   final Map<BotDifficulty, int> pointsPerWin;
+  final Map<BotDifficulty, int> pointsPerWinSimple;
+  final GameFeatures features;
 
   const GameConfig({
     required this.cards,
     required this.heroes,
     required this.progressRewards,
     required this.pointsPerWin,
+    this.pointsPerWinSimple = _defaultPointsSimple,
+    this.features = const GameFeatures(),
   });
 
   bool isCardEnabled(String id) => cards.any((c) => c['id'] == id);
@@ -56,6 +67,7 @@ class GameConfig {
       progressRewards[claimedIndex % progressRewards.length];
 
   int pointsFor(BotDifficulty difficulty) => pointsPerWin[difficulty] ?? 3;
+  int pointsForSimple(BotDifficulty difficulty) => pointsPerWinSimple[difficulty] ?? 2;
 
   static const List<ProgressRewardConfig> _defaultRewards = [
     ProgressRewardConfig(requiredPoints: 10, type: 'coins',  amount: 150),
@@ -68,6 +80,12 @@ class GameConfig {
     BotDifficulty.easy:   3,
     BotDifficulty.normal: 5,
     BotDifficulty.hard:   8,
+  };
+
+  static const Map<BotDifficulty, int> _defaultPointsSimple = {
+    BotDifficulty.easy:   2,
+    BotDifficulty.normal: 3,
+    BotDifficulty.hard:   5,
   };
 
   static GameConfig get defaults => const GameConfig(

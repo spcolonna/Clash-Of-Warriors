@@ -135,8 +135,14 @@ class EndBattleScreen extends ConsumerWidget {
                     side: const BorderSide(color: Colors.white24),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: const Text('⚔️  Revancha',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.sports_mma, size: 18),
+                      SizedBox(width: 8),
+                      Text('Revancha', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -175,7 +181,9 @@ class EndBattleScreen extends ConsumerWidget {
                         // Puntos de progreso por victoria en arena
                         final config = ref.read(gameConfigProvider).value;
                         final difficulty = battle.botDifficulty ?? BotDifficulty.normal;
-                        final pts = config?.pointsFor(difficulty) ?? 3;
+                        final pts = battle.gameMode == GameMode.normal
+                            ? config?.pointsForSimple(difficulty) ?? 2
+                            : config?.pointsFor(difficulty) ?? 3;
                         ref.read(playerProvider.notifier).addBattlePoints(pts);
                       }
                     }

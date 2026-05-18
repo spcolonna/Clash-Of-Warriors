@@ -7,6 +7,8 @@ enum BattlePhase { planning, resolving, roundEnd, battleEnd }
 
 enum BotDifficulty { easy, normal, hard }
 
+enum GameMode { normal, expert }
+
 class CombatantState {
   final HeroEntity hero;
   final int currentHp;
@@ -129,6 +131,7 @@ class BattleState {
   final bool? playerWon; // null = en curso
   final bool isTutorial; // false = batalla de arena con bot IA escalable
   final BotDifficulty? botDifficulty; // null = tutorial
+  final GameMode gameMode;
   final bool passiveJustUnlocked; // true solo el round en que se inyecta la pasiva
 
   const BattleState({
@@ -140,6 +143,7 @@ class BattleState {
     this.playerWon,
     this.isTutorial = true,
     this.botDifficulty,
+    this.gameMode = GameMode.expert,
     this.passiveJustUnlocked = false,
   });
 
@@ -154,6 +158,7 @@ class BattleState {
     bool? playerWon,
     bool? isTutorial,
     BotDifficulty? botDifficulty,
+    GameMode? gameMode,
     bool? passiveJustUnlocked,
   }) =>
       BattleState(
@@ -165,6 +170,7 @@ class BattleState {
         playerWon: playerWon ?? this.playerWon,
         isTutorial: isTutorial ?? this.isTutorial,
         botDifficulty: botDifficulty ?? this.botDifficulty,
+        gameMode: gameMode ?? this.gameMode,
         passiveJustUnlocked: passiveJustUnlocked ?? this.passiveJustUnlocked,
       );
 }

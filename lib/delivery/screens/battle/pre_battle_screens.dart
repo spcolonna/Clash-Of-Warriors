@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../domain/entities/battle_state.dart' show GameMode;
 import '../../../infra/local/heroes_data.dart';
 import '../../state/battle_provider.dart';
 import '../../state/providers.dart';
@@ -45,6 +46,7 @@ class PreBattleScreen extends ConsumerWidget {
           ),
           ColoredBox(color: Colors.black.withValues(alpha: 0.2)),
           SafeArea(
+            child: SingleChildScrollView(
             child: Column(
               children: [
                 // Botón cancelar (solo en arena, no en tutorial)
@@ -77,7 +79,7 @@ class PreBattleScreen extends ConsumerWidget {
                   ),
                 ),
 
-                const Spacer(),
+                const SizedBox(height: 16),
 
                 // VS layout
                 Padding(
@@ -166,45 +168,7 @@ class PreBattleScreen extends ConsumerWidget {
                   ),
                 ),
 
-                const Spacer(),
-
-                // Recordatorio del mazo (con fondo más sólido para que no se pierda)
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 24),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A1A2E).withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: Row(
-                    children: [
-                      const Text('🃏', style: TextStyle(fontSize: 20)),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Mazo Neutral · 20 cartas',
-                              style: TextStyle(
-                                color: Color(0xFFF0F0F0),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              'Puño · Patada · Agarre · Defensa · Esquive',
-                              style: TextStyle(color: Color(0xFF8A8A9A), fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
                 // Selector de dificultad (solo en batallas de arena)
                 Consumer(builder: (context, ref, _) {
@@ -264,12 +228,61 @@ class PreBattleScreen extends ConsumerWidget {
 
                 const SizedBox(height: 24),
 
+                // Selector de modo (solo en arena)
+                Consumer(builder: (context, ref, _) {
+                  final player = ref.watch(playerProvider);
+                  if (player == null || !player.tutorialBattleComplete) {
+                    return const SizedBox.shrink();
+                  }
+                  final mode = ref.watch(selectedGameModeProvider);
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'MODO',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            letterSpacing: 2.5,
+                            fontWeight: FontWeight.bold,
+                            shadows: [
+                              Shadow(color: Colors.black87, blurRadius: 6, offset: Offset(0, 1)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            _ModeChip(
+                              label: 'Normal',
+                              subtitle: 'Puño · Patada · Defensa',
+                              selected: mode == GameMode.normal,
+                              color: Colors.teal,
+                              onTap: () => ref.read(selectedGameModeProvider.notifier).state = GameMode.normal,
+                            ),
+                            const SizedBox(width: 8),
+                            _ModeChip(
+                              label: 'Experto',
+                              subtitle: 'Las 5 categorías',
+                              selected: mode == GameMode.expert,
+                              color: Colors.deepPurple,
+                              onTap: () => ref.read(selectedGameModeProvider.notifier).state = GameMode.expert,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+
                 // Botón de batalla
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                   child: Consumer(builder: (context, ref, _) {
                     final player = ref.watch(playerProvider);
                     final difficulty = ref.watch(selectedDifficultyProvider);
+                    final gameMode = ref.watch(selectedGameModeProvider);
                     final isArena = player?.tutorialBattleComplete ?? false;
                     return TapScaleButton(
                       color: const Color(0xFFE74C3C),
@@ -279,6 +292,7 @@ class PreBattleScreen extends ConsumerWidget {
                         context, ref, playerHero, botHero,
                         isArena: isArena,
                         difficulty: difficulty,
+                        gameMode: gameMode,
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
@@ -294,6 +308,7 @@ class PreBattleScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
               ],
             ),
+            ),
           ),
         ],
       ),
@@ -307,12 +322,14 @@ class PreBattleScreen extends ConsumerWidget {
     dynamic botHero, {
     bool isArena = false,
     BotDifficulty difficulty = BotDifficulty.normal,
+    GameMode gameMode = GameMode.expert,
   }) {
     if (isArena) {
       ref.read(battleProvider.notifier).initArenaBattle(
         playerHero: playerHero,
         botHero: botHero,
         difficulty: difficulty,
+        gameMode: gameMode,
       );
     } else {
       ref.read(battleProvider.notifier).initTutorialBattle(
@@ -353,7 +370,7 @@ class _HeroPreviewCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Column(
         children: [
@@ -372,7 +389,7 @@ class _HeroPreviewCard extends StatelessWidget {
                 ),
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
-                  color: color.withOpacity(0.15),
+                  color: color.withValues(alpha: 0.15),
                   child: Center(
                     child: Icon(Icons.sports_mma, size: 40, color: color),
                   ),
@@ -441,6 +458,71 @@ class _MiniStatBar extends StatelessWidget {
           style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
         ),
       ],
+    );
+  }
+}
+
+class _ModeChip extends StatelessWidget {
+  final String label;
+  final String subtitle;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ModeChip({
+    required this.label,
+    required this.subtitle,
+    required this.selected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            color: selected ? color.withValues(alpha: 0.25) : Colors.black54,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? color : Colors.white24,
+              width: selected ? 2.5 : 1,
+            ),
+            boxShadow: selected
+                ? [BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 3))]
+                : null,
+          ),
+          child: Column(
+            children: [
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                  shadows: selected
+                      ? [Shadow(color: color.withValues(alpha: 0.8), blurRadius: 8)]
+                      : null,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: selected ? color.withValues(alpha: 0.9) : Colors.white38,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
