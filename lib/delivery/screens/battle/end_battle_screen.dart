@@ -172,6 +172,11 @@ class EndBattleScreen extends ConsumerWidget {
                         ref.read(playerProvider.notifier).addMedals(medals);
                         ref.read(playerProvider.notifier).addSoftCoins(coins);
                         ref.read(playerProvider.notifier).addTokens(tokens);
+                        // Puntos de progreso por victoria en arena
+                        final config = ref.read(gameConfigProvider).value;
+                        final difficulty = battle.botDifficulty ?? BotDifficulty.normal;
+                        final pts = config?.pointsFor(difficulty) ?? 3;
+                        ref.read(playerProvider.notifier).addBattlePoints(pts);
                       }
                     }
                     if (context.mounted) context.go('/home');

@@ -2,6 +2,20 @@
 
 import '../../domain/entities/game_card.dart';
 
+// Composición fija del mazo starter: cardId → cantidad de copias
+const Map<String, int> _deckComposition = {
+  'neutral_punch_basic':   2,
+  'neutral_punch_strong':  2,
+  'neutral_kick_basic':    2,
+  'neutral_kick_strong':   2,
+  'neutral_grapple_basic': 2,
+  'neutral_grapple_lock':  1,
+  'neutral_defense_basic': 3,
+  'neutral_defense_solid': 2,
+  'neutral_dodge_step':    2,
+  'neutral_dodge_full':    2,
+};
+
 class NeutralCardsData {
 
   // ── Cartas base ──────────────────────────────────────────────────────────
@@ -149,4 +163,52 @@ class NeutralCardsData {
   static List<String> starterDeckCardIds() {
     return buildStarterDeck().map((c) => c.id).toList();
   }
+
+  /// Construye el mazo usando datos de Firestore (stats actualizados desde admin).
+  /// Las cartas deshabilitadas (isEnabled == false) se excluyen silenciosamente.
+  static List<GameCard> buildStarterDeckFromConfig(
+      List<Map<String, dynamic>> firestoreCards) {
+    final cardMap = {for (final c in firestoreCards) c['id'] as String: c};
+    final result = <GameCard>[];
+    for (final entry in _deckComposition.entries) {
+      final data = cardMap[entry.key];
+      if (data == null) continue; // deshabilitada o no existe
+      final card = _mapToGameCard(data);
+      for (int i = 0; i < entry.value; i++) { result.add(card); }
+    }
+    return result.isEmpty ? buildStarterDeck() : result;
+  }
+
+  static GameCard _mapToGameCard(Map<String, dynamic> d) {
+    final categoryStr = d['category'] as String? ?? 'punch';
+    final rarityStr   = d['rarity']   as String? ?? 'neutral';
+    return GameCard(
+      id:          d['id']          as String,
+      name:        d['name']        as String? ?? '',
+      lore:        d['lore']        as String? ?? '',
+      category:    _parseCategory(categoryStr),
+      rarity:      _parseRarity(rarityStr),
+      staminaCost: d['staminaCost'] as int? ?? 1,
+      baseDamage:  d['baseDamage']  as int?,
+      staminaBonus: d['staminaBonus'] as int?,
+      heroId:      d['heroId']      as String?,
+      factionId:   d['factionId']   as String?,
+    );
+  }
+
+  static CardCategory _parseCategory(String s) => switch (s) {
+    'kick'    => CardCategory.kick,
+    'grapple' => CardCategory.grapple,
+    'defense' => CardCategory.defense,
+    'dodge'   => CardCategory.dodge,
+    _         => CardCategory.punch,
+  };
+
+  static CardRarity _parseRarity(String s) => switch (s) {
+    'common'    => CardRarity.common,
+    'rare'      => CardRarity.rare,
+    'epic'      => CardRarity.epic,
+    'legendary' => CardRarity.legendary,
+    _           => CardRarity.neutral,
+  };
 }

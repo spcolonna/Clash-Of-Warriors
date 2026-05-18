@@ -2,6 +2,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/player_profile.dart';
+import '../local/progress_rewards_data.dart';
 
 class FirebaseGameService {
   final FirebaseFirestore _db;
@@ -218,9 +219,25 @@ class FirebaseGameService {
     final cardsCol =
     _db.collection('gameData').doc('cards').collection('items');
     for (final card in cards) {
-      batch.set(cardsCol.doc(card['id'] as String), card,
-          SetOptions(merge: true));
+      // isEnabled: true por defecto, no sobreescribir si ya existe
+      batch.set(
+        cardsCol.doc(card['id'] as String),
+        {...card, 'isEnabled': true},
+        SetOptions(merge: true),
+      );
     }
+
+    // Configuración global de recompensas (si no existe)
+    final settingsRef = _db.collection('gameConfig').doc('settings');
+    batch.set(settingsRef, {
+      'progressRewards': [
+        {'requiredPoints': 10, 'type': 'coins',  'amount': 150},
+        {'requiredPoints': 12, 'type': 'tokens', 'amount': 2},
+        {'requiredPoints': 15, 'type': 'coins',  'amount': 300},
+        {'requiredPoints': 10, 'type': 'tokens', 'amount': 5},
+      ],
+      'pointsPerWin': {'easy': 3, 'normal': 5, 'hard': 8},
+    }, SetOptions(merge: true));
 
     batch.set(_seedRef, {
       'firstLoad': true,
@@ -234,5 +251,87 @@ class FirebaseGameService {
 
   Future<void> resetSeedFlag() async {
     await _seedRef.set({'firstLoad': false});
+  }
+
+  // ── ADMIN — CARTAS ─────────────────────────────────────────────────────────
+
+  Future<void> addCard(Map<String, dynamic> cardData) async {
+    final id = cardData['id'] as String;
+    await _db
+        .collection('gameData')
+        .doc('cards')
+        .collection('items')
+        .doc(id)
+        .set({...cardData, 'isEnabled': true});
+  }
+
+  Future<void> updateCard(String cardId, Map<String, dynamic> data) async {
+    await _db
+        .collection('gameData')
+        .doc('cards')
+        .collection('items')
+        .doc(cardId)
+        .update(data);
+  }
+
+  Future<void> toggleCardEnabled(String cardId, bool enabled) async {
+    await _db
+        .collection('gameData')
+        .doc('cards')
+        .collection('items')
+        .doc(cardId)
+        .update({'isEnabled': enabled});
+  }
+
+  // ── ADMIN — HÉROES ─────────────────────────────────────────────────────────
+
+  Future<void> updateHero(String heroId, Map<String, dynamic> data) async {
+    await _db
+        .collection('gameData')
+        .doc('heroes')
+        .collection('items')
+        .doc(heroId)
+        .update(data);
+  }
+
+  // ── ADMIN — CONFIGURACIÓN GLOBAL ───────────────────────────────────────────
+
+  Future<void> saveGameSettings(Map<String, dynamic> settings) async {
+    await _db
+        .collection('gameConfig')
+        .doc('settings')
+        .set(settings, SetOptions(merge: true));
+  }
+
+  // ── CICLO DE PROGRESO ──────────────────────────────────────────────────────
+
+  Future<void> addBattlePoints(String uid, int amount) async {
+    await _users.doc(uid).update({'battlePoints': FieldValue.increment(amount)});
+  }
+
+  Future<void> claimProgressReward(
+    String uid, {
+    required int newCycleIndex,
+    required ProgressRewardType rewardType,
+    required int rewardAmount,
+    String? rewardCardId,
+  }) async {
+    final batch = _db.batch();
+    final doc = _users.doc(uid);
+
+    batch.update(doc, {
+      'battlePoints': 0,
+      'lastClaimedCycleIndex': newCycleIndex,
+    });
+
+    if (rewardType == ProgressRewardType.coins) {
+      batch.update(doc, {'softCoins': FieldValue.increment(rewardAmount)});
+    } else if (rewardType == ProgressRewardType.tokens) {
+      batch.update(doc, {'tokens': FieldValue.increment(rewardAmount)});
+    }
+
+    await batch.commit();
+
+    // Cartas se manejan en PlayerNotifier donde ya existe la lógica de ownedCards
   }
 }

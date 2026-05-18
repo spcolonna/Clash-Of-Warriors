@@ -92,6 +92,8 @@ class HeroEntity {
   HeroEntity copyWith({
     int? stars,
     int? maxHp,
+    int? maxStamina,
+    HeroStats? stats,
     String? imagePath,
   }) =>
       HeroEntity(
@@ -100,12 +102,12 @@ class HeroEntity {
         title: title,
         faction: faction,
         rarity: rarity,
-        stats: stats,
+        stats: stats ?? this.stats,
         maxHp: maxHp ?? this.maxHp,
-        maxStamina: maxStamina,
+        maxStamina: maxStamina ?? this.maxStamina,
         passive: passive,
         lore: lore,
-        imagePath: imagePath ?? this.imagePath, // <--- Soporte en copyWith
+        imagePath: imagePath ?? this.imagePath,
         stars: stars ?? this.stars,
       );
 }

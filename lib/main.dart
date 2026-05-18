@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'delivery/router/app_router.dart';
-import 'infra/services/admob_service.dart';
 import 'delivery/state/providers.dart';
+import 'infra/services/admob_service.dart';
 import 'delivery/theme/app_theme.dart';
 import 'infra/services/game_seed_service.dart';
 
@@ -42,6 +42,9 @@ class ClashOfStylesApp extends ConsumerWidget {
     // Carga el player si hay usuario y aún no está en memoria.
     // ref.watch (no listen) garantiza que esto corre en CADA build,
     // incluida la primera vez que auth ya tiene valor.
+    // Pre-carga config del juego desde Firestore (cartas, héroes, rewards)
+    ref.watch(gameConfigProvider);
+
     final authState = ref.watch(authStateProvider);
     debugPrint('[AUTH] state=${authState.runtimeType} user=${authState.value?.uid ?? "null"}');
     authState.whenData((user) {

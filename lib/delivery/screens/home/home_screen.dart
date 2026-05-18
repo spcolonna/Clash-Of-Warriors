@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../domain/entities/game_config.dart';
 import '../../../domain/entities/hero_entity.dart';
 import '../../../infra/local/heroes_data.dart';
 import '../../state/providers.dart';
@@ -49,6 +50,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
     _loadAttempted = false;
 
+    final gameConfig = ref.watch(gameConfigProvider).value ?? GameConfig.defaults;
+    final currentReward = gameConfig.rewardAt(player.lastClaimedCycleIndex);
+
     final needsShopTutorial =
         player.tutorialBattleComplete && !player.starterCardPurchased;
 
@@ -90,6 +94,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const SizedBox(height: 28),
                 // ── Banner de bienvenida (desde el borde izquierdo) ───────
                 _WelcomeBanner(factionId: player.selectedFactionId),
+                const SizedBox(height: 16),
+                // ── Barra de progreso de victorias ────────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _ProgressCycleBar(
+                    player: player,
+                    reward: currentReward,
+                    onClaim: () =>
+                        ref.read(playerProvider.notifier).claimProgressReward(),
+                  ),
+                ),
                 const Spacer(),
                 // ── Botón principal con héroe sobresaliendo ───────────────
                 Padding(
@@ -456,6 +471,112 @@ class _HowToPlayChip extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Barra de progreso de victorias ────────────────────────────────────────
+
+class _ProgressCycleBar extends StatelessWidget {
+  final dynamic player;
+  final ProgressRewardConfig reward;
+  final VoidCallback onClaim;
+
+  const _ProgressCycleBar({
+    required this.player,
+    required this.reward,
+    required this.onClaim,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final pts = (player.battlePoints as int).clamp(0, reward.requiredPoints);
+    final progress = pts / reward.requiredPoints;
+    final isClaimable = pts >= reward.requiredPoints;
+
+    const gold = Color(0xFFD4AF37);
+    const purple = Color(0xFFB39DDB);
+
+    final (rewardIcon, rewardColor, rewardLabel) = switch (reward.type) {
+      'tokens' => (Icons.diamond,         purple,                     '+${reward.amount}'),
+      'card'   => (Icons.style,           const Color(0xFF27AE60),    'Carta'),
+      _        => (Icons.monetization_on, gold,                       '+${reward.amount}'),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A2E).withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: gold.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(rewardIcon, size: 20, color: rewardColor),
+          const SizedBox(width: 8),
+          Text(
+            rewardLabel,
+            style: TextStyle(
+              color: rewardColor,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 6,
+                    backgroundColor: const Color(0xFF2A2A3E),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isClaimable ? gold : rewardColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$pts / ${reward.requiredPoints} pts',
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: isClaimable ? onClaim : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isClaimable
+                    ? gold.withValues(alpha: 0.15)
+                    : Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isClaimable ? gold : Colors.white24,
+                ),
+              ),
+              child: Text(
+                'RECLAMAR',
+                style: TextStyle(
+                  color: isClaimable ? gold : Colors.white30,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

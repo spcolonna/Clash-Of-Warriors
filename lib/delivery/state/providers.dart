@@ -15,6 +15,10 @@ import '../../infra/services/admob_service.dart';
 import '../../infra/services/game_seed_service.dart';
 import '../../infra/sound/sound_service.dart';
 import '../../domain/entities/battle_state.dart' show BotDifficulty;
+import '../../domain/entities/game_config.dart';
+import '../../infra/firebase/game_config_service.dart';
+import '../../infra/local/heroes_data.dart';
+import '../../infra/local/progress_rewards_data.dart';
 
 // ── Servicios singleton ────────────────────────────────────────────────────
 
@@ -291,6 +295,107 @@ class PlayerNotifier extends StateNotifier<PlayerProfile?> {
     _svc.addTokens(state!.uid, -tokenCost);
     _svc.addSoftCoins(state!.uid, softCoinAmount);
     return true;
+  }
+
+  Future<void> addBattlePoints(int amount) async {
+    if (state == null) return;
+    state = state!.copyWith(battlePoints: state!.battlePoints + amount);
+    _svc.addBattlePoints(state!.uid, amount);
+  }
+
+  Future<void> claimProgressReward() async {
+    if (state == null) return;
+    final reward = ProgressRewardsData.currentReward(state!.lastClaimedCycleIndex);
+    final newIndex = state!.lastClaimedCycleIndex + 1;
+
+    var next = state!.copyWith(
+      battlePoints: 0,
+      lastClaimedCycleIndex: newIndex,
+    );
+
+    if (reward.type == ProgressRewardType.coins) {
+      next = next.copyWith(softCoins: next.softCoins + reward.amount);
+    } else if (reward.type == ProgressRewardType.tokens) {
+      next = next.copyWith(tokens: next.tokens + reward.amount);
+    } else if (reward.type == ProgressRewardType.card && reward.cardId != null) {
+      final existing = next.ownedCards.where((c) => c.cardId == reward.cardId!).firstOrNull;
+      final updatedCards = existing == null
+          ? [...next.ownedCards, OwnedCard(cardId: reward.cardId!, quantity: 1)]
+          : next.ownedCards
+              .map((c) => c.cardId == reward.cardId!
+                  ? OwnedCard(cardId: c.cardId, quantity: c.quantity + 1)
+                  : c)
+              .toList();
+      next = next.copyWith(ownedCards: updatedCards);
+    }
+
+    state = next;
+
+    _svc
+        .claimProgressReward(
+          state!.uid,
+          newCycleIndex: newIndex,
+          rewardType: reward.type,
+          rewardAmount: reward.amount,
+          rewardCardId: reward.cardId,
+        )
+        .catchError((e) => print('[PlayerNotifier] claimProgressReward: $e'));
+  }
+}
+
+// ── Game Config (cargado desde Firestore al inicio) ───────────────────────
+
+final gameConfigServiceProvider = Provider((_) => GameConfigService());
+
+final gameConfigProvider =
+    AsyncNotifierProvider<GameConfigNotifier, GameConfig>(
+  GameConfigNotifier.new,
+);
+
+class GameConfigNotifier extends AsyncNotifier<GameConfig> {
+  @override
+  Future<GameConfig> build() async {
+    try {
+      final svc = ref.read(gameConfigServiceProvider);
+      final results = await Future.wait([
+        svc.fetchEnabledCards(),
+        svc.fetchHeroes(),
+        svc.fetchSettings(),
+      ]);
+
+      final cards    = results[0] as List<Map<String, dynamic>>;
+      final heroes   = results[1] as List<Map<String, dynamic>>;
+      final settings = results[2] as Map<String, dynamic>;
+
+      final rawRewards = settings['progressRewards'] as List<dynamic>? ?? [];
+      final rewards = rawRewards.isEmpty
+          ? GameConfig.defaults.progressRewards
+          : rawRewards
+              .map((r) => ProgressRewardConfig.fromMap(r as Map<String, dynamic>))
+              .toList();
+
+      final rawPoints = settings['pointsPerWin'] as Map<String, dynamic>? ?? {};
+      final pointsMap = {
+        BotDifficulty.easy:   rawPoints['easy']   as int? ?? 3,
+        BotDifficulty.normal: rawPoints['normal']  as int? ?? 5,
+        BotDifficulty.hard:   rawPoints['hard']    as int? ?? 8,
+      };
+
+      // Aplicar stats de Firestore a HeroesData (fuente primaria del juego)
+      if (heroes.isNotEmpty) {
+        HeroesData.applyOverrides(heroes);
+      }
+
+      return GameConfig(
+        cards: cards,
+        heroes: heroes,
+        progressRewards: rewards,
+        pointsPerWin: pointsMap,
+      );
+    } catch (e) {
+      debugPrint('[GameConfig] Error al cargar: $e — usando defaults');
+      return GameConfig.defaults;
+    }
   }
 }
 

@@ -51,6 +51,12 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
       backgroundColor: const Color(0xFF0D0D0D),
       body: Stack(
         children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/bg_battle_screen.png',
+              fit: BoxFit.cover,
+            ),
+          ),
           LayoutBuilder(builder: (context, constraints) {
             final availableHeight = constraints.maxHeight;
 
@@ -1010,6 +1016,14 @@ class _CardLabel extends StatelessWidget {
   final bool alignRight;
   const _CardLabel({required this.card, required this.dmg, required this.alignRight});
 
+  String _categoryLabel(CardCategory cat) => switch (cat) {
+    CardCategory.punch   => 'Puño',
+    CardCategory.kick    => 'Patada',
+    CardCategory.grapple => 'Lucha',
+    CardCategory.defense => 'Defensa',
+    CardCategory.dodge   => 'Esquive',
+  };
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -1017,7 +1031,7 @@ class _CardLabel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          card?.name ?? '— vacío —',
+          card != null ? _categoryLabel(card!.category) : '— vacío —',
           style: TextStyle(
             color: card != null ? Colors.white : Colors.white30,
             fontSize: 11,

@@ -206,6 +206,32 @@ class HeroesData {
   static HeroEntity findById(String id) =>
       starterHeroes.firstWhere((h) => h.id == id);
 
+  /// Aplica las stats de Firestore sobre los héroes hardcodeados.
+  /// Llamado al cargar gameConfigProvider en startup.
+  static void applyOverrides(List<Map<String, dynamic>> firestoreHeroes) {
+    for (int i = 0; i < starterHeroes.length; i++) {
+      final data = firestoreHeroes.where((h) => h['id'] == starterHeroes[i].id).firstOrNull;
+      if (data == null) continue;
+
+      final rawStats = data['stats'] as Map<String, dynamic>?;
+      final newStats = rawStats != null
+          ? HeroStats(
+              punch:   rawStats['punch']   as int? ?? starterHeroes[i].stats.punch,
+              kick:    rawStats['kick']    as int? ?? starterHeroes[i].stats.kick,
+              grapple: rawStats['grapple'] as int? ?? starterHeroes[i].stats.grapple,
+              defense: rawStats['defense'] as int? ?? starterHeroes[i].stats.defense,
+              dodge:   rawStats['dodge']   as int? ?? starterHeroes[i].stats.dodge,
+            )
+          : null;
+
+      starterHeroes[i] = starterHeroes[i].copyWith(
+        maxHp:      data['maxHp']      as int?,
+        maxStamina: data['maxStamina'] as int?,
+        stats:      newStats,
+      );
+    }
+  }
+
   static HeroEntity findByFaction(Faction faction) =>
       starterHeroes.firstWhere((h) => h.faction == faction);
 

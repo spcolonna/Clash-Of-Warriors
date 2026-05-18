@@ -7,6 +7,7 @@ import '../../domain/entities/game_card.dart';
 import '../../domain/entities/hero_entity.dart';
 import '../../domain/usecases/resolve_combat_use_case.dart';
 import '../../infra/local/neutral_cards_data.dart';
+import 'providers.dart' show gameConfigProvider;
 
 export '../../domain/entities/battle_state.dart' show BotDifficulty;
 
@@ -88,11 +89,20 @@ class BattleNotifier extends Notifier<BattleState> {
   }) {
     _botDifficulty = difficulty;
 
-    final deck = NeutralCardsData.buildStarterDeck()..shuffle(Random());
+    final config = ref.read(gameConfigProvider).value;
+    final firestoreCards = config?.cards ?? [];
+
+    final deck = (firestoreCards.isNotEmpty
+            ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
+            : NeutralCardsData.buildStarterDeck())
+        ..shuffle(Random());
     final hand = deck.take(5).toList();
     final remainingDeck = deck.skip(5).toList();
 
-    final botDeck = NeutralCardsData.buildStarterDeck()..shuffle(Random());
+    final botDeck = (firestoreCards.isNotEmpty
+            ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
+            : NeutralCardsData.buildStarterDeck())
+        ..shuffle(Random());
     final botHand = botDeck.take(5).toList();
     final botRemainingDeck = botDeck.skip(5).toList();
 
@@ -128,11 +138,20 @@ class BattleNotifier extends Notifier<BattleState> {
     required HeroEntity botHero,
   }) {
     _botDifficulty = null;
-    final deck = NeutralCardsData.buildStarterDeck()..shuffle(Random());
+    final config = ref.read(gameConfigProvider).value;
+    final firestoreCards = config?.cards ?? [];
+
+    final deck = (firestoreCards.isNotEmpty
+            ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
+            : NeutralCardsData.buildStarterDeck())
+        ..shuffle(Random());
     final hand = deck.take(5).toList();
     final remainingDeck = deck.skip(5).toList();
 
-    final botDeck = NeutralCardsData.buildStarterDeck()..shuffle(Random());
+    final botDeck = (firestoreCards.isNotEmpty
+            ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
+            : NeutralCardsData.buildStarterDeck())
+        ..shuffle(Random());
     final botHand = botDeck.take(5).toList();
     final botRemainingDeck = botDeck.skip(5).toList();
 

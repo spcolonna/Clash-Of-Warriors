@@ -19,6 +19,10 @@ class PlayerProfile {
   final bool starterCardPurchased;
   final bool starterCardAddedToDeck;
 
+  // Ciclo de progreso por victorias
+  final int battlePoints;
+  final int lastClaimedCycleIndex;
+
   const PlayerProfile({
     required this.uid,
     this.isOnboardingComplete = false,
@@ -33,6 +37,8 @@ class PlayerProfile {
     this.tutorialBattleComplete = false,
     this.starterCardPurchased = false,
     this.starterCardAddedToDeck = false,
+    this.battlePoints = 0,
+    this.lastClaimedCycleIndex = 0,
   });
 
   PlayerProfile copyWith({
@@ -48,6 +54,8 @@ class PlayerProfile {
     bool? tutorialBattleComplete,
     bool? starterCardPurchased,
     bool? starterCardAddedToDeck,
+    int? battlePoints,
+    int? lastClaimedCycleIndex,
   }) =>
       PlayerProfile(
         uid: uid,
@@ -65,6 +73,8 @@ class PlayerProfile {
         starterCardPurchased: starterCardPurchased ?? this.starterCardPurchased,
         starterCardAddedToDeck:
         starterCardAddedToDeck ?? this.starterCardAddedToDeck,
+        battlePoints: battlePoints ?? this.battlePoints,
+        lastClaimedCycleIndex: lastClaimedCycleIndex ?? this.lastClaimedCycleIndex,
       );
 
   Map<String, dynamic> toFirestore() => {
@@ -80,6 +90,8 @@ class PlayerProfile {
     'tutorialBattleComplete': tutorialBattleComplete,
     'starterCardPurchased': starterCardPurchased,
     'starterCardAddedToDeck': starterCardAddedToDeck,
+    'battlePoints': battlePoints,
+    'lastClaimedCycleIndex': lastClaimedCycleIndex,
   };
 
   factory PlayerProfile.fromFirestore(String uid, Map<String, dynamic> data) =>
@@ -99,6 +111,8 @@ class PlayerProfile {
         tutorialBattleComplete: data['tutorialBattleComplete'] ?? false,
         starterCardPurchased: data['starterCardPurchased'] ?? false,
         starterCardAddedToDeck: data['starterCardAddedToDeck'] ?? false,
+        battlePoints: data['battlePoints'] ?? 0,
+        lastClaimedCycleIndex: data['lastClaimedCycleIndex'] ?? 0,
       );
 }
 
