@@ -51,8 +51,8 @@ class MainShellScaffold extends ConsumerWidget {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Color(0x660D0D0D), // 40% arriba
-                        Color(0x990D0D0D), // 60% abajo
+                        Color(0x1A0D0D0D), // 10% arriba
+                        Color(0x550D0D0D), // 33% abajo
                       ],
                     ),
                   ),

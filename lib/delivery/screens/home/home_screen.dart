@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../domain/entities/hero_entity.dart';
 import '../../../infra/local/heroes_data.dart';
 import '../../state/providers.dart';
 import '../../widgets/tutorial_spotlight_overlay.dart';
@@ -29,7 +30,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
 
     final player = ref.watch(playerProvider);
-    // Watch auth state — rebuild automático cuando Firebase Auth resuelve
     final authState = ref.watch(authStateProvider);
 
     if (player == null) {
@@ -52,59 +52,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final needsShopTutorial =
         player.tutorialBattleComplete && !player.starterCardPurchased;
 
+    final activeHero = player.activeHeroId != null
+        ? HeroesData.findById(player.activeHeroId!)
+        : null;
+
     return Stack(
       children: [
         Scaffold(
           backgroundColor: Colors.transparent,
           body: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ResourceBar(
-                    softCoins: player.softCoins,
-                    medals: player.medals,
-                    tokens: player.tokens,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Barra de recursos + botón "Cómo jugar" (arriba derecha) ──
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: Row(
+                    children: [
+                      _ResourceBar(
+                        softCoins: player.softCoins,
+                        medals: player.medals,
+                        tokens: player.tokens,
+                      ),
+                      const Spacer(),
+                      _HowToPlayChip(
+                        onTap: () => Navigator.of(context).push(
+                          PageRouteBuilder(
+                            pageBuilder: (_, __, ___) => const HowToPlayScreen(),
+                            transitionDuration: Duration.zero,
+                            reverseTransitionDuration: Duration.zero,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 32),
-                  const Text(
-                    '¡Bienvenido,\nGuerrero!',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    player.selectedFactionId != null
-                        ? 'Facción: ${_factionName(player.selectedFactionId!)}'
-                        : '',
-                    style: const TextStyle(
-                      color: Color(0xFF8A8A9A),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const Spacer(),
-                  _PrimaryActionCard(
-                    icon: Icons.sports_mma,
-                    title: 'Entrar a la Arena',
-                    subtitle: 'Elegí dificultad y combatí contra la IA',
+                ),
+                const SizedBox(height: 28),
+                // ── Banner de bienvenida (desde el borde izquierdo) ───────
+                _WelcomeBanner(factionId: player.selectedFactionId),
+                const Spacer(),
+                // ── Botón principal con héroe sobresaliendo ───────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _ArenaButton(
+                    hero: activeHero,
                     onTap: () {
-                      final activeHeroId = player.activeHeroId;
-                      if (activeHeroId == null) return;
-                      final hero = HeroesData.findById(activeHeroId);
-                      ref.read(selectedHeroForBattleProvider.notifier).state = hero;
+                      if (activeHero == null) return;
+                      ref.read(selectedHeroForBattleProvider.notifier).state =
+                          activeHero;
                       context.go('/pre-battle');
                     },
                   ),
-                  const SizedBox(height: 16),
-                  _SecondaryActionCard(
-                    icon: Icons.workspace_premium,
-                    title: 'Tienda Premium',
-                    subtitle: 'Héroes legendarios, tokens y packs exclusivos',
+                ),
+                const SizedBox(height: 14),
+                // ── Tienda Premium (compacta) ─────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _ShopButton(
                     onTap: () => Navigator.of(context).push(
                       PageRouteBuilder(
                         pageBuilder: (_, __, ___) => const PremiumShopScreen(),
@@ -113,22 +117,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _SecondaryActionCard(
-                    icon: Icons.help_outline,
-                    title: 'Cómo jugar',
-                    subtitle: 'Tabla de choques, cálculo de daño y stats',
-                    onTap: () => Navigator.of(context).push(
-                      PageRouteBuilder(
-                        pageBuilder: (_, __, ___) => const HowToPlayScreen(),
-                        transitionDuration: Duration.zero,
-                        reverseTransitionDuration: Duration.zero,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                ],
-              ),
+                ),
+                const SizedBox(height: 36),
+              ],
             ),
           ),
         ),
@@ -136,16 +127,214 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ],
     );
   }
+}
 
-  String _factionName(String factionId) => switch (factionId) {
-    'shaolin' => 'Guardianes Shaolin',
-    'ninja' => 'Clan de las Sombras',
-    'judoka' => 'Hermandad de Hierro',
-    'boxer' => 'Boxeadores del Cemento',
+// ── Banner de bienvenida ────────────────────────────────────────────────────
+// Arranca desde el borde izquierdo de la pantalla con esquinas redondeadas
+// sólo en el lado derecho, dando el efecto de "banner que sale de la pared".
+
+class _WelcomeBanner extends StatelessWidget {
+  final String? factionId;
+
+  const _WelcomeBanner({this.factionId});
+
+  @override
+  Widget build(BuildContext context) {
+    const gold = Color(0xFFD4AF37);
+
+    return Container(
+      // Sin margen izquierdo → se pega al borde de la pantalla
+      margin: const EdgeInsets.only(right: 28),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.60),
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+        border: const Border(
+          top: BorderSide(color: gold, width: 1.5),
+          right: BorderSide(color: gold, width: 1.5),
+          bottom: BorderSide(color: gold, width: 1.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 14,
+            offset: const Offset(3, 4),
+          ),
+          BoxShadow(
+            color: gold.withValues(alpha: 0.12),
+            blurRadius: 20,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Escudo / emblema
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A2A5E),
+              shape: BoxShape.circle,
+              border: Border.all(color: gold, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: gold.withValues(alpha: 0.35),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: const Icon(Icons.shield, color: gold, size: 26),
+          ),
+          const SizedBox(width: 14),
+          // Texto
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '¡Bienvenido,',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const Text(
+                'Guerrero!',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  height: 1.15,
+                ),
+              ),
+              if (factionId != null) ...[
+                const SizedBox(height: 3),
+                Text(
+                  _factionLabel(factionId!),
+                  style: const TextStyle(
+                    color: gold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _factionLabel(String id) => switch (id) {
+    'shaolin'  => 'Guardianes Shaolin',
+    'ninja'    => 'Clan de las Sombras',
+    'judoka'   => 'Hermandad de Hierro',
+    'boxer'    => 'Boxeadores del Cemento',
     'capoeira' => 'Capoeiristas Libres',
-    _ => '',
+    _          => '',
   };
 }
+
+// ── Botón de arena con héroe sobresaliendo ─────────────────────────────────
+
+class _ArenaButton extends StatelessWidget {
+  final HeroEntity? hero;
+  final VoidCallback onTap;
+
+  const _ArenaButton({this.hero, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    // El héroe sobresale 48px por encima del botón
+    const overflowTop = 48.0;
+    const heroHeight = 136.0;
+
+    return Padding(
+      // Reserva espacio arriba para el héroe que sobresale
+      padding: const EdgeInsets.only(top: overflowTop),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // ── Botón ──────────────────────────────────────────────────────
+          Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                width: double.infinity,
+                // Padding derecho amplio para dejar espacio al héroe
+                padding: EdgeInsets.fromLTRB(
+                    22, 20, hero != null ? 118 : 22, 20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFE74C3C), Color(0xFFC0392B)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFE74C3C).withValues(alpha: 0.5),
+                      blurRadius: 24,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Entrar a la Arena',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'VS IA',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // ── Héroe sobresaliendo desde arriba-derecha ───────────────────
+          if (hero != null)
+            Positioned(
+              right: 0,
+              // Sube el héroe overflowTop px sobre el borde del botón
+              top: -overflowTop,
+              child: Image.asset(
+                // Mismos nombres de archivo, subcarpeta sin fondo
+                hero!.imagePath.replaceFirst('heros/', 'heros/withoutBG/'),
+                height: heroHeight + overflowTop,
+                fit: BoxFit.contain,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Widgets secundarios ────────────────────────────────────────────────────
 
 class _ShopTabSpotlight extends ConsumerWidget {
   const _ShopTabSpotlight();
@@ -155,7 +344,7 @@ class _ShopTabSpotlight extends ConsumerWidget {
     return TutorialSpotlightOverlay(
       targetKey: const GlobalObjectKey('nav_shop'),
       message:
-      '¡Hora de fortalecer tu mazo!\nTocá la Tienda para comprar tu primera carta de facción.',
+          '¡Hora de fortalecer tu mazo!\nTocá la Tienda para comprar tu primera carta de facción.',
       onDismiss: () {
         ref.read(activeTabProvider.notifier).state = 1;
       },
@@ -179,11 +368,18 @@ class _ResourceBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _ResourceChip(icon: Icons.monetization_on, value: softCoins, color: const Color(0xFFF5B800)),
+        _ResourceChip(
+            icon: Icons.monetization_on,
+            value: softCoins,
+            color: const Color(0xFFF5B800)),
         const SizedBox(width: 8),
-        _ResourceChip(icon: Icons.military_tech, value: medals, color: Colors.amber),
+        _ResourceChip(
+            icon: Icons.military_tech, value: medals, color: Colors.amber),
         const SizedBox(width: 8),
-        _ResourceChip(icon: Icons.diamond, value: tokens, color: const Color(0xFFB39DDB)),
+        _ResourceChip(
+            icon: Icons.diamond,
+            value: tokens,
+            color: const Color(0xFFB39DDB)),
       ],
     );
   }
@@ -207,7 +403,7 @@ class _ResourceChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -227,134 +423,84 @@ class _ResourceChip extends StatelessWidget {
   }
 }
 
-class _PrimaryActionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
+// ── Chip pequeño "Cómo jugar" (arriba derecha) ────────────────────────────
 
-  const _PrimaryActionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
+class _HowToPlayChip extends StatelessWidget {
+  final VoidCallback onTap;
+  const _HowToPlayChip({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFE74C3C), Color(0xFFC0392B)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFE74C3C).withOpacity(0.4),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white, size: 28),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Card secundaria con estilo más discreto — usada para "Cómo jugar".
-class _SecondaryActionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _SecondaryActionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1A2E),
-          borderRadius: BorderRadius.circular(16),
+          color: const Color(0xFF1A1A2E).withValues(alpha: 0.80),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white12),
         ),
-        child: Row(
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 24, color: Colors.white70),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF8A8A9A),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
+            Icon(Icons.help_outline, size: 14, color: Colors.white54),
+            SizedBox(width: 5),
+            Text(
+              'Cómo jugar',
+              style: TextStyle(
+                color: Colors.white54,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const Icon(Icons.chevron_right, color: Colors.white38),
           ],
         ),
       ),
     );
   }
 }
+
+// ── Botón compacto Tienda Premium ──────────────────────────────────────────
+
+class _ShopButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ShopButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A2E).withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: const Color(0xFFB39DDB).withValues(alpha: 0.35),
+          ),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.workspace_premium, size: 20, color: Color(0xFFB39DDB)),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Tienda Premium',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.white38, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
