@@ -292,14 +292,19 @@ class _ArenaButton extends StatelessWidget {
                     22, 20, hero != null ? 118 : 22, 20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFE74C3C), Color(0xFFC0392B)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF2A323D),
+                      Color(0xFF5E483A),
+                      Color(0xFFE5A93C),
+                    ],
+                    stops: [0.0, 0.55, 1.0],
+                    begin: Alignment(-0.87, -0.5),
+                    end: Alignment(0.87, 0.5),
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFE74C3C).withValues(alpha: 0.5),
+                      color: const Color(0xFFE5A93C).withValues(alpha: 0.35),
                       blurRadius: 24,
                       offset: const Offset(0, 10),
                     ),
