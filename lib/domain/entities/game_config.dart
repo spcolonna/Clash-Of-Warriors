@@ -47,6 +47,9 @@ class GameConfig {
   /// Todos los héroes con sus stats actuales desde Firestore.
   final List<Map<String, dynamic>> heroes;
 
+  /// Arcos de historia cargados desde Firestore (colección storyArcs).
+  final List<Map<String, dynamic>> storyArcs;
+
   final List<ProgressRewardConfig> progressRewards;
   final Map<BotDifficulty, int> pointsPerWin;
   final Map<BotDifficulty, int> pointsPerWinSimple;
@@ -55,6 +58,7 @@ class GameConfig {
   const GameConfig({
     required this.cards,
     required this.heroes,
+    this.storyArcs = const [],
     required this.progressRewards,
     required this.pointsPerWin,
     this.pointsPerWinSimple = _defaultPointsSimple,
@@ -91,6 +95,7 @@ class GameConfig {
   static GameConfig get defaults => const GameConfig(
     cards: [],
     heroes: [],
+    storyArcs: [],
     progressRewards: _defaultRewards,
     pointsPerWin: _defaultPoints,
   );

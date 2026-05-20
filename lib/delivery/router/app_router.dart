@@ -10,6 +10,9 @@ import '../screens/battle/end_battle_screen.dart';
 import '../screens/battle/pre_battle_screens.dart';
 import '../screens/heroes/character_select_screen.dart';
 import '../screens/shell/main_shell_scaffold.dart';
+import '../screens/story/story_hub_screen.dart';
+import '../screens/story/story_scene_screen.dart';
+import '../screens/story/story_reward_screen.dart';
 import '../state/providers.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -62,7 +65,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/',
-        pageBuilder: (_, __) => _fadeSlidePage(const CharacterSelectScreen()),
+        pageBuilder: (_, __) => _fadeSlidePage(const _SplashScreen()),
       ),
       GoRoute(
         path: '/character-select',
@@ -84,6 +87,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/home',
         pageBuilder: (_, __) => _fadeSlidePage(const MainShellScaffold()),
       ),
+      GoRoute(
+        path: '/story-scene',
+        pageBuilder: (_, __) => _fadeSlidePage(const StorySceneScreen()),
+      ),
+      GoRoute(
+        path: '/story-reward',
+        pageBuilder: (_, __) => _fadeSlidePage(const StoryRewardScreen()),
+      ),
     ],
   );
 });
@@ -95,6 +106,15 @@ class _RouterNotifier extends ChangeNotifier {
     ref.listen(authStateProvider, (_, __) => notifyListeners());
     ref.listen(playerProvider,    (_, __) => notifyListeners());
   }
+}
+
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+  @override
+  Widget build(BuildContext context) => const Scaffold(
+    backgroundColor: Color(0xFF0D0D1A),
+    body: Center(child: CircularProgressIndicator(color: Color(0xFFE5A93C))),
+  );
 }
 
 CustomTransitionPage<T> _fadeSlidePage<T>(Widget child) =>

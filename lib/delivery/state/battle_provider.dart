@@ -203,6 +203,67 @@ class BattleNotifier extends Notifier<BattleState> {
     );
   }
 
+  void initStoryBattle({
+    required HeroEntity playerHero,
+    required HeroEntity botHero,
+    required BotDifficulty difficulty,
+    GameMode gameMode = GameMode.expert,
+  }) {
+    _botDifficulty = difficulty;
+    _gameMode = gameMode;
+
+    final config = ref.read(gameConfigProvider).value;
+    final firestoreCards = config?.cards ?? [];
+
+    // El jugador usa su propio mazo (igual que arena)
+    var fullDeck = firestoreCards.isNotEmpty
+        ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
+        : NeutralCardsData.buildStarterDeck();
+
+    if (gameMode == GameMode.normal) {
+      fullDeck = fullDeck.where((c) => _simpleCategories.contains(c.category)).toList();
+    }
+
+    final deck = List<GameCard>.from(fullDeck)..shuffle(Random());
+    final hand = deck.take(5).toList();
+    final remainingDeck = deck.skip(5).toList();
+
+    final botFullDeck = firestoreCards.isNotEmpty
+        ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
+        : NeutralCardsData.buildStarterDeck();
+    final botDeck = List<GameCard>.from(botFullDeck)..shuffle(Random());
+    final botHand = botDeck.take(5).toList();
+    final botRemainingDeck = botDeck.skip(5).toList();
+
+    state = BattleState(
+      phase: BattlePhase.planning,
+      isTutorial: false,
+      isStoryBattle: true,
+      botDifficulty: difficulty,
+      gameMode: gameMode,
+      player: CombatantState(
+        hero: playerHero,
+        currentHp: playerHero.maxHp,
+        currentStamina: playerHero.maxStamina,
+        hand: hand,
+        deck: remainingDeck,
+        discardPile: [],
+        plannedSequence: List.filled(3, null),
+      ),
+      opponent: CombatantState(
+        hero: botHero,
+        currentHp: botHero.maxHp,
+        currentStamina: botHero.maxStamina,
+        hand: botHand,
+        deck: botRemainingDeck,
+        discardPile: [],
+        plannedSequence: List.filled(3, null),
+      ),
+      currentRound: 1,
+      roundHistory: [],
+    );
+  }
+
   void placeCardInSlot(GameCard card, int slotIndex) {
     final player = state.player;
     if (slotIndex < 0 || slotIndex >= 3) return;

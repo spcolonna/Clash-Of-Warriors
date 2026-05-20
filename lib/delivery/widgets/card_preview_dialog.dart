@@ -30,6 +30,7 @@ class CardPreviewDialog extends StatelessWidget {
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(24),
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () => Navigator.of(context).pop(),
         child: Center(
           child: Hero(

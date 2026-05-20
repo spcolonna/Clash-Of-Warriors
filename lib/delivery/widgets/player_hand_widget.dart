@@ -109,6 +109,7 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
     return SizedBox(
       height: 180,
       child: Stack(
+        clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,
         children: List.generate(totalCards, (i) {
           final cardData = allCards[i];
@@ -123,7 +124,7 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
           final cardWidget = GameCardWidget(
             card: cardData.card,
             width: cardWidth,
-            isPassive: cardData.isPassive,
+            isPassive: false,
           );
 
           // Envolvemos con GestureDetector para el tap de preview
@@ -131,7 +132,7 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
             onTap: () => CardPreviewDialog.show(
               context,
               cardData.card,
-              isPassive: cardData.isPassive,
+              isPassive: false,
             ),
             child: cardWidget,
           );
@@ -147,7 +148,7 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
                 child: GameCardWidget(
                   card: cardData.card,
                   width: cardWidth,
-                  isPassive: cardData.isPassive,
+                  isPassive: false,
                 ),
               ),
             ),
@@ -205,8 +206,7 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
 
 class _HandCardData {
   final GameCard card;
-  final bool isPassive;
-  _HandCardData(this.card, {this.isPassive = false});
+  _HandCardData(this.card);
 }
 
 class MaxWidth {

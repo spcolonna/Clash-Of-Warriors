@@ -19,6 +19,8 @@ import '../../domain/entities/game_config.dart';
 import '../../infra/firebase/game_config_service.dart';
 import '../../infra/local/heroes_data.dart';
 import '../../infra/local/progress_rewards_data.dart';
+import '../../infra/local/story_arcs_data.dart';
+import '../../domain/entities/story_arc.dart';
 
 // ── Servicios singleton ────────────────────────────────────────────────────
 
@@ -341,6 +343,48 @@ class PlayerNotifier extends StateNotifier<PlayerProfile?> {
         )
         .catchError((e) => print('[PlayerNotifier] claimProgressReward: $e'));
   }
+
+  // ── Modo Historia ─────────────────────────────────────────────────────────
+
+  Future<void> updateStoryProgress(String heroId, String rarity, int stageIndex) async {
+    if (state == null) return;
+    final key = '${heroId}_$rarity';
+    final newMap = Map<String, int>.from(state!.storyProgress)..[key] = stageIndex;
+    state = state!.copyWith(storyProgress: newMap);
+    _svc
+        .saveStoryProgress(uid: state!.uid, arcKey: key, stageIndex: stageIndex)
+        .catchError((e) => print('[PlayerNotifier] updateStoryProgress: $e'));
+  }
+
+  Future<void> completeStoryArc(String heroId, String rarity) async {
+    if (state == null) return;
+    final key = '${heroId}_$rarity';
+    final rewardId = PlayerProfile.rewardHeroId(heroId, rarity);
+
+    final newCompleted = {...state!.completedStoryArcs, key};
+    final newUnlocked = rewardId != null && !state!.unlockedHeroIds.contains(rewardId)
+        ? [...state!.unlockedHeroIds, rewardId]
+        : state!.unlockedHeroIds;
+    final newAchievements = rarity == 'legendary' && !state!.achievements.contains('dragon_path_$heroId')
+        ? [...state!.achievements, 'dragon_path_$heroId']
+        : state!.achievements;
+
+    state = state!.copyWith(
+      completedStoryArcs: newCompleted,
+      unlockedHeroIds: newUnlocked,
+      achievements: newAchievements,
+    );
+
+    _svc
+        .completeStoryArc(uid: state!.uid, arcKey: key, rewardHeroId: rewardId)
+        .catchError((e) => print('[PlayerNotifier] completeStoryArc: $e'));
+
+    if (rarity == 'legendary') {
+      _svc
+          .grantAchievement(uid: state!.uid, achievementId: 'dragon_path_$heroId')
+          .catchError((e) => print('[PlayerNotifier] grantAchievement: $e'));
+    }
+  }
 }
 
 // ── Game Config (cargado desde Firestore al inicio) ───────────────────────
@@ -396,9 +440,17 @@ class GameConfigNotifier extends AsyncNotifier<GameConfig> {
         HeroesData.applyOverrides(heroes);
       }
 
+      // Cargar arcos de historia desde Firestore y aplicar a StoryArcsData
+      final gameSvc = ref.read(firebaseGameServiceProvider);
+      final storyArcs = await gameSvc.loadStoryArcs().catchError((_) => <Map<String, dynamic>>[]);
+      if (storyArcs.isNotEmpty) {
+        StoryArcsData.applyRemoteArcs(storyArcs);
+      }
+
       return GameConfig(
         cards: cards,
         heroes: heroes,
+        storyArcs: storyArcs,
         progressRewards: rewards,
         pointsPerWin: pointsMap,
         pointsPerWinSimple: pointsSimpleMap,
@@ -424,3 +476,8 @@ final selectedDifficultyProvider =
 
 final selectedGameModeProvider =
     StateProvider<GameMode>((ref) => GameMode.expert);
+
+// ── Contexto de batalla de historia ───────────────────────────────────────
+// null cuando no hay historia activa; se setea antes de ir a /battle en modo historia
+
+final storyBattleContextProvider = StateProvider<StoryBattleContext?>((_) => null);

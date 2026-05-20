@@ -130,6 +130,7 @@ class BattleState {
   final List<RoundResult> roundHistory;
   final bool? playerWon; // null = en curso
   final bool isTutorial; // false = batalla de arena con bot IA escalable
+  final bool isStoryBattle; // true = batalla del modo historia
   final BotDifficulty? botDifficulty; // null = tutorial
   final GameMode gameMode;
   final bool passiveJustUnlocked; // true solo el round en que se inyecta la pasiva
@@ -142,6 +143,7 @@ class BattleState {
     this.roundHistory = const [],
     this.playerWon,
     this.isTutorial = true,
+    this.isStoryBattle = false,
     this.botDifficulty,
     this.gameMode = GameMode.expert,
     this.passiveJustUnlocked = false,
@@ -157,6 +159,7 @@ class BattleState {
     List<RoundResult>? roundHistory,
     bool? playerWon,
     bool? isTutorial,
+    bool? isStoryBattle,
     BotDifficulty? botDifficulty,
     GameMode? gameMode,
     bool? passiveJustUnlocked,
@@ -169,6 +172,7 @@ class BattleState {
         roundHistory: roundHistory ?? this.roundHistory,
         playerWon: playerWon ?? this.playerWon,
         isTutorial: isTutorial ?? this.isTutorial,
+        isStoryBattle: isStoryBattle ?? this.isStoryBattle,
         botDifficulty: botDifficulty ?? this.botDifficulty,
         gameMode: gameMode ?? this.gameMode,
         passiveJustUnlocked: passiveJustUnlocked ?? this.passiveJustUnlocked,

@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../infra/local/heroes_data.dart';
 import '../../state/battle_provider.dart';
 import '../../state/providers.dart';
+import '../../state/story_provider.dart';
 
 class EndBattleScreen extends ConsumerWidget {
   const EndBattleScreen({super.key});
@@ -36,6 +37,7 @@ class EndBattleScreen extends ConsumerWidget {
     final battle = ref.watch(battleProvider);
     final playerWon = battle.playerWon ?? true;
     final isTutorial = battle.isTutorial;
+    final isStoryBattle = battle.isStoryBattle;
 
     final medals = isTutorial ? tutorialMedalReward : arenaMedalReward;
     final coins  = isTutorial ? tutorialCoinReward  : arenaCoinReward;
@@ -112,6 +114,28 @@ class EndBattleScreen extends ConsumerWidget {
                 height: 52,
                 child: OutlinedButton(
                   onPressed: () {
+                    if (isStoryBattle) {
+                      // Revancha en historia: re-iniciar con el mismo contexto
+                      final storyCtx = ref.read(storyBattleContextProvider);
+                      final session = ref.read(storySessionProvider);
+                      if (storyCtx != null && session != null) {
+                        final playerHero = HeroesData.findByIdSafe(storyCtx.heroId);
+                        final battleStage = session.currentStage.battle;
+                        final botHero = battleStage != null
+                            ? HeroesData.findByIdSafe(battleStage.botHeroId)
+                            : null;
+                        if (playerHero != null && botHero != null && battleStage != null) {
+                          ref.read(battleProvider.notifier).initStoryBattle(
+                            playerHero: playerHero,
+                            botHero: botHero,
+                            difficulty: battleStage.difficulty,
+                            gameMode: battleStage.gameMode,
+                          );
+                          context.go('/battle');
+                        }
+                      }
+                      return;
+                    }
                     final playerHero = ref.read(selectedHeroForBattleProvider);
                     if (playerHero == null) return;
                     final botHero = HeroesData.tutorialBotFor(playerHero.faction.name);
@@ -153,6 +177,35 @@ class EndBattleScreen extends ConsumerWidget {
                 height: 52,
                 child: ElevatedButton(
                   onPressed: () async {
+                    // ── Historia ────────────────────────────────────────────
+                    if (isStoryBattle) {
+                      final storyCtx = ref.read(storyBattleContextProvider);
+                      if (storyCtx != null) {
+                        if (playerWon && storyCtx.stageIndex == 9) {
+                          // Stage final ganado → completar arco y mostrar recompensa
+                          await ref.read(playerProvider.notifier).completeStoryArc(
+                            storyCtx.heroId, storyCtx.rarity,
+                          );
+                          ref.read(storySessionProvider.notifier).reset();
+                          ref.read(storyBattleContextProvider.notifier).state = null;
+                          if (context.mounted) context.go('/story-reward');
+                        } else if (playerWon) {
+                          // Stage intermedio ganado → marcar y continuar historia
+                          ref.read(storySessionProvider.notifier).completeBattleStage();
+                          ref.read(storyBattleContextProvider.notifier).state = null;
+                          if (context.mounted) context.go('/story-scene');
+                        } else {
+                          // Derrota → volver a la escena para reintentar
+                          ref.read(storyBattleContextProvider.notifier).state = null;
+                          if (context.mounted) context.go('/story-scene');
+                        }
+                      } else {
+                        if (context.mounted) context.go('/home');
+                      }
+                      return;
+                    }
+
+                    // ── Tutorial / Arena ────────────────────────────────────
                     if (ref.read(playerProvider) == null) {
                       final user = FirebaseAuth.instance.currentUser;
                       if (user != null) {
@@ -162,7 +215,6 @@ class EndBattleScreen extends ConsumerWidget {
                     final player = ref.read(playerProvider);
                     if (playerWon && player != null) {
                       if (isTutorial && !player.tutorialBattleComplete) {
-                        // Solo la primera vez
                         final playerHero = ref.read(selectedHeroForBattleProvider);
                         final rivalHeroId = playerHero != null
                             ? HeroesData.tutorialBotFor(playerHero.faction.name).id
@@ -174,11 +226,9 @@ class EndBattleScreen extends ConsumerWidget {
                         );
                         ref.read(playerProvider.notifier).addTokens(tokens);
                       } else if (!isTutorial) {
-                        // Arena: sumar recompensas sin completar tutorial
                         ref.read(playerProvider.notifier).addMedals(medals);
                         ref.read(playerProvider.notifier).addSoftCoins(coins);
                         ref.read(playerProvider.notifier).addTokens(tokens);
-                        // Puntos de progreso por victoria en arena
                         final config = ref.read(gameConfigProvider).value;
                         final difficulty = battle.botDifficulty ?? BotDifficulty.normal;
                         final pts = battle.gameMode == GameMode.normal

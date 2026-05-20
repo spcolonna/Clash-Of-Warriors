@@ -514,7 +514,7 @@ class _BottomSection extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             SizedBox(
-              height: 150,
+              height: 180,
               width: double.infinity,
               child: PlayerHandWidget(
                 cards: battle.player.hand,

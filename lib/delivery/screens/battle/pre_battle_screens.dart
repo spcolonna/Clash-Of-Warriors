@@ -1,3 +1,4 @@
+import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/entities/battle_state.dart' show GameMode;
@@ -350,7 +351,7 @@ class PreBattleScreen extends ConsumerWidget {
   };
 }
 
-class _HeroPreviewCard extends StatelessWidget {
+class _HeroPreviewCard extends StatefulWidget {
   final dynamic hero;
   final Color color;
   final String label;
@@ -364,7 +365,69 @@ class _HeroPreviewCard extends StatelessWidget {
   });
 
   @override
+  State<_HeroPreviewCard> createState() => _HeroPreviewCardState();
+}
+
+class _HeroPreviewCardState extends State<_HeroPreviewCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+  bool _showBack = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _flip() {
+    if (_ctrl.isAnimating) return;
+    if (_showBack) {
+      _ctrl.reverse().then((_) => setState(() => _showBack = false));
+    } else {
+      setState(() => _showBack = true);
+      _ctrl.forward();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _flip,
+      child: AnimatedBuilder(
+        animation: _anim,
+        builder: (context, _) {
+          final angle = _anim.value * pi;
+          final isShowingBack = angle > pi / 2;
+          return Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.rotationY(angle),
+            child: isShowingBack
+                ? Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.rotationY(pi),
+                    child: _buildBack(),
+                  )
+                : _buildFront(),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFront() {
+    final hero = widget.hero;
+    final color = widget.color;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -374,7 +437,14 @@ class _HeroPreviewCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(label, style: TextStyle(color: color, fontSize: 10, letterSpacing: 1.5)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(widget.label, style: TextStyle(color: color, fontSize: 10, letterSpacing: 1.5)),
+              const SizedBox(width: 4),
+              Icon(Icons.info_outline, size: 9, color: color.withValues(alpha: 0.5)),
+            ],
+          ),
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
@@ -382,17 +452,11 @@ class _HeroPreviewCard extends StatelessWidget {
               width: double.infinity,
               height: 100,
               child: Image(
-                image: ResizeImage(
-                  AssetImage(hero.imagePath),
-                  width: 300,
-                  height: 200,
-                ),
+                image: ResizeImage(AssetImage(hero.imagePath), width: 300, height: 200),
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
                   color: color.withValues(alpha: 0.15),
-                  child: Center(
-                    child: Icon(Icons.sports_mma, size: 40, color: color),
-                  ),
+                  child: Center(child: Icon(Icons.sports_mma, size: 40, color: color)),
                 ),
               ),
             ),
@@ -400,11 +464,7 @@ class _HeroPreviewCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             hero.name,
-            style: const TextStyle(
-              color: Color(0xFFF0F0F0),
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(color: Color(0xFFF0F0F0), fontSize: 14, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
           Text(
@@ -416,6 +476,65 @@ class _HeroPreviewCard extends StatelessWidget {
           _MiniStatBar(icon: Icons.favorite, value: hero.maxHp, max: 92, color: Colors.red),
           const SizedBox(height: 4),
           _MiniStatBar(icon: Icons.bolt, value: hero.maxStamina, max: 14, color: Colors.amber),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBack() {
+    final hero = widget.hero;
+    final color = widget.color;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A2E),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.6), width: 1.5),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.menu_book_rounded, size: 20, color: color.withValues(alpha: 0.7)),
+          const SizedBox(height: 8),
+          Text(
+            hero.name,
+            style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+            textAlign: TextAlign.center,
+          ),
+          Text(
+            hero.title,
+            style: const TextStyle(color: Color(0xFF8A8A9A), fontSize: 9),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            height: 1,
+            color: color.withValues(alpha: 0.2),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            hero.lore,
+            style: const TextStyle(
+              color: Color(0xFFD0D0D0),
+              fontSize: 11,
+              fontStyle: FontStyle.italic,
+              height: 1.55,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.touch_app, size: 10, color: color.withValues(alpha: 0.4)),
+              const SizedBox(width: 3),
+              Text(
+                'Tocá para volver',
+                style: TextStyle(color: color.withValues(alpha: 0.4), fontSize: 9),
+              ),
+            ],
+          ),
         ],
       ),
     );

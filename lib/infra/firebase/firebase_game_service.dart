@@ -305,6 +305,53 @@ class FirebaseGameService {
         .set(settings, SetOptions(merge: true));
   }
 
+  // ── STORY ARCS ─────────────────────────────────────────────────────────────
+
+  /// Carga todos los arcos de historia desde Firestore.
+  /// Cada documento en la colección 'storyArcs' es un arco con id "{heroId}_{rarity}".
+  Future<List<Map<String, dynamic>>> loadStoryArcs() async {
+    final snap = await _db.collection('storyArcs').get();
+    return snap.docs.map((d) => {'arcId': d.id, ...d.data()}).toList();
+  }
+
+  /// Guarda (o sobreescribe) un arco de historia desde el admin web.
+  Future<void> saveStoryArc(String arcId, Map<String, dynamic> data) async {
+    await _db.collection('storyArcs').doc(arcId).set(data);
+  }
+
+  // ── PROGRESO DE HISTORIA ────────────────────────────────────────────────────
+
+  Future<void> saveStoryProgress({
+    required String uid,
+    required String arcKey, // "{heroId}_{rarity}"
+    required int stageIndex,
+  }) async {
+    await _users.doc(uid).update({'storyProgress.$arcKey': stageIndex});
+  }
+
+  Future<void> completeStoryArc({
+    required String uid,
+    required String arcKey,
+    String? rewardHeroId, // null si es legendary
+  }) async {
+    final updates = <String, dynamic>{
+      'completedStoryArcs': FieldValue.arrayUnion([arcKey]),
+    };
+    if (rewardHeroId != null) {
+      updates['unlockedHeroIds'] = FieldValue.arrayUnion([rewardHeroId]);
+    }
+    await _users.doc(uid).update(updates);
+  }
+
+  Future<void> grantAchievement({
+    required String uid,
+    required String achievementId,
+  }) async {
+    await _users.doc(uid).update({
+      'achievements': FieldValue.arrayUnion([achievementId]),
+    });
+  }
+
   // ── CICLO DE PROGRESO ──────────────────────────────────────────────────────
 
   Future<void> addBattlePoints(String uid, int amount) async {

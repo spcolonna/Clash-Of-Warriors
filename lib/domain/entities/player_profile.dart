@@ -23,6 +23,14 @@ class PlayerProfile {
   final int battlePoints;
   final int lastClaimedCycleIndex;
 
+  // Modo historia
+  // Key: "{heroId}_{rarity}" (ej: "puo_liu_common"), Value: índice del último stage completado (0-9, -1 = no iniciado)
+  final Map<String, int> storyProgress;
+  // Set de arcos completados ("{heroId}_{rarity}")
+  final Set<String> completedStoryArcs;
+  // Logros desbloqueados (ej: "dragon_path_puo_liu")
+  final List<String> achievements;
+
   const PlayerProfile({
     required this.uid,
     this.isOnboardingComplete = false,
@@ -39,7 +47,37 @@ class PlayerProfile {
     this.starterCardAddedToDeck = false,
     this.battlePoints = 0,
     this.lastClaimedCycleIndex = 0,
+    this.storyProgress = const {},
+    this.completedStoryArcs = const {},
+    this.achievements = const [],
   });
+
+  // ── Helpers de modo historia ─────────────────────────────────────────────
+
+  /// Índice del último stage completado (-1 = no iniciado).
+  int storyStageFor(String heroId, String rarity) =>
+      storyProgress['${heroId}_$rarity'] ?? -1;
+
+  bool isArcComplete(String heroId, String rarity) =>
+      completedStoryArcs.contains('${heroId}_$rarity');
+
+  /// La rareza más baja pendiente de completar para un héroe dado.
+  /// Retorna null si todos los arcos están completos.
+  String? nextPlayableRarity(String heroId) {
+    for (final rarity in ['common', 'rare', 'epic', 'legendary']) {
+      if (!isArcComplete(heroId, rarity)) return rarity;
+    }
+    return null;
+  }
+
+  /// ID del héroe que se desbloquea al completar el arco de esta rareza.
+  /// Retorna null si es legendary (se otorga achievement en su lugar).
+  static String? rewardHeroId(String heroId, String rarity) => switch (rarity) {
+    'common'    => '${heroId}_rare',
+    'rare'      => '${heroId}_epic',
+    'epic'      => '${heroId}_legendary',
+    _           => null,
+  };
 
   PlayerProfile copyWith({
     bool? isOnboardingComplete,
@@ -56,6 +94,9 @@ class PlayerProfile {
     bool? starterCardAddedToDeck,
     int? battlePoints,
     int? lastClaimedCycleIndex,
+    Map<String, int>? storyProgress,
+    Set<String>? completedStoryArcs,
+    List<String>? achievements,
   }) =>
       PlayerProfile(
         uid: uid,
@@ -68,13 +109,14 @@ class PlayerProfile {
         unlockedHeroIds: unlockedHeroIds ?? this.unlockedHeroIds,
         ownedCards: ownedCards ?? this.ownedCards,
         deckCardIds: deckCardIds ?? this.deckCardIds,
-        tutorialBattleComplete:
-        tutorialBattleComplete ?? this.tutorialBattleComplete,
+        tutorialBattleComplete: tutorialBattleComplete ?? this.tutorialBattleComplete,
         starterCardPurchased: starterCardPurchased ?? this.starterCardPurchased,
-        starterCardAddedToDeck:
-        starterCardAddedToDeck ?? this.starterCardAddedToDeck,
+        starterCardAddedToDeck: starterCardAddedToDeck ?? this.starterCardAddedToDeck,
         battlePoints: battlePoints ?? this.battlePoints,
         lastClaimedCycleIndex: lastClaimedCycleIndex ?? this.lastClaimedCycleIndex,
+        storyProgress: storyProgress ?? this.storyProgress,
+        completedStoryArcs: completedStoryArcs ?? this.completedStoryArcs,
+        achievements: achievements ?? this.achievements,
       );
 
   Map<String, dynamic> toFirestore() => {
@@ -92,6 +134,9 @@ class PlayerProfile {
     'starterCardAddedToDeck': starterCardAddedToDeck,
     'battlePoints': battlePoints,
     'lastClaimedCycleIndex': lastClaimedCycleIndex,
+    'storyProgress': storyProgress,
+    'completedStoryArcs': completedStoryArcs.toList(),
+    'achievements': achievements,
   };
 
   factory PlayerProfile.fromFirestore(String uid, Map<String, dynamic> data) =>
@@ -113,6 +158,11 @@ class PlayerProfile {
         starterCardAddedToDeck: data['starterCardAddedToDeck'] ?? false,
         battlePoints: data['battlePoints'] ?? 0,
         lastClaimedCycleIndex: data['lastClaimedCycleIndex'] ?? 0,
+        storyProgress: Map<String, int>.from(
+            (data['storyProgress'] as Map<String, dynamic>? ?? {})
+                .map((k, v) => MapEntry(k, (v as num).toInt()))),
+        completedStoryArcs: Set<String>.from(data['completedStoryArcs'] ?? []),
+        achievements: List<String>.from(data['achievements'] ?? []),
       );
 }
 

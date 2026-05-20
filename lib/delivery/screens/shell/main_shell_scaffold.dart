@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../deck/deck_builder_screen.dart';
+import '../donations/donations_screen.dart';
 import '../home/home_screen.dart';
 import '../shop/shop_screen.dart';
+import '../story/story_hub_screen.dart';
 
 final activeTabProvider = StateProvider<int>((_) => 0);
 
@@ -29,7 +31,7 @@ class MainShellScaffold extends ConsumerWidget {
           // tab 0 → borde izquierdo, tab 1 → centro, tab 2 → borde derecho
           Builder(
             builder: (context) {
-              const positions = [-1.0, 0.0, 1.0];
+              const positions = [-1.0, -0.33, 0.33, 1.0, 1.0];
               final targetAlignX = positions[activeTab];
 
               return TweenAnimationBuilder<double>(
@@ -67,6 +69,8 @@ class MainShellScaffold extends ConsumerWidget {
               HomeScreen(),
               ShopScreen(),
               DeckBuilderScreen(),
+              StoryHubScreen(),
+              DonationsScreen(),
             ],
           ),
         ],
@@ -118,6 +122,20 @@ class _BottomNav extends StatelessWidget {
                 label: 'Mazo',
                 active: active == 2,
                 onTap: () => onChanged(2),
+              ),
+              _NavItem(
+                key: const GlobalObjectKey('nav_story'),
+                icon: Icons.auto_stories_rounded,
+                label: 'Historia',
+                active: active == 3,
+                onTap: () => onChanged(3),
+              ),
+              _NavItem(
+                key: const GlobalObjectKey('nav_donations'),
+                icon: Icons.favorite_rounded,
+                label: 'Apoyar',
+                active: active == 4,
+                onTap: () => onChanged(4),
               ),
             ],
           ),
