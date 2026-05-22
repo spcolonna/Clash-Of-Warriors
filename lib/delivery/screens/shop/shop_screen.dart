@@ -708,35 +708,53 @@ class _FactionRow extends StatelessWidget {
           const SizedBox(height: 12),
           SizedBox(
             height: 200,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: faction.cards.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
-              itemBuilder: (context, i) {
-                final card = faction.cards[i];
-                final isOwned = ownedCardIds.contains(card.id);
-                final canAfford = playerCoins >= card.cost;
+            child: Builder(builder: (context) {
+              // Solo mostramos cartas no compradas; las ya adquiridas desaparecen.
+              final visibleCards = faction.cards
+                  .where((c) => !ownedCardIds.contains(c.id))
+                  .toList();
 
-                // Si hay tutorial activo, la primera carta starter lleva la key
-                final key = (starterCardKey != null &&
-                        card.isTutorialCard &&
-                        i == 0)
-                    ? starterCardKey
-                    : null;
-
-                return ShopCardItem(
-                  key: key,
-                  card: card,
-                  isFactionUnlocked: isUnlocked,
-                  isOwned: isOwned,
-                  canAfford: canAfford,
-                  onTap: isUnlocked && !isOwned && canAfford
-                      ? () => onCardTap(card)
-                      : null,
+              if (visibleCards.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Center(
+                    child: Text(
+                      'Ya tenés todas las cartas de esta facción.',
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 );
-              },
-            ),
+              }
+
+              return ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: visibleCards.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, i) {
+                  final card = visibleCards[i];
+                  final canAfford = playerCoins >= card.cost;
+
+                  // Si hay tutorial activo, la carta starter lleva la key
+                  final key = (starterCardKey != null && card.isTutorialCard)
+                      ? starterCardKey
+                      : null;
+
+                  return ShopCardItem(
+                    key: key,
+                    card: card,
+                    factionId: faction.id,
+                    isFactionUnlocked: isUnlocked,
+                    isOwned: false,
+                    canAfford: canAfford,
+                    onTap: isUnlocked && canAfford
+                        ? () => onCardTap(card)
+                        : null,
+                  );
+                },
+              );
+            }),
           ),
         ],
       ),

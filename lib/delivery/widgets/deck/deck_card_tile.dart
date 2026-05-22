@@ -1,19 +1,22 @@
 // lib/delivery/widgets/deck/deck_card_tile.dart
 
 import 'package:flutter/material.dart';
+import '../../../domain/entities/game_card.dart';
+import '../card_preview_dialog.dart';
+import '../game_card_widget.dart';
 
 class DeckCardTile extends StatefulWidget {
-  final String cardId;
+  final GameCard card;
   final int quantity;
   final bool inDeck;
-  final VoidCallback onTap;
+  final VoidCallback onAction;
 
   const DeckCardTile({
     super.key,
-    required this.cardId,
+    required this.card,
     required this.quantity,
     required this.inDeck,
-    required this.onTap,
+    required this.onAction,
   });
 
   @override
@@ -50,69 +53,32 @@ class _DeckCardTileState extends State<DeckCardTile>
           child: Opacity(opacity: t.clamp(0.0, 1.0), child: child),
         );
       },
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: widget.inDeck
-                  ? const Color(0xFFE74C3C).withOpacity(0.5)
-                  : const Color(0xFF888888).withOpacity(0.5),
-              width: 2,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 4,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Stack(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cardWidth = constraints.maxWidth;
+          return Stack(
+            clipBehavior: Clip.none,
             children: [
-              Padding(
-                padding: const EdgeInsets.all(6),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEAEAEA),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.style, size: 28, color: Color(0xFF8A8A9A)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.cardId,
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+              // Carta completa — tap abre preview con lore
+              GestureDetector(
+                onTap: () => CardPreviewDialog.show(context, widget.card),
+                child: GameCardWidget(
+                  card: widget.card,
+                  width: cardWidth,
                 ),
               ),
-              // Badge de cantidad
+
+              // Badge cantidad (arriba izquierda)
               if (widget.quantity > 1)
                 Positioned(
                   top: 4,
-                  right: 4,
+                  left: 4,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
+                        horizontal: 5, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.black87,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       '×${widget.quantity}',
@@ -124,29 +90,40 @@ class _DeckCardTileState extends State<DeckCardTile>
                     ),
                   ),
                 ),
-              // Badge de acción
+
+              // Botón agregar / quitar (abajo derecha)
               Positioned(
                 bottom: 4,
                 right: 4,
-                child: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: widget.inDeck
-                        ? Colors.red
-                        : const Color(0xFF27AE60),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    widget.inDeck ? Icons.remove : Icons.add,
-                    color: Colors.white,
-                    size: 16,
+                child: GestureDetector(
+                  onTap: widget.onAction,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: widget.inDeck
+                          ? const Color(0xFFE74C3C)
+                          : const Color(0xFF27AE60),
+                      shape: BoxShape.circle,
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black45,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      widget.inDeck ? Icons.remove : Icons.add,
+                      color: Colors.white,
+                      size: 14,
+                    ),
                   ),
                 ),
               ),
             ],
-          ),
-        ),
+          );
+        },
       ),
     );
   }

@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../domain/entities/hero_entity.dart';
 import '../../../domain/entities/story_arc.dart';
 import '../../../infra/local/heroes_data.dart';
 import '../../state/battle_provider.dart';
 import '../../state/providers.dart';
 import '../../state/story_provider.dart';
+import '../heroes/character_select_screen.dart' show factionColor;
 
 class StorySceneScreen extends ConsumerWidget {
   const StorySceneScreen({super.key});
@@ -160,9 +162,18 @@ class _CharacterPortrait extends StatelessWidget {
   final bool mirrored;
   const _CharacterPortrait({required this.hero, required this.mirrored});
 
+  static final _factionImages = {
+    Faction.shaolin:  'assets/images/heros/withoutBG/shaolin_common.png',
+    Faction.ninja:    'assets/images/heros/withoutBG/ninja_common.png',
+    Faction.judoka:   'assets/images/heros/withoutBG/judo_common.png',
+    Faction.boxer:    'assets/images/heros/withoutBG/boxer_common.png',
+    Faction.capoeira: 'assets/images/heros/withoutBG/capoeira_common.png',
+  };
+
   @override
   Widget build(BuildContext context) {
     if (hero == null) return const SizedBox(width: 120);
+    final imagePath = _factionImages[hero.faction] ?? hero.imagePath as String;
     return Transform(
       alignment: Alignment.center,
       transform: mirrored ? (Matrix4.identity()..scale(-1.0, 1.0)) : Matrix4.identity(),
@@ -170,7 +181,7 @@ class _CharacterPortrait extends StatelessWidget {
         width: 140,
         height: 240,
         child: Image.asset(
-          hero.imagePath as String,
+          imagePath,
           fit: BoxFit.contain,
           alignment: Alignment.bottomCenter,
           errorBuilder: (_, __, ___) => const SizedBox.shrink(),
@@ -295,90 +306,128 @@ class _BattleInterstitial extends ConsumerWidget {
     final botHero = HeroesData.findByIdSafe(battleStage.botHeroId);
     final playerHero = HeroesData.findByIdSafe(session.heroId);
 
+    final fColor = playerHero != null ? factionColor(playerHero.faction) : const Color(0xFFE5A93C);
+    final bColor = botHero != null ? factionColor(botHero.faction) : const Color(0xFFE74C3C);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A14),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              // Header
-              Row(
+      backgroundColor: const Color(0xFF0D0D1A),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Mismo fondo que PreBattleScreen
+          Image.asset(
+            'assets/images/pre_battle_bg.png',
+            fit: BoxFit.cover,
+            frameBuilder: (_, child, frame, sync) =>
+                (sync || frame != null) ? child : const SizedBox.shrink(),
+          ),
+          ColoredBox(color: Colors.black.withValues(alpha: 0.2)),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
                 children: [
-                  GestureDetector(
-                    onTap: () => context.go('/home'),
-                    child: const Icon(Icons.close, color: Color(0xFF4A4A5A), size: 20),
+                  const SizedBox(height: 8),
+                  // Header
+                  Row(
+                    children: [
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: const Icon(Icons.arrow_back_ios, color: Colors.white70, size: 20),
+                        onPressed: () => context.go('/home'),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'MODO HISTORIA',
+                        style: TextStyle(color: Colors.white70, fontSize: 13, letterSpacing: 2, fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(height: 4),
                   Text(
-                    'Etapa ${session.currentStageIndex + 1}/10 — Combate',
-                    style: const TextStyle(color: Color(0xFF6A6A7A), fontSize: 11, letterSpacing: 1),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              // VS
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _VSHeroCard(hero: playerHero, label: 'TÚ'),
-                  const Text('VS', style: TextStyle(
-                    color: Color(0xFFE74C3C),
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 2,
-                  )),
-                  _VSHeroCard(hero: botHero, label: 'RIVAL', mirrored: true),
-                ],
-              ),
-              const SizedBox(height: 32),
-              // Briefing
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF141428),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF3A3A5E)),
-                ),
-                child: Text(
-                  battleStage.briefingText,
-                  style: const TextStyle(
-                    color: Color(0xFFD0D0D0),
-                    fontSize: 13,
-                    height: 1.5,
-                    fontStyle: FontStyle.italic,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const Spacer(),
-              // Botón combate
-              GestureDetector(
-                onTap: () => _launchBattle(context, ref, battleStage, playerHero, botHero),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE74C3C),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Text(
-                    'ENTRAR AL COMBATE',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1,
+                    'Etapa ${session.currentStageIndex + 1} de 10',
+                    style: const TextStyle(
+                      color: Color(0xFFF0F0F0),
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
+                  const Spacer(),
+                  // Cards VS
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StoryHeroCard(hero: playerHero, color: fColor, label: 'Tú'),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white, width: 1),
+                          ),
+                          child: const Column(
+                            children: [
+                              Text('VS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.black87, letterSpacing: 1)),
+                              Text('HISTORIA', style: TextStyle(color: Colors.black, fontSize: 8, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: _StoryHeroCard(hero: botHero, color: bColor, label: 'Rival'),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  // Briefing
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '"${battleStage.briefingText}"',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontStyle: FontStyle.italic,
+                        height: 1.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const Spacer(),
+                  // Botón combate
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _launchBattle(context, ref, battleStage, playerHero, botHero),
+                      icon: const Icon(Icons.sports_mma, size: 20),
+                      label: const Text(
+                        'Comenzar Batalla',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE74C3C),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
               ),
-              const SizedBox(height: 12),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -392,14 +441,12 @@ class _BattleInterstitial extends ConsumerWidget {
   ) {
     if (playerHero == null || botHero == null) return;
 
-    // Setear contexto de historia para que EndBattleScreen sepa volver
     ref.read(storyBattleContextProvider.notifier).state = StoryBattleContext(
       heroId: session.heroId,
       rarity: session.rarity,
       stageIndex: session.currentStageIndex,
     );
 
-    // Inicializar la batalla de historia
     ref.read(battleProvider.notifier).initStoryBattle(
       playerHero: playerHero,
       botHero: botHero,
@@ -411,50 +458,100 @@ class _BattleInterstitial extends ConsumerWidget {
   }
 }
 
-class _VSHeroCard extends StatelessWidget {
+class _StoryHeroCard extends StatelessWidget {
   final dynamic hero;
+  final Color color;
   final String label;
-  final bool mirrored;
-  const _VSHeroCard({required this.hero, required this.label, this.mirrored = false});
+
+  const _StoryHeroCard({required this.hero, required this.color, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(label, style: const TextStyle(color: Color(0xFF8A8A9A), fontSize: 10, letterSpacing: 1)),
-        const SizedBox(height: 8),
-        if (hero != null)
-          Transform(
-            alignment: Alignment.center,
-            transform: mirrored ? (Matrix4.identity()..scale(-1.0, 1.0)) : Matrix4.identity(),
-            child: Image.asset(
-              hero.imagePath as String,
-              width: 100,
-              height: 140,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Container(
-                width: 100,
-                height: 140,
-                color: const Color(0xFF1A1A2E),
-                child: const Icon(Icons.person, color: Colors.white38, size: 40),
+    if (hero == null) {
+      return Container(
+        height: 180,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A2E),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: const Center(child: Icon(Icons.person, color: Colors.white24, size: 40)),
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A2E),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        children: [
+          Text(label, style: TextStyle(color: color, fontSize: 10, letterSpacing: 1.5)),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              width: double.infinity,
+              height: 96,
+              child: Image(
+                image: ResizeImage(AssetImage(hero.imagePath as String), width: 300, height: 200),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: color.withValues(alpha: 0.15),
+                  child: Center(child: Icon(Icons.sports_mma, size: 36, color: color)),
+                ),
               ),
             ),
-          )
-        else
-          Container(
-            width: 100,
-            height: 140,
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.person, color: Colors.white38, size: 40),
           ),
-        if (hero != null) ...[
           const SizedBox(height: 8),
-          Text(hero.name as String,
-              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+          Text(
+            hero.name as String,
+            style: const TextStyle(color: Color(0xFFF0F0F0), fontSize: 13, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          Text(
+            hero.title as String,
+            style: const TextStyle(color: Color(0xFF8A8A9A), fontSize: 10),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+          _StoryStatBar(icon: Icons.favorite, value: hero.maxHp as int, max: 92, color: Colors.red),
+          const SizedBox(height: 4),
+          _StoryStatBar(icon: Icons.bolt, value: hero.maxStamina as int, max: 14, color: Colors.amber),
         ],
+      ),
+    );
+  }
+}
+
+class _StoryStatBar extends StatelessWidget {
+  final IconData icon;
+  final int value;
+  final int max;
+  final Color color;
+
+  const _StoryStatBar({required this.icon, required this.value, required this.max, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 10, color: color),
+        const SizedBox(width: 4),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: (value / max).clamp(0.0, 1.0),
+              backgroundColor: const Color(0xFF2A2A3E),
+              valueColor: AlwaysStoppedAnimation(color),
+              minHeight: 5,
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text('$value', style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
       ],
     );
   }

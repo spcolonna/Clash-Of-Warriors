@@ -102,6 +102,11 @@ class _GameCardWidgetState extends State<GameCardWidget>
     required double bubbleSize,
     required double glowAlpha,
   }) {
+    final factionColor = _isPassive ? null : _factionColor(card.factionId);
+    final effectiveBorderColor = _isPassive
+        ? const Color(0xFFF5B800)
+        : (factionColor ?? const Color(0xFFB0B0B0));
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -112,10 +117,8 @@ class _GameCardWidgetState extends State<GameCardWidget>
             color: Colors.white,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: _isPassive
-                  ? const Color(0xFFF5B800)
-                  : const Color(0xFFB0B0B0),
-              width: _isPassive ? 2.0 : 1.5,
+              color: effectiveBorderColor,
+              width: _isPassive || factionColor != null ? 2.0 : 1.5,
             ),
             boxShadow: [
               BoxShadow(
@@ -140,12 +143,17 @@ class _GameCardWidgetState extends State<GameCardWidget>
                 height: headerH,
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: width * 0.06),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF0F0F0),
+                  decoration: BoxDecoration(
+                    color: factionColor ?? const Color(0xFFF0F0F0),
                     borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(8.5)),
+                        const BorderRadius.vertical(top: Radius.circular(8.5)),
                     border: Border(
-                      bottom: BorderSide(color: Color(0xFFDDDDDD), width: 1),
+                      bottom: BorderSide(
+                        color: factionColor != null
+                            ? Colors.black.withValues(alpha: 0.20)
+                            : const Color(0xFFDDDDDD),
+                        width: 1,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -155,7 +163,9 @@ class _GameCardWidgetState extends State<GameCardWidget>
                         child: Text(
                           card.name,
                           style: TextStyle(
-                            color: const Color(0xFF1A1A1A),
+                            color: factionColor != null
+                                ? Colors.white
+                                : const Color(0xFF1A1A1A),
                             fontSize: headerH * 0.32,
                             fontWeight: FontWeight.bold,
                             height: 1.1,
@@ -288,10 +298,10 @@ class _GameCardWidgetState extends State<GameCardWidget>
                       child: Text(
                         card.lore.isEmpty ? '' : card.lore,
                         style: TextStyle(
-                          color: const Color(0xFF5A5A5A),
+                          color: const Color(0xFF3A3A3A),
                           fontSize: loreH * 0.165,
-                          fontStyle: FontStyle.italic,
-                          height: 1.2,
+                          fontWeight: FontWeight.w500,
+                          height: 1.3,
                         ),
                         textAlign: TextAlign.center,
                         overflow: TextOverflow.fade,
@@ -320,6 +330,29 @@ class _GameCardWidgetState extends State<GameCardWidget>
               child: const Text(
                 'PASIVA',
                 style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 7,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
+
+        // ── BADGE DE FACCIÓN (top-right, solo cartas no-pasivas con facción)
+        if (!_isPassive && factionColor != null && card.factionId != null)
+          Positioned(
+            top: 4,
+            right: 4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              decoration: BoxDecoration(
+                color: factionColor,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                card.factionId!.toUpperCase(),
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 7,
                   fontWeight: FontWeight.w900,
@@ -406,4 +439,13 @@ String _categoryLabel(CardCategory category) => switch (category) {
   CardCategory.grapple => 'AGARRE',
   CardCategory.defense => 'DEFENSA',
   CardCategory.dodge   => 'ESQUIVE',
+};
+
+Color? _factionColor(String? factionId) => switch (factionId) {
+  'shaolin'  => const Color(0xFFFF6F00),
+  'ninja'    => const Color(0xFF37474F),
+  'judoka'   => const Color(0xFF1565C0),
+  'boxer'    => const Color(0xFFB71C1C),
+  'capoeira' => const Color(0xFF2E7D32),
+  _          => null,
 };

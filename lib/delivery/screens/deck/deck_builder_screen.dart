@@ -9,7 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../infra/local/heroes_data.dart';
+import '../../../infra/local/neutral_cards_data.dart';
 import '../../../domain/entities/hero_entity.dart';
+import '../../../domain/entities/game_card.dart';
 import '../../state/providers.dart';
 import '../../state/deck_builder_provider.dart';
 import '../../widgets/deck/deck_card_tile.dart';
@@ -31,6 +33,10 @@ class _DeckBuilderScreenState extends ConsumerState<DeckBuilderScreen> {
       () => ref.read(deckBuilderProvider.notifier).loadFromPlayer(),
     );
   }
+
+  // Busca la GameCard por id en las cartas neutrales y en las de facción.
+  GameCard? _findCard(String id) =>
+      NeutralCardsData.findById(id) ?? FactionStarterCards.findById(id);
 
   @override
   Widget build(BuildContext context) {
@@ -64,8 +70,7 @@ class _DeckBuilderScreenState extends ConsumerState<DeckBuilderScreen> {
                     SliverToBoxAdapter(
                       child: _HeroSelectorSection(
                         activeHeroId: player?.activeHeroId,
-                        unlockedHeroIds:
-                            player?.unlockedHeroIds ?? const [],
+                        unlockedHeroIds: player?.unlockedHeroIds ?? const [],
                         onSelect: (heroId) => ref
                             .read(playerProvider.notifier)
                             .updateActiveHero(heroId),
@@ -85,8 +90,7 @@ class _DeckBuilderScreenState extends ConsumerState<DeckBuilderScreen> {
                       sliver: state.deck.isEmpty
                           ? const SliverToBoxAdapter(
                               child: _EmptyState(
-                                text:
-                                    'Tu mazo está vacío.\nAgregá cartas desde tu colección.',
+                                text: 'Tu mazo está vacío.\nAgregá cartas desde tu colección.',
                               ),
                             )
                           : SliverGrid(
@@ -95,17 +99,19 @@ class _DeckBuilderScreenState extends ConsumerState<DeckBuilderScreen> {
                                 crossAxisCount: 3,
                                 crossAxisSpacing: 10,
                                 mainAxisSpacing: 10,
-                                childAspectRatio: 0.7,
+                                childAspectRatio: 0.63,
                               ),
                               delegate: SliverChildBuilderDelegate(
                                 (context, index) {
                                   final entry = state.deck[index];
+                                  final card = _findCard(entry.cardId);
+                                  if (card == null) return const SizedBox.shrink();
                                   return DeckCardTile(
                                     key: ValueKey('deck_${entry.cardId}'),
-                                    cardId: entry.cardId,
+                                    card: card,
                                     quantity: entry.quantity,
                                     inDeck: true,
-                                    onTap: () => ref
+                                    onAction: () => ref
                                         .read(deckBuilderProvider.notifier)
                                         .removeFromDeck(entry.cardId),
                                   );
@@ -119,8 +125,7 @@ class _DeckBuilderScreenState extends ConsumerState<DeckBuilderScreen> {
                     SliverToBoxAdapter(
                       child: DeckSectionHeader(
                         title: 'Colección',
-                        subtitle:
-                            '${state.collection.length} cartas disponibles',
+                        subtitle: '${state.collection.length} cartas disponibles',
                         color: const Color(0xFF2980B9),
                       ),
                     ),
@@ -138,17 +143,19 @@ class _DeckBuilderScreenState extends ConsumerState<DeckBuilderScreen> {
                                 crossAxisCount: 3,
                                 crossAxisSpacing: 10,
                                 mainAxisSpacing: 10,
-                                childAspectRatio: 0.7,
+                                childAspectRatio: 0.63,
                               ),
                               delegate: SliverChildBuilderDelegate(
                                 (context, index) {
                                   final entry = state.collection[index];
+                                  final card = _findCard(entry.cardId);
+                                  if (card == null) return const SizedBox.shrink();
                                   return DeckCardTile(
                                     key: ValueKey('col_${entry.cardId}'),
-                                    cardId: entry.cardId,
+                                    card: card,
                                     quantity: entry.quantity,
                                     inDeck: false,
-                                    onTap: () => ref
+                                    onAction: () => ref
                                         .read(deckBuilderProvider.notifier)
                                         .addToDeck(entry.cardId),
                                   );

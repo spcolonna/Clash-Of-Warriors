@@ -120,6 +120,19 @@ class NeutralCardsData {
     baseDamage: 16,
   );
 
+  static final _allUniqueCards = [
+    golpeBasico, golpeFuerte, patadaBasica, patadaFuerte,
+    agarreBasico, llaveBasica, guardiaBasica, bloqueoBasico,
+    pasoBasico, esquiveBasico,
+  ];
+
+  static GameCard? findById(String id) {
+    for (final c in _allUniqueCards) {
+      if (c.id == id) return c;
+    }
+    return null;
+  }
+
   // ── Mazo starter: 20 cartas ──────────────────────────────────────────────
   //
   // Composición:

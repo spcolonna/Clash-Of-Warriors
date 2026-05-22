@@ -131,6 +131,15 @@ class FactionStarterCards {
   };
 
   static int costFor(String factionId) => 80; // todas cuestan 80 soft coins
+
+  static GameCard? findById(String id) => switch (id) {
+    'shaolin_five_beasts'     => shaolinCard,
+    'ninja_shadow_kick'       => ninjaCard,
+    'judoka_basic_projection' => judokaCard,
+    'boxer_barrio_cross'      => boxerCard,
+    'capoeira_meia_lua'       => capoeiraCard,
+    _ => null,
+  };
 }
 
 // ── Pasivas de raridades superiores ──────────────────────────────────────────
