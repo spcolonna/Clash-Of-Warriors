@@ -16,6 +16,8 @@ class GameCard {
   final bool requiresDice;
   final String? heroId;        // null = carta neutral
   final String? factionId;     // null = neutral
+  final String? imageFolder;   // subcarpeta dentro de assets/images/cards/
+  final String? imageName;     // nombre del archivo, ej. shadow_kick.png
 
   const GameCard({
     required this.id,
@@ -29,6 +31,8 @@ class GameCard {
     this.requiresDice = false,
     this.heroId,
     this.factionId,
+    this.imageFolder,
+    this.imageName,
   });
 
   bool get isNeutral => heroId == null && factionId == null;

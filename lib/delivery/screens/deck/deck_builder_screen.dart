@@ -16,6 +16,7 @@ import '../../state/providers.dart';
 import '../../state/deck_builder_provider.dart';
 import '../../widgets/deck/deck_card_tile.dart';
 import '../../widgets/deck/deck_section_header.dart';
+import '../../widgets/game_card_widget.dart';
 import '../../widgets/hero_stats_dialog.dart';
 
 class DeckBuilderScreen extends ConsumerStatefulWidget {
@@ -74,6 +75,20 @@ class _DeckBuilderScreenState extends ConsumerState<DeckBuilderScreen> {
                         onSelect: (heroId) => ref
                             .read(playerProvider.notifier)
                             .updateActiveHero(heroId),
+                      ),
+                    ),
+
+                    // ── SECCIÓN CARTA PASIVA ───────────────────────────
+                    SliverToBoxAdapter(
+                      child: DeckSectionHeader(
+                        title: 'Carta Pasiva',
+                        subtitle: 'exclusiva del héroe',
+                        color: const Color(0xFFF5B800),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _PassiveCardSection(
+                        activeHeroId: player?.activeHeroId,
                       ),
                     ),
 
@@ -172,6 +187,84 @@ class _DeckBuilderScreenState extends ConsumerState<DeckBuilderScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─── SECCIÓN CARTA PASIVA ────────────────────────────────────────────────────
+
+class _PassiveCardSection extends StatelessWidget {
+  final String? activeHeroId;
+
+  const _PassiveCardSection({required this.activeHeroId});
+
+  @override
+  Widget build(BuildContext context) {
+    if (activeHeroId == null) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: _EmptyState(text: 'Seleccioná un héroe para ver su carta pasiva.'),
+      );
+    }
+
+    final passive = HeroesData.passiveForHero(activeHeroId!);
+    if (passive == null) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: _EmptyState(text: 'Este héroe no tiene carta pasiva registrada.'),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GameCardWidget(card: passive, width: 110, isPassive: true),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Se activa automáticamente',
+                  style: TextStyle(
+                    color: Color(0xFFF5B800),
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Esta carta no entra al mazo. Se juega sola cuando tu héroe baja al 40% de HP y tenés stamina suficiente.',
+                  style: TextStyle(
+                    color: Color(0xFF9A9AB0),
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1A2E),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFF5B800).withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    passive.lore,
+                    style: const TextStyle(
+                      color: Color(0xFFD4AF37),
+                      fontSize: 11,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

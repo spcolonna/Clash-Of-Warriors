@@ -275,6 +275,10 @@ class HeroesData {
   static HeroEntity? findByIdSafe(String id) =>
       allHeroes.where((h) => h.id == id).firstOrNull;
 
+  /// Retorna la carta pasiva del héroe activo, o null si no se encuentra.
+  static GameCard? passiveForHero(String heroId) =>
+      findByIdSafe(heroId)?.passive;
+
   /// Aplica las stats de Firestore sobre los héroes hardcodeados.
   /// Llamado al cargar gameConfigProvider en startup.
   /// Solo toca starterHeroes — las raridades superiores no tienen overrides en Firestore.

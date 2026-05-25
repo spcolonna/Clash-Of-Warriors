@@ -206,17 +206,18 @@ class _GameCardWidgetState extends State<GameCardWidget>
                   padding: EdgeInsets.symmetric(horizontal: width * 0.05),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(6),
-                    child: _isPassive
-                        ? Container(
-                            color: const Color(0xFFF5B800).withValues(alpha: 0.15),
-                            child: const Center(child: Icon(Icons.auto_awesome, color: Color(0xFFF5B800))),
-                          )
-                        : Image.asset(
-                            _categoryImagePath(card.category),
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: imageH,
-                          ),
+                    child: Image.asset(
+                        _resolveCardImagePath(card),
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: imageH,
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          _categoryImagePath(card.category),
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: imageH,
+                        ),
+                      ),
                   ),
                 ),
               ),
@@ -230,10 +231,7 @@ class _GameCardWidgetState extends State<GameCardWidget>
                   padding: EdgeInsets.symmetric(horizontal: width * 0.05),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: _isPassive
-                          ? const Color(0xFFF5B800).withValues(alpha: 0.12)
-                          : _categoryColor(card.category)
-                              .withValues(alpha: 0.12),
+                      color: _categoryColor(card.category).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Row(
@@ -241,26 +239,18 @@ class _GameCardWidgetState extends State<GameCardWidget>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _isPassive
-                              ? Icons.auto_awesome
-                              : _categoryIcon(card.category),
+                          _categoryIcon(card.category),
                           size: badgeH * 0.52,
-                          color: _isPassive
-                              ? const Color(0xFFF5B800)
-                              : _categoryColor(card.category),
+                          color: _categoryColor(card.category),
                         ),
                         SizedBox(width: width * 0.02),
                         Flexible(
                           child: Text(
-                            _isPassive
-                                ? 'PASIVA'
-                                : _categoryLabel(card.category),
+                            _categoryLabel(card.category),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                             style: TextStyle(
-                              color: _isPassive
-                                  ? const Color(0xFFF5B800)
-                                  : _categoryColor(card.category),
+                              color: _categoryColor(card.category),
                               fontSize: badgeH * 0.40,
                               fontWeight: FontWeight.bold,
                             ),
@@ -440,6 +430,13 @@ String _categoryLabel(CardCategory category) => switch (category) {
   CardCategory.defense => 'DEFENSA',
   CardCategory.dodge   => 'ESQUIVE',
 };
+
+String _resolveCardImagePath(GameCard card) {
+  if (card.imageFolder != null && card.imageName != null) {
+    return 'assets/images/cards/${card.imageFolder}/${card.imageName}';
+  }
+  return _categoryImagePath(card.category);
+}
 
 Color? _factionColor(String? factionId) => switch (factionId) {
   'shaolin'  => const Color(0xFFFF6F00),
