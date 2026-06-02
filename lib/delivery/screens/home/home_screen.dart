@@ -6,7 +6,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../domain/entities/game_config.dart';
 import '../../../domain/entities/hero_entity.dart';
+import '../../../domain/entities/player_profile.dart';
+import '../../../domain/entities/daily_mission.dart';
 import '../../../infra/local/heroes_data.dart';
+import '../../../infra/local/daily_rewards_data.dart';
+import '../../../infra/local/new_player_journey_data.dart';
 import '../../state/providers.dart';
 import '../../widgets/tutorial_spotlight_overlay.dart';
 import '../help/how_to_play_screen.dart';
@@ -22,6 +26,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _loadAttempted = false;
+  bool _dailyChecked = false;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +54,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
     _loadAttempted = false;
+
+    // ── Login diario: contabilizar racha y mostrar recompensa (una vez) ──────
+    if (!_dailyChecked) {
+      _dailyChecked = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(playerProvider.notifier).ensureDailyMissions();
+        final result = ref.read(playerProvider.notifier).processDailyLogin();
+        if (result != null && mounted) {
+          _showDailyRewardDialog(context, result);
+        }
+      });
+    }
 
     final gameConfig = ref.watch(gameConfigProvider).value ?? GameConfig.defaults;
     final currentReward = gameConfig.rewardAt(player.lastClaimedCycleIndex);
@@ -95,6 +112,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 // ── Banner de bienvenida (desde el borde izquierdo) ───────
                 _WelcomeBanner(factionId: player.selectedFactionId),
                 const SizedBox(height: 16),
+                // ── Nivel de cuenta (XP) ──────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _LevelBar(player: player),
+                ),
+                const SizedBox(height: 16),
                 // ── Barra de progreso de victorias ────────────────────────
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -105,6 +128,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ref.read(playerProvider.notifier).claimProgressReward(),
                   ),
                 ),
+                const SizedBox(height: 12),
+                // ── Misiones diarias ──────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _MissionsButton(
+                    player: player,
+                    onTap: () => _showMissionsSheet(context),
+                  ),
+                ),
+                // ── Camino del nuevo jugador (se oculta al completarse) ────
+                if (!NewPlayerJourneyData.allClaimed(player)) ...[
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _JourneyButton(
+                      player: player,
+                      onTap: () => _showJourneySheet(context),
+                    ),
+                  ),
+                ],
                 const Spacer(),
                 // ── Botón principal con héroe sobresaliendo ───────────────
                 Padding(
@@ -140,6 +183,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         if (needsShopTutorial) const _ShopTabSpotlight(),
       ],
+    );
+  }
+
+  void _showDailyRewardDialog(BuildContext context, DailyLoginResult result) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.78),
+      builder: (_) => _DailyRewardDialog(result: result),
+    );
+  }
+
+  void _showMissionsSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const _MissionsSheet(),
+    );
+  }
+
+  void _showJourneySheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A2E),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const _JourneySheet(),
     );
   }
 }
@@ -625,6 +699,672 @@ class _ShopButton extends StatelessWidget {
             Icon(Icons.chevron_right, color: Colors.white38, size: 18),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Barra de nivel de cuenta (XP) ───────────────────────────────────────────
+
+class _LevelBar extends StatelessWidget {
+  final PlayerProfile player;
+  const _LevelBar({required this.player});
+
+  @override
+  Widget build(BuildContext context) {
+    const blue = Color(0xFF3498DB);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: blue.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: blue.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+              border: Border.all(color: blue, width: 1.5),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '${player.accountLevel}',
+              style: const TextStyle(
+                color: blue,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const Text(
+                      'Nivel de cuenta',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${player.xpIntoLevel} / ${PlayerProfile.xpPerLevel} XP',
+                      style: const TextStyle(color: Colors.white38, fontSize: 10),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: player.levelProgress,
+                    minHeight: 7,
+                    backgroundColor: Colors.white10,
+                    valueColor: const AlwaysStoppedAnimation(blue),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Dialog de recompensa de login diario ────────────────────────────────────
+
+class _DailyRewardDialog extends StatelessWidget {
+  final DailyLoginResult result;
+  const _DailyRewardDialog({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    const gold = Color(0xFFF5B800);
+    final reward = result.reward;
+    final (rewardIcon, rewardColor, rewardLabel) = switch (reward.type) {
+      DailyRewardType.coins  => (Icons.monetization_on, const Color(0xFF27AE60), '+${reward.amount} monedas'),
+      DailyRewardType.tokens => (Icons.diamond,         const Color(0xFFB39DDB), '+${reward.amount} tokens'),
+      DailyRewardType.card   => (Icons.style,           const Color(0xFF3498DB), 'Una carta'),
+    };
+
+    return Dialog(
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.calendar_today, color: gold, size: 40),
+            const SizedBox(height: 12),
+            const Text(
+              'Recompensa diaria',
+              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Racha de ${result.streak} ${result.streak == 1 ? "día" : "días"}',
+              style: const TextStyle(color: gold, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 20),
+            // Calendario de 7 días
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(DailyRewardsData.calendar.length, (i) {
+                final dayNum = i + 1;
+                final currentDay = ((result.streak - 1) % 7) + 1;
+                final isToday = dayNum == currentDay;
+                final isPast = dayNum < currentDay;
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  width: 30,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: isToday
+                        ? gold.withValues(alpha: 0.22)
+                        : Colors.white.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isToday ? gold : Colors.white12,
+                      width: isToday ? 1.5 : 1,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: isPast
+                      ? const Icon(Icons.check, color: Color(0xFF27AE60), size: 16)
+                      : Text(
+                          '$dayNum',
+                          style: TextStyle(
+                            color: isToday ? gold : Colors.white38,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                );
+              }),
+            ),
+            const SizedBox(height: 20),
+            // Recompensa de hoy
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              decoration: BoxDecoration(
+                color: rewardColor.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: rewardColor.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(rewardIcon, color: rewardColor, size: 24),
+                  const SizedBox(width: 10),
+                  Text(
+                    rewardLabel,
+                    style: TextStyle(color: rewardColor, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: gold,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('¡Reclamar!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Misiones diarias: helpers + UI ───────────────────────────────────────────
+
+String missionLabel(DailyMission m) => switch (m.type) {
+      DailyMissionType.winBattles  => 'Ganá ${m.target} batallas',
+      DailyMissionType.playBattles => 'Jugá ${m.target} batallas',
+      DailyMissionType.winSlots    => 'Ganá ${m.target} slots',
+      DailyMissionType.useScout    => 'Usá ${m.target} scouts',
+      DailyMissionType.playHard    => 'Jugá ${m.target} en Difícil',
+    };
+
+class _MissionsButton extends StatelessWidget {
+  final PlayerProfile player;
+  final VoidCallback onTap;
+  const _MissionsButton({required this.player, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    const purple = Color(0xFF9B59B6);
+    final missions = player.dailyMissions;
+    final completed = missions.where((m) => m.isComplete).length;
+    final claimable = missions.any((m) => m.isComplete && !m.claimed);
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: claimable ? purple : purple.withValues(alpha: 0.35),
+              width: claimable ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.assignment_turned_in, color: purple, size: 20),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Misiones diarias',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              if (claimable)
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5B800),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '¡Cobrar!',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              Text(
+                '$completed/${missions.length}',
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.white38, size: 18),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MissionsSheet extends ConsumerWidget {
+  const _MissionsSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final player = ref.watch(playerProvider);
+    final missions = player?.dailyMissions ?? const <DailyMission>[];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Misiones diarias',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Se renuevan cada día',
+            style: TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          if (missions.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Text('No hay misiones por ahora.',
+                  style: TextStyle(color: Colors.white38)),
+            )
+          else
+            ...missions.map((m) => _MissionRow(
+                  mission: m,
+                  onClaim: () =>
+                      ref.read(playerProvider.notifier).claimMission(m.id),
+                )),
+        ],
+      ),
+    );
+  }
+}
+
+class _MissionRow extends StatelessWidget {
+  final DailyMission mission;
+  final VoidCallback onClaim;
+  const _MissionRow({required this.mission, required this.onClaim});
+
+  @override
+  Widget build(BuildContext context) {
+    const purple = Color(0xFF9B59B6);
+    final progress = (mission.progress / mission.target).clamp(0.0, 1.0);
+    final isTokens = mission.rewardType == 'tokens';
+    final rewardColor = isTokens ? const Color(0xFFB39DDB) : const Color(0xFF27AE60);
+    final rewardLabel = '+${mission.rewardAmount}';
+    final rewardIcon = isTokens ? Icons.diamond : Icons.monetization_on;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: mission.isComplete && !mission.claimed
+              ? const Color(0xFFF5B800).withValues(alpha: 0.5)
+              : Colors.white12,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  missionLabel(mission),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Icon(rewardIcon, color: rewardColor, size: 15),
+              const SizedBox(width: 3),
+              Text(
+                rewardLabel,
+                style: TextStyle(
+                  color: rewardColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 6,
+                    backgroundColor: Colors.white10,
+                    valueColor: const AlwaysStoppedAnimation(purple),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${mission.progress}/${mission.target}',
+                style: const TextStyle(color: Colors.white54, fontSize: 11),
+              ),
+            ],
+          ),
+          if (mission.isComplete) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              height: 34,
+              child: ElevatedButton(
+                onPressed: mission.claimed ? null : onClaim,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF5B800),
+                  disabledBackgroundColor: Colors.white10,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  mission.claimed ? 'Cobrada ✓' : 'Cobrar',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: mission.claimed ? Colors.white38 : Colors.black,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Camino del nuevo jugador: UI ─────────────────────────────────────────────
+
+class _JourneyButton extends StatelessWidget {
+  final PlayerProfile player;
+  final VoidCallback onTap;
+  const _JourneyButton({required this.player, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    const teal = Color(0xFF1ABC9C);
+    final milestones = NewPlayerJourneyData.milestones;
+    final claimed = milestones.where((m) => player.claimedMilestones.contains(m.id)).length;
+    final claimable = milestones.any(
+      (m) => m.isComplete(player) && !player.claimedMilestones.contains(m.id),
+    );
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: claimable ? teal : teal.withValues(alpha: 0.35),
+              width: claimable ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.flag, color: teal, size: 20),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Primeros pasos',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              if (claimable)
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5B800),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '¡Cobrar!',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              Text(
+                '$claimed/${milestones.length}',
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.white38, size: 18),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _JourneySheet extends ConsumerWidget {
+  const _JourneySheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final player = ref.watch(playerProvider);
+    final milestones = NewPlayerJourneyData.milestones;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Primeros pasos',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Completá estos hitos para arrancar con todo',
+            style: TextStyle(color: Colors.white54, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          if (player != null)
+            ...milestones.map((m) => _JourneyRow(
+                  milestone: m,
+                  complete: m.isComplete(player),
+                  claimed: player.claimedMilestones.contains(m.id),
+                  onClaim: () =>
+                      ref.read(playerProvider.notifier).claimMilestone(m.id),
+                )),
+        ],
+      ),
+    );
+  }
+}
+
+class _JourneyRow extends StatelessWidget {
+  final JourneyMilestone milestone;
+  final bool complete;
+  final bool claimed;
+  final VoidCallback onClaim;
+  const _JourneyRow({
+    required this.milestone,
+    required this.complete,
+    required this.claimed,
+    required this.onClaim,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isTokens = milestone.rewardType == 'tokens';
+    final rewardColor = isTokens ? const Color(0xFFB39DDB) : const Color(0xFF27AE60);
+    final rewardIcon = isTokens ? Icons.diamond : Icons.monetization_on;
+    final canClaim = complete && !claimed;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: canClaim
+              ? const Color(0xFFF5B800).withValues(alpha: 0.5)
+              : Colors.white12,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            claimed
+                ? Icons.check_circle
+                : complete
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+            color: claimed
+                ? const Color(0xFF27AE60)
+                : complete
+                    ? const Color(0xFFF5B800)
+                    : Colors.white24,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              milestone.label,
+              style: TextStyle(
+                color: claimed ? Colors.white38 : Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                decoration: claimed ? TextDecoration.lineThrough : null,
+              ),
+            ),
+          ),
+          if (canClaim)
+            SizedBox(
+              height: 32,
+              child: ElevatedButton(
+                onPressed: onClaim,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF5B800),
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('Cobrar',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              ),
+            )
+          else
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(rewardIcon, color: rewardColor, size: 15),
+                const SizedBox(width: 3),
+                Text(
+                  '+${milestone.rewardAmount}',
+                  style: TextStyle(
+                    color: rewardColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }

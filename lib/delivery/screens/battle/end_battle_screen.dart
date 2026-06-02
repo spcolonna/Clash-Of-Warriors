@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../infra/local/heroes_data.dart';
+import '../../../infra/local/daily_rewards_data.dart';
 import '../../state/battle_provider.dart';
 import '../../state/providers.dart';
 import '../../state/story_provider.dart';
@@ -40,8 +41,28 @@ class EndBattleScreen extends ConsumerWidget {
     final isStoryBattle = battle.isStoryBattle;
 
     final medals = isTutorial ? tutorialMedalReward : arenaMedalReward;
-    final coins  = isTutorial ? tutorialCoinReward  : arenaCoinReward;
+    final baseCoins = isTutorial ? tutorialCoinReward : arenaCoinReward;
     final tokens = _tokenReward(isTutorial, battle.botDifficulty);
+
+    // ── Retención: primera victoria del día (x2) + XP de toda batalla ──────────
+    final player = ref.watch(playerProvider);
+    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+    final isFirstWinOfDay = playerWon &&
+        !isTutorial &&
+        !isStoryBattle &&
+        player != null &&
+        player.lastDailyWinDate != todayStr;
+    final coins = isFirstWinOfDay ? baseCoins * 2 : baseCoins;
+    final xpReward =
+        playerWon ? DailyRewardsData.xpForWin : DailyRewardsData.xpForLoss;
+
+    // Métricas para misiones diarias
+    final slotsWonCount = battle.roundHistory.fold<int>(
+      0,
+      (s, r) => s + r.slotResults.where((sr) => sr.winner == 'player').length,
+    );
+    final scoutsUsedCount = (3 - battle.scoutTokensRemaining).clamp(0, 3);
+    final wasHard = battle.botDifficulty == BotDifficulty.hard;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
@@ -75,18 +96,32 @@ class EndBattleScreen extends ConsumerWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),
+              const Text(
+                'RECOMPENSAS',
+                style: TextStyle(color: Color(0xFF8A8A9A), fontSize: 11, letterSpacing: 2),
+              ),
+              const SizedBox(height: 16),
               if (playerWon) ...[
-                const Text(
-                  'RECOMPENSAS',
-                  style: TextStyle(color: Color(0xFF8A8A9A), fontSize: 11, letterSpacing: 2),
-                ),
-                const SizedBox(height: 16),
                 _RewardRow(icon: Icons.military_tech,   label: 'Medallas', value: '+$medals', color: Colors.amber),
                 const SizedBox(height: 12),
-                _RewardRow(icon: Icons.monetization_on, label: 'Monedas',  value: '+$coins',  color: const Color(0xFF27AE60)),
+                _RewardRow(
+                  icon: Icons.monetization_on,
+                  label: 'Monedas',
+                  value: '+$coins',
+                  color: const Color(0xFF27AE60),
+                  badge: isFirstWinOfDay ? '1ª del día · x2' : null,
+                ),
                 const SizedBox(height: 12),
                 _RewardRow(icon: Icons.diamond,         label: 'Tokens',   value: '+$tokens', color: const Color(0xFFB39DDB)),
+                const SizedBox(height: 12),
               ],
+              // XP siempre se otorga, gane o pierda — la progresión nunca es nula.
+              _RewardRow(
+                icon: Icons.trending_up,
+                label: 'XP',
+                value: '+$xpReward',
+                color: const Color(0xFF3498DB),
+              ),
               const SizedBox(height: 32),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -179,6 +214,14 @@ class EndBattleScreen extends ConsumerWidget {
                   onPressed: () async {
                     // ── Historia ────────────────────────────────────────────
                     if (isStoryBattle) {
+                      // XP de cuenta + progreso de misiones (gane o pierda)
+                      ref.read(playerProvider.notifier).addAccountXp(xpReward);
+                      ref.read(playerProvider.notifier).reportBattleResult(
+                            won: playerWon,
+                            slotsWon: slotsWonCount,
+                            wasHard: wasHard,
+                            scoutsUsed: scoutsUsedCount,
+                          );
                       final storyCtx = ref.read(storyBattleContextProvider);
                       if (storyCtx != null) {
                         if (playerWon && storyCtx.stageIndex == 9) {
@@ -212,29 +255,42 @@ class EndBattleScreen extends ConsumerWidget {
                         await ref.read(playerProvider.notifier).loadPlayer(user.uid);
                       }
                     }
-                    final player = ref.read(playerProvider);
-                    if (playerWon && player != null) {
-                      if (isTutorial && !player.tutorialBattleComplete) {
+                    final notifier = ref.read(playerProvider.notifier);
+                    final loadedPlayer = ref.read(playerProvider);
+
+                    // XP de cuenta + progreso de misiones (gane o pierda)
+                    notifier.addAccountXp(xpReward);
+                    notifier.reportBattleResult(
+                      won: playerWon,
+                      slotsWon: slotsWonCount,
+                      wasHard: wasHard,
+                      scoutsUsed: scoutsUsedCount,
+                    );
+
+                    if (playerWon && loadedPlayer != null) {
+                      if (isTutorial && !loadedPlayer.tutorialBattleComplete) {
                         final playerHero = ref.read(selectedHeroForBattleProvider);
                         final rivalHeroId = playerHero != null
                             ? HeroesData.tutorialBotFor(playerHero.faction.name).id
                             : '';
-                        ref.read(playerProvider.notifier).completeTutorialBattle(
+                        notifier.completeTutorialBattle(
                           medals: medals,
                           coins: coins,
                           rivalHeroId: rivalHeroId,
                         );
-                        ref.read(playerProvider.notifier).addTokens(tokens);
+                        notifier.addTokens(tokens);
                       } else if (!isTutorial) {
-                        ref.read(playerProvider.notifier).addMedals(medals);
-                        ref.read(playerProvider.notifier).addSoftCoins(coins);
-                        ref.read(playerProvider.notifier).addTokens(tokens);
+                        // Marca la primera victoria del día (el monto x2 ya está en `coins`)
+                        if (isFirstWinOfDay) notifier.consumeFirstWinOfDay();
+                        notifier.addMedals(medals);
+                        notifier.addSoftCoins(coins);
+                        notifier.addTokens(tokens);
                         final config = ref.read(gameConfigProvider).value;
                         final difficulty = battle.botDifficulty ?? BotDifficulty.normal;
                         final pts = battle.gameMode == GameMode.normal
                             ? config?.pointsForSimple(difficulty) ?? 2
                             : config?.pointsFor(difficulty) ?? 3;
-                        ref.read(playerProvider.notifier).addBattlePoints(pts);
+                        notifier.addBattlePoints(pts);
                       }
                     }
                     if (context.mounted) context.go('/home');
@@ -264,12 +320,14 @@ class _RewardRow extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
+  final String? badge;
 
   const _RewardRow({
     required this.icon,
     required this.label,
     required this.value,
     required this.color,
+    this.badge,
   });
 
   @override
@@ -277,9 +335,9 @@ class _RewardRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.25)),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -289,6 +347,25 @@ class _RewardRow extends StatelessWidget {
             label,
             style: const TextStyle(color: Color(0xFFF0F0F0), fontSize: 15),
           ),
+          if (badge != null) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5B800).withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFF5B800).withValues(alpha: 0.6)),
+              ),
+              child: Text(
+                badge!,
+                style: const TextStyle(
+                  color: Color(0xFFF5B800),
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
           const Spacer(),
           Text(
             value,

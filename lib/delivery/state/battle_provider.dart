@@ -126,11 +126,18 @@ class BattleNotifier extends Notifier<BattleState> {
     final botHand = botDeck.take(5).toList();
     final botRemainingDeck = botDeck.skip(5).toList();
 
+    // Pre-computar secuencia del bot para ronda 1 (habilita scout desde el inicio)
+    final initialBotSequence = BotAI.decideSequence(
+      botHand, botHero, difficulty, mode: gameMode,
+    );
+
     state = BattleState(
       phase: BattlePhase.planning,
       isTutorial: false,
       botDifficulty: difficulty,
       gameMode: gameMode,
+      scoutTokensRemaining: 3,
+      revealedOpponentSlots: const {},
       player: CombatantState(
         hero: playerHero,
         currentHp: playerHero.maxHp,
@@ -147,7 +154,7 @@ class BattleNotifier extends Notifier<BattleState> {
         hand: botHand,
         deck: botRemainingDeck,
         discardPile: [],
-        plannedSequence: List.filled(3, null),
+        plannedSequence: initialBotSequence,
       ),
       currentRound: 1,
       roundHistory: [],
@@ -235,12 +242,18 @@ class BattleNotifier extends Notifier<BattleState> {
     final botHand = botDeck.take(5).toList();
     final botRemainingDeck = botDeck.skip(5).toList();
 
+    final storyInitialBotSequence = BotAI.decideSequence(
+      botHand, botHero, difficulty, mode: gameMode,
+    );
+
     state = BattleState(
       phase: BattlePhase.planning,
       isTutorial: false,
       isStoryBattle: true,
       botDifficulty: difficulty,
       gameMode: gameMode,
+      scoutTokensRemaining: 3,
+      revealedOpponentSlots: const {},
       player: CombatantState(
         hero: playerHero,
         currentHp: playerHero.maxHp,
@@ -257,7 +270,7 @@ class BattleNotifier extends Notifier<BattleState> {
         hand: botHand,
         deck: botRemainingDeck,
         discardPile: [],
-        plannedSequence: List.filled(3, null),
+        plannedSequence: storyInitialBotSequence,
       ),
       currentRound: 1,
       roundHistory: [],
@@ -321,9 +334,9 @@ class BattleNotifier extends Notifier<BattleState> {
   }
 
   /// Resuelve el round SIN aplicar HP final.
-  /// El battle_screen llama applySlotDamage por cada slot durante la animación.
+  /// La secuencia del bot ya fue pre-computada en initArenaBattle/startNextRound
+  /// y almacenada en opponent.plannedSequence (el scout la puede revelar).
   Future<void> confirmSequenceAndResolve() async {
-    // Extraer slots bloqueados por StatusEffect para cada combatiente
     final playerBlockedSlots = state.player.statusEffects
         .where((e) => e.type == StatusEffectType.slotBlocked)
         .map((e) => e.value)
@@ -333,42 +346,52 @@ class BattleNotifier extends Notifier<BattleState> {
         .map((e) => e.value)
         .toList();
 
-    final List<GameCard?> playerLastSequence = state.roundHistory.isNotEmpty
-        ? state.roundHistory.last.slotResults.map((r) => r.playerCard).toList()
-        : [];
-
-    final botSequence = _botDifficulty != null
-        ? BotAI.decideSequence(
-            state.opponent.hand,
-            state.opponent.hero,
-            _botDifficulty!,
-            playerLastSequence: playerLastSequence,
-            mode: _gameMode,
-          )
-        : TutorialBotAI.decideSequence(state.opponent.hand);
-
-    final opponentWithSequence =
-        state.opponent.copyWith(plannedSequence: botSequence);
-
-    state = state.copyWith(
-      phase: BattlePhase.resolving,
-      opponent: opponentWithSequence,
-    );
+    // La secuencia del bot ya está almacenada — solo transicionar a Resolving
+    state = state.copyWith(phase: BattlePhase.resolving);
 
     await Future.delayed(const Duration(milliseconds: 300));
 
     final result = CombatEngine.resolveRound(
       roundNumber: state.currentRound,
       player: state.player,
-      opponent: opponentWithSequence,
+      opponent: state.opponent,
       playerBlockedSlots: playerBlockedSlots,
       opponentBlockedSlots: opponentBlockedSlots,
       mode: _gameMode,
     );
 
-    // Solo guardamos el resultado en el history; NO aplicamos el HP final.
     final newHistory = [...state.roundHistory, result];
     state = state.copyWith(roundHistory: newHistory);
+  }
+
+  /// El jugador elige qué carta conservar para la próxima ronda.
+  void holdCard(GameCard card) {
+    if (state.phase != BattlePhase.roundEnd) return;
+    if (!state.player.hand.contains(card)) return;
+    state = state.copyWith(
+      player: state.player.copyWith(heldCard: card),
+    );
+  }
+
+  /// Revela la carta del oponente en un slot específico consumiendo un scout token.
+  void useScout(int slotIndex) {
+    if (state.scoutTokensRemaining <= 0) return;
+    if (state.phase != BattlePhase.planning) return;
+    if (state.revealedOpponentSlots.containsKey(slotIndex)) return;
+
+    final revealedCard = state.opponent.plannedSequence[slotIndex];
+    final newRevealedSlots = Map<int, GameCard>.from(state.revealedOpponentSlots);
+    if (revealedCard != null) {
+      newRevealedSlots[slotIndex] = revealedCard;
+    } else {
+      // El bot descansa en este slot — marcarlo como visto (null entry no funciona, usamos un centinela)
+      // Lo representamos como "slot escaneado vacío": no agregamos carta pero sí descontamos el token
+    }
+
+    state = state.copyWith(
+      scoutTokensRemaining: state.scoutTokensRemaining - 1,
+      revealedOpponentSlots: newRevealedSlots,
+    );
   }
 
   /// Aplica el daño de UN slot específico al HP actual.
@@ -465,8 +488,19 @@ class BattleNotifier extends Notifier<BattleState> {
     // Capturar si el jugador agotó toda su stamina este round (antes de drawCards)
     final playerUsedAllStamina = state.player.remainingStamina == 0;
 
-    var player = _drawCards(state.player);
-    var opponent = _drawCards(state.opponent);
+    // Bot Hard: auto-conservar la carta más poderosa de la mano restante
+    var currentOpponent = state.opponent;
+    if (_botDifficulty == BotDifficulty.hard && currentOpponent.hand.isNotEmpty) {
+      final best = currentOpponent.hand.reduce(
+        (a, b) => currentOpponent.hero.effectiveDamage(a) >= currentOpponent.hero.effectiveDamage(b) ? a : b,
+      );
+      currentOpponent = currentOpponent.copyWith(heldCard: best);
+    }
+
+    // En tutorial no se descarta la mano completa (mantiene el comportamiento clásico)
+    final fullDiscard = !state.isTutorial;
+    var player = _drawCards(state.player, fullDiscard: fullDiscard);
+    var opponent = _drawCards(currentOpponent, fullDiscard: fullDiscard);
 
     // Aplicar daño continuo (DoT) desde efectos activos
     final playerDoT = player.statusEffects
@@ -508,10 +542,32 @@ class BattleNotifier extends Notifier<BattleState> {
       playerWon = false;
     }
 
+    // Pre-computar la secuencia del bot para la próxima ronda (habilita scout)
+    final updatedOpponent = opponent.copyWith(
+      currentHp: newOpponentHp,
+      currentStamina: opponent.hero.maxStamina,
+      plannedSequence: List.filled(3, null),
+    );
+
+    final List<GameCard?> playerLastSequence = state.roundHistory.isNotEmpty
+        ? state.roundHistory.last.slotResults.map((r) => r.playerCard).toList()
+        : [];
+
+    final nextBotSequence = _botDifficulty != null
+        ? BotAI.decideSequence(
+            updatedOpponent.hand,
+            updatedOpponent.hero,
+            _botDifficulty!,
+            playerLastSequence: playerLastSequence,
+            mode: _gameMode,
+          )
+        : TutorialBotAI.decideSequence(updatedOpponent.hand);
+
     state = state.copyWith(
       phase: playerWon != null ? BattlePhase.battleEnd : BattlePhase.planning,
       playerWon: playerWon,
       passiveJustUnlocked: passiveJustUnlocked,
+      revealedOpponentSlots: const {}, // limpiar scouts al iniciar cada ronda
       player: player.copyWith(
         currentHp: newPlayerHp,
         currentStamina: effectivePlayerStamina,
@@ -519,21 +575,31 @@ class BattleNotifier extends Notifier<BattleState> {
         hand: playerHand,
         passiveUsed: passiveUsed,
       ),
-      opponent: opponent.copyWith(
-        currentHp: newOpponentHp,
-        currentStamina: opponent.hero.maxStamina,
-        plannedSequence: List.filled(3, null),
+      opponent: updatedOpponent.copyWith(
+        plannedSequence: nextBotSequence,
       ),
     );
   }
 
-  CombatantState _drawCards(CombatantState combatant) {
+  CombatantState _drawCards(CombatantState combatant, {bool fullDiscard = true}) {
     var deck = List<GameCard>.from(combatant.deck);
     var discard = List<GameCard>.from(combatant.discardPile);
-    var hand = List<GameCard>.from(combatant.hand);
 
+    // Siempre descartar cartas jugadas
     for (final card in combatant.plannedSequence.whereType<GameCard>()) {
       discard.add(card);
+    }
+
+    List<GameCard> hand;
+    if (fullDiscard) {
+      // Nueva mecánica: descartar toda la mano (excepto la carta retenida) y robar 4 nuevas
+      for (final card in combatant.hand) {
+        if (card != combatant.heldCard) discard.add(card);
+      }
+      hand = combatant.heldCard != null ? [combatant.heldCard!] : [];
+    } else {
+      // Comportamiento clásico (tutorial): conservar cartas no jugadas
+      hand = List<GameCard>.from(combatant.hand);
     }
 
     while (hand.length < 5) {
@@ -554,6 +620,7 @@ class BattleNotifier extends Notifier<BattleState> {
       deck: deck,
       discardPile: discard,
       plannedSequence: List.filled(3, null),
+      clearHeld: true,
     );
   }
 }

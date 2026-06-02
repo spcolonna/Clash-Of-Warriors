@@ -1,5 +1,7 @@
 // lib/domain/entities/player_profile.dart
 
+import 'daily_mission.dart';
+
 class PlayerProfile {
   final String uid;
   final bool isOnboardingComplete;
@@ -31,6 +33,26 @@ class PlayerProfile {
   // Logros desbloqueados (ej: "dragon_path_puo_liu")
   final List<String> achievements;
 
+  // ── Retención: login diario + XP de cuenta ─────────────────────────────────
+  // Fecha del último login contabilizado (formato 'yyyy-MM-dd'). null = nunca.
+  final String? lastLoginDate;
+  // Racha de días consecutivos de login (1 = primer día).
+  final int loginStreak;
+  // Fecha de la última "primera victoria del día" cobrada ('yyyy-MM-dd').
+  final String? lastDailyWinDate;
+  // XP de cuenta acumulada (sube con toda batalla, gane o pierda).
+  final int accountXp;
+
+  // Misiones diarias activas + la fecha en que se generaron ('yyyy-MM-dd').
+  final List<DailyMission> dailyMissions;
+  final String? missionsDate;
+
+  // Hitos del "camino del nuevo jugador" ya cobrados (por id).
+  final List<String> claimedMilestones;
+
+  /// XP necesaria para subir un nivel de cuenta.
+  static const int xpPerLevel = 100;
+
   const PlayerProfile({
     required this.uid,
     this.isOnboardingComplete = false,
@@ -50,7 +72,25 @@ class PlayerProfile {
     this.storyProgress = const {},
     this.completedStoryArcs = const {},
     this.achievements = const [],
+    this.lastLoginDate,
+    this.loginStreak = 0,
+    this.lastDailyWinDate,
+    this.accountXp = 0,
+    this.dailyMissions = const [],
+    this.missionsDate,
+    this.claimedMilestones = const [],
   });
+
+  // ── Helpers de nivel de cuenta ─────────────────────────────────────────────
+
+  /// Nivel actual (empieza en 1).
+  int get accountLevel => (accountXp ~/ xpPerLevel) + 1;
+
+  /// XP acumulada dentro del nivel actual.
+  int get xpIntoLevel => accountXp % xpPerLevel;
+
+  /// Progreso 0.0–1.0 dentro del nivel actual.
+  double get levelProgress => xpIntoLevel / xpPerLevel;
 
   // ── Helpers de modo historia ─────────────────────────────────────────────
 
@@ -97,6 +137,13 @@ class PlayerProfile {
     Map<String, int>? storyProgress,
     Set<String>? completedStoryArcs,
     List<String>? achievements,
+    String? lastLoginDate,
+    int? loginStreak,
+    String? lastDailyWinDate,
+    int? accountXp,
+    List<DailyMission>? dailyMissions,
+    String? missionsDate,
+    List<String>? claimedMilestones,
   }) =>
       PlayerProfile(
         uid: uid,
@@ -117,6 +164,13 @@ class PlayerProfile {
         storyProgress: storyProgress ?? this.storyProgress,
         completedStoryArcs: completedStoryArcs ?? this.completedStoryArcs,
         achievements: achievements ?? this.achievements,
+        lastLoginDate: lastLoginDate ?? this.lastLoginDate,
+        loginStreak: loginStreak ?? this.loginStreak,
+        lastDailyWinDate: lastDailyWinDate ?? this.lastDailyWinDate,
+        accountXp: accountXp ?? this.accountXp,
+        dailyMissions: dailyMissions ?? this.dailyMissions,
+        missionsDate: missionsDate ?? this.missionsDate,
+        claimedMilestones: claimedMilestones ?? this.claimedMilestones,
       );
 
   Map<String, dynamic> toFirestore() => {
@@ -137,6 +191,13 @@ class PlayerProfile {
     'storyProgress': storyProgress,
     'completedStoryArcs': completedStoryArcs.toList(),
     'achievements': achievements,
+    'lastLoginDate': lastLoginDate,
+    'loginStreak': loginStreak,
+    'lastDailyWinDate': lastDailyWinDate,
+    'accountXp': accountXp,
+    'dailyMissions': dailyMissions.map((m) => m.toMap()).toList(),
+    'missionsDate': missionsDate,
+    'claimedMilestones': claimedMilestones,
   };
 
   factory PlayerProfile.fromFirestore(String uid, Map<String, dynamic> data) =>
@@ -163,6 +224,15 @@ class PlayerProfile {
                 .map((k, v) => MapEntry(k, (v as num).toInt()))),
         completedStoryArcs: Set<String>.from(data['completedStoryArcs'] ?? []),
         achievements: List<String>.from(data['achievements'] ?? []),
+        lastLoginDate: data['lastLoginDate'] as String?,
+        loginStreak: data['loginStreak'] as int? ?? 0,
+        lastDailyWinDate: data['lastDailyWinDate'] as String?,
+        accountXp: data['accountXp'] as int? ?? 0,
+        dailyMissions: (data['dailyMissions'] as List<dynamic>? ?? [])
+            .map((e) => DailyMission.fromMap(e as Map<String, dynamic>))
+            .toList(),
+        missionsDate: data['missionsDate'] as String?,
+        claimedMilestones: List<String>.from(data['claimedMilestones'] ?? []),
       );
 }
 

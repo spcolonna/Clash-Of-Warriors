@@ -33,6 +33,35 @@ class CombatEngine {
     return table[a]?.contains(b) ?? false;
   }
 
+  /// Evalúa si el bonus condicional de una carta se cumple en este slot.
+  static bool _isConditionalMet({
+    required ConditionalBonus? bonus,
+    required List<SlotResult> previousSlotResults,
+    required bool opponentRested,
+    required int playerCurrentHp,
+    required int opponentCurrentHp,
+    required int playerMaxHp,
+  }) {
+    if (bonus == null) return false;
+    return switch (bonus) {
+      ConditionalBonus.wonPreviousSlot =>
+        previousSlotResults.isNotEmpty &&
+        previousSlotResults.last.winner == 'player',
+      ConditionalBonus.opponentRested => opponentRested,
+      ConditionalBonus.playerAhead   => playerCurrentHp > opponentCurrentHp,
+      ConditionalBonus.lowHp         =>
+        playerCurrentHp <= (playerMaxHp * 0.4).round(),
+    };
+  }
+
+  /// Multiplicador de daño cuando el bonus condicional se cumple.
+  static double _conditionalMultiplier(ConditionalBonus bonus) => switch (bonus) {
+    ConditionalBonus.wonPreviousSlot => 1.5,
+    ConditionalBonus.opponentRested  => 1.3,
+    ConditionalBonus.playerAhead     => 1.5,
+    ConditionalBonus.lowHp           => 1.4,
+  };
+
   /// Resuelve un slot individual y retorna el resultado.
   static SlotResult resolveSlot({
     required int slotIndex,
@@ -41,11 +70,15 @@ class CombatEngine {
     required HeroEntity playerHero,
     required HeroEntity opponentHero,
     GameMode mode = GameMode.expert,
+    List<SlotResult> previousSlotResults = const [],
+    int playerCurrentHp = 0,
+    int opponentCurrentHp = 0,
+    int playerMaxHp = 1,
   }) {
     // Ambos vacíos — nada ocurre
     if (playerCard == null && opponentCard == null) {
-      return SlotResult(
-        slotIndex: slotIndex,
+      return const SlotResult(
+        slotIndex: 0,
         playerCard: null,
         opponentCard: null,
         playerDamageDealt: 0,
@@ -69,9 +102,17 @@ class CombatEngine {
       );
     }
 
-    // Slot vacío del oponente
+    // Slot vacío del oponente — evaluar bonus opponentRested
     if (opponentCard == null) {
-      final dmg = _calcDamage(playerCard, playerHero);
+      final conditionalMet = _isConditionalMet(
+        bonus: playerCard.conditionalBonus,
+        previousSlotResults: previousSlotResults,
+        opponentRested: true,
+        playerCurrentHp: playerCurrentHp,
+        opponentCurrentHp: opponentCurrentHp,
+        playerMaxHp: playerMaxHp,
+      );
+      final dmg = _calcDamage(playerCard, playerHero, conditionalMet: conditionalMet);
       return SlotResult(
         slotIndex: slotIndex,
         playerCard: playerCard,
@@ -79,21 +120,25 @@ class CombatEngine {
         playerDamageDealt: dmg,
         opponentDamageDealt: 0,
         winner: 'player',
+        conditionalBonusApplied: conditionalMet,
         narrative: '${playerCard.name} conecta sin resistencia.',
       );
     }
 
     // Ambos tienen carta — resolver choque
-    int? diceRoll;
-    if (playerCard.requiresDice) {
-      diceRoll = Random().nextInt(6) + 1;
-    }
-
     final playerWins = beats(playerCard.category, opponentCard.category, mode: mode);
     final opponentWins = beats(opponentCard.category, playerCard.category, mode: mode);
 
     if (playerWins) {
-      final dmg = _calcDamage(playerCard, playerHero, diceRoll: diceRoll);
+      final conditionalMet = _isConditionalMet(
+        bonus: playerCard.conditionalBonus,
+        previousSlotResults: previousSlotResults,
+        opponentRested: false,
+        playerCurrentHp: playerCurrentHp,
+        opponentCurrentHp: opponentCurrentHp,
+        playerMaxHp: playerMaxHp,
+      );
+      final dmg = _calcDamage(playerCard, playerHero, conditionalMet: conditionalMet);
       return SlotResult(
         slotIndex: slotIndex,
         playerCard: playerCard,
@@ -101,7 +146,7 @@ class CombatEngine {
         playerDamageDealt: dmg,
         opponentDamageDealt: 0,
         winner: 'player',
-        diceRoll: diceRoll,
+        conditionalBonusApplied: conditionalMet,
         narrative: '${playerCard.name} supera a ${opponentCard.name}.',
       );
     } else if (opponentWins) {
@@ -134,8 +179,8 @@ class CombatEngine {
   static double _calcDamage(
     GameCard card,
     HeroEntity hero, {
-    int? diceRoll,
     double tieFactor = 1.0,
+    bool conditionalMet = false,
   }) {
     if (card.baseDamage == null) return 0;
 
@@ -145,16 +190,9 @@ class CombatEngine {
     // Sinergia héroe-carta (+10%)
     if (card.heroId == hero.id) dmg *= 1.1;
 
-    // Modificador de dado
-    if (diceRoll != null) {
-      final factor = switch (diceRoll) {
-        1     => 0.0,
-        2 || 3 => 0.5,
-        4 || 5 => 1.0,
-        6     => 1.5,
-        _     => 1.0,
-      };
-      dmg *= factor;
+    // Bonus condicional (reemplaza el dado: predecible y habilidad-dependiente)
+    if (conditionalMet && card.conditionalBonus != null) {
+      dmg *= _conditionalMultiplier(card.conditionalBonus!);
     }
 
     return dmg;
@@ -185,6 +223,10 @@ class CombatEngine {
         playerHero: player.hero,
         opponentHero: opponent.hero,
         mode: mode,
+        previousSlotResults: slotResults,
+        playerCurrentHp: player.currentHp,
+        opponentCurrentHp: opponent.currentHp,
+        playerMaxHp: player.hero.maxHp,
       );
       slotResults.add(result);
       totalPlayerDamage += result.playerDamageDealt;
@@ -273,8 +315,15 @@ class BotAI {
     CardCategory.defense,
   };
 
-  /// Decide la secuencia del bot según la dificultad.
-  /// [playerLastSequence] se usa en Hard para intentar contrarrestar.
+  // Por dificultad: probabilidad (0.0–1.0) de que el bot intente jugar
+  // la carta que gana contra lo que el jugador puso en ese slot la ronda anterior.
+  // Ronda 1 siempre es aleatoria (no hay secuencia previa del jugador).
+  static const _counterChance = {
+    BotDifficulty.easy:   0.0,   // puramente aleatorio
+    BotDifficulty.normal: 0.35,  // 35% por slot
+    BotDifficulty.hard:   0.70,  // 70% por slot
+  };
+
   static List<GameCard?> decideSequence(
     List<GameCard> hand,
     HeroEntity botHero,
@@ -282,103 +331,46 @@ class BotAI {
     List<GameCard?> playerLastSequence = const [],
     GameMode mode = GameMode.expert,
   }) {
-    final effectiveHand = mode == GameMode.normal
-        ? hand.where((c) => _simpleCategories.contains(c.category)).toList()
-        : hand;
-    return switch (difficulty) {
-      BotDifficulty.easy   => _easySequence(effectiveHand, botHero),
-      BotDifficulty.normal => _normalSequence(effectiveHand, botHero),
-      BotDifficulty.hard   => _hardSequence(effectiveHand, botHero, playerLastSequence, mode: mode),
-    };
-  }
-
-  /// Fácil: orden aleatorio, llena hasta 3 slots respetando stamina.
-  static List<GameCard?> _easySequence(List<GameCard> hand, HeroEntity hero) {
-    final shuffled = List<GameCard>.from(hand)..shuffle(Random());
-    final sequence = List<GameCard?>.filled(3, null);
-    int stamina = hero.maxStamina;
-    int slot = 0;
-    for (final card in shuffled) {
-      if (slot >= 3) break;
-      if (card.staminaCost <= stamina) {
-        sequence[slot++] = card;
-        stamina -= card.staminaCost;
-      }
-    }
-    return sequence;
-  }
-
-  /// Normal: 2 mejores ataques (por daño efectivo) + 1 defensa si es posible.
-  static List<GameCard?> _normalSequence(List<GameCard> hand, HeroEntity hero) {
-    final attacks = hand
-        .where((c) => !c.isDefense && !c.isDodge)
-        .toList()
-        ..sort((a, b) => hero.effectiveDamage(b).compareTo(hero.effectiveDamage(a)));
-    final defenses = hand.where((c) => c.isDefense || c.isDodge).toList();
-
-    final sequence = List<GameCard?>.filled(3, null);
-    int stamina = hero.maxStamina;
-    int slot = 0;
-
-    for (final card in attacks) {
-      if (slot >= 2) break;
-      if (card.staminaCost <= stamina) {
-        sequence[slot++] = card;
-        stamina -= card.staminaCost;
-      }
-    }
-
-    final usedInSlots = sequence.whereType<GameCard>().toList();
-    final candidates = hand
-        .where((c) => !usedInSlots.contains(c) && c.staminaCost <= stamina)
-        .toList();
-
-    if (candidates.isNotEmpty) {
-      final def = defenses.firstWhere(
-        (d) => candidates.contains(d),
-        orElse: () => candidates.first,
-      );
-      if (candidates.contains(def)) sequence[slot] = def;
-    }
-
-    return sequence;
-  }
-
-  /// Difícil: estrategia Normal + 60% de chance de contrarrestar
-  /// las cartas que el jugador usó en el round anterior.
-  static List<GameCard?> _hardSequence(
-    List<GameCard> hand,
-    HeroEntity hero,
-    List<GameCard?> playerLastSequence, {
-    GameMode mode = GameMode.expert,
-  }) {
-    final sequence = _normalSequence(hand, hero);
-    if (playerLastSequence.isEmpty) return sequence;
-
     final random = Random();
 
+    // Copia mutable mezclada para no repetir cartas del mismo tipo referencia
+    final workingHand = (mode == GameMode.normal
+            ? hand.where((c) => _simpleCategories.contains(c.category)).toList()
+            : List<GameCard>.from(hand))
+        ..shuffle(random);
+
+    final sequence = List<GameCard?>.filled(3, null);
+    int stamina = botHero.maxStamina;
+    final chance = _counterChance[difficulty] ?? 0.0;
+
     for (int i = 0; i < 3; i++) {
-      final playerCard = i < playerLastSequence.length ? playerLastSequence[i] : null;
-      if (playerCard == null) continue;
-      if (random.nextDouble() > 0.6) continue; // 60% de "lectura"
+      GameCard? picked;
 
-      // Buscar una carta en mano que gane contra la categoría del jugador
-      final usedCards = sequence.whereType<GameCard>().toList();
-      final counter = hand.firstWhere(
-        (c) => !usedCards.contains(c) && CombatEngine.beats(c.category, playerCard.category, mode: mode),
-        orElse: () => hand.first, // fallback — nunca se usa si isEmpty
-      );
+      // Intentar contra-lectura según dificultad
+      if (chance > 0 &&
+          i < playerLastSequence.length &&
+          playerLastSequence[i] != null &&
+          random.nextDouble() < chance) {
+        final playerCard = playerLastSequence[i]!;
+        picked = workingHand
+            .where((c) =>
+                c.staminaCost <= stamina &&
+                CombatEngine.beats(c.category, playerCard.category, mode: mode))
+            .firstOrNull;
+      }
 
-      if (!CombatEngine.beats(counter.category, playerCard.category, mode: mode)) continue;
+      // Fallback: cualquier carta aleatoria que entre en stamina
+      if (picked == null) {
+        final available = workingHand.where((c) => c.staminaCost <= stamina).toList();
+        if (available.isNotEmpty) {
+          picked = available[random.nextInt(available.length)];
+        }
+      }
 
-      // Verificar que la stamina alcance al hacer el swap
-      final staminaWithoutSlot = sequence
-          .whereType<GameCard>()
-          .where((c) => c != sequence[i])
-          .fold(0, (s, c) => s + c.staminaCost);
-
-      if (staminaWithoutSlot + counter.staminaCost <= hero.maxStamina) {
-        sequence[i] = counter;
+      if (picked != null) {
+        workingHand.remove(picked); // remove() elimina la primera ocurrencia
+        sequence[i] = picked;
+        stamina -= picked.staminaCost;
       }
     }
 

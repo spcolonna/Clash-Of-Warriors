@@ -19,6 +19,10 @@ import '../../domain/entities/game_config.dart';
 import '../../infra/firebase/game_config_service.dart';
 import '../../infra/local/heroes_data.dart';
 import '../../infra/local/progress_rewards_data.dart';
+import '../../infra/local/daily_rewards_data.dart';
+import '../../infra/local/daily_missions_data.dart';
+import '../../domain/entities/daily_mission.dart';
+import '../../infra/local/new_player_journey_data.dart';
 import '../../infra/local/story_arcs_data.dart';
 import '../../domain/entities/story_arc.dart';
 
@@ -57,6 +61,13 @@ final selectedHeroForBattleProvider =
 StateProvider<HeroEntity?>((ref) => null);
 
 // ── Player Profile ─────────────────────────────────────────────────────────
+
+/// Resultado de contabilizar el login del día (para el dialog de bienvenida).
+class DailyLoginResult {
+  final int streak;
+  final DailyReward reward;
+  const DailyLoginResult({required this.streak, required this.reward});
+}
 
 final playerProvider =
 StateNotifierProvider<PlayerNotifier, PlayerProfile?>((ref) {
@@ -303,6 +314,183 @@ class PlayerNotifier extends StateNotifier<PlayerProfile?> {
     if (state == null) return;
     state = state!.copyWith(battlePoints: state!.battlePoints + amount);
     _svc.addBattlePoints(state!.uid, amount);
+  }
+
+  // ── Retención: login diario + XP de cuenta ──────────────────────────────────
+
+  String _todayStr() => DateTime.now().toIso8601String().substring(0, 10);
+
+  /// Contabiliza el login del día. Actualiza la racha, otorga la recompensa
+  /// correspondiente y persiste. Retorna el resultado para el dialog, o null
+  /// si el login de hoy ya fue contabilizado.
+  DailyLoginResult? processDailyLogin() {
+    if (state == null) return null;
+    final today = _todayStr();
+    final last = state!.lastLoginDate;
+    if (last == today) return null; // ya contado hoy
+
+    int newStreak;
+    if (last == null) {
+      newStreak = 1;
+    } else {
+      final lastDate = DateTime.tryParse(last);
+      final todayDate = DateTime.tryParse(today);
+      if (lastDate != null && todayDate != null) {
+        final diff = todayDate.difference(lastDate).inDays;
+        newStreak = diff == 1 ? state!.loginStreak + 1 : 1;
+      } else {
+        newStreak = 1;
+      }
+    }
+
+    final reward = DailyRewardsData.rewardForStreak(newStreak);
+    var next = state!.copyWith(lastLoginDate: today, loginStreak: newStreak);
+    next = _applyDailyReward(next, reward);
+    state = next;
+    _svc.savePlayer(state!).catchError(
+        (e) => print('[PlayerNotifier] processDailyLogin: $e'));
+    return DailyLoginResult(streak: newStreak, reward: reward);
+  }
+
+  PlayerProfile _applyDailyReward(PlayerProfile p, DailyReward r) {
+    switch (r.type) {
+      case DailyRewardType.coins:
+        return p.copyWith(softCoins: p.softCoins + r.amount);
+      case DailyRewardType.tokens:
+        return p.copyWith(tokens: p.tokens + r.amount);
+      case DailyRewardType.card:
+        if (r.cardId == null) return p;
+        final existing =
+            p.ownedCards.where((c) => c.cardId == r.cardId).firstOrNull;
+        final updated = existing == null
+            ? [...p.ownedCards, OwnedCard(cardId: r.cardId!, quantity: 1)]
+            : p.ownedCards
+                .map((c) => c.cardId == r.cardId
+                    ? OwnedCard(cardId: c.cardId, quantity: c.quantity + 1)
+                    : c)
+                .toList();
+        return p.copyWith(ownedCards: updated);
+    }
+  }
+
+  /// Marca y reporta si es la primera victoria del día (para duplicar premio).
+  /// Retorna true solo la primera vez que se llama en el día.
+  bool consumeFirstWinOfDay() {
+    if (state == null) return false;
+    final today = _todayStr();
+    if (state!.lastDailyWinDate == today) return false;
+    state = state!.copyWith(lastDailyWinDate: today);
+    _svc.savePlayer(state!).catchError(
+        (e) => print('[PlayerNotifier] consumeFirstWinOfDay: $e'));
+    return true;
+  }
+
+  /// Suma XP de cuenta, otorga monedas por cada nivel ganado y persiste.
+  /// Retorna la cantidad de niveles subidos (0 si ninguno).
+  int addAccountXp(int amount) {
+    if (state == null || amount <= 0) return 0;
+    final before = state!.accountLevel;
+    var next = state!.copyWith(accountXp: state!.accountXp + amount);
+    final levelsGained = next.accountLevel - before;
+    if (levelsGained > 0) {
+      next = next.copyWith(
+        softCoins: next.softCoins + levelsGained * DailyRewardsData.coinsPerLevelUp,
+      );
+    }
+    state = next;
+    _svc.savePlayer(state!).catchError(
+        (e) => print('[PlayerNotifier] addAccountXp: $e'));
+    return levelsGained;
+  }
+
+  // ── Misiones diarias ────────────────────────────────────────────────────────
+
+  /// Genera 3 misiones nuevas si las actuales son de otro día. Se llama al
+  /// abrir la app. Idempotente dentro del mismo día.
+  void ensureDailyMissions() {
+    if (state == null) return;
+    final today = _todayStr();
+    if (state!.missionsDate == today && state!.dailyMissions.isNotEmpty) return;
+    state = state!.copyWith(
+      dailyMissions: DailyMissionsData.generateDaily(),
+      missionsDate: today,
+    );
+    _svc.savePlayer(state!).catchError(
+        (e) => print('[PlayerNotifier] ensureDailyMissions: $e'));
+  }
+
+  /// Reporta el resultado de una batalla y avanza el progreso de las misiones.
+  void reportBattleResult({
+    required bool won,
+    required int slotsWon,
+    required bool wasHard,
+    required int scoutsUsed,
+  }) {
+    if (state == null || state!.dailyMissions.isEmpty) return;
+
+    final updated = state!.dailyMissions.map((m) {
+      if (m.claimed || m.isComplete) return m;
+      final inc = switch (m.type) {
+        DailyMissionType.winBattles  => won ? 1 : 0,
+        DailyMissionType.playBattles => 1,
+        DailyMissionType.winSlots    => slotsWon,
+        DailyMissionType.useScout    => scoutsUsed,
+        DailyMissionType.playHard    => wasHard ? 1 : 0,
+      };
+      if (inc == 0) return m;
+      return m.copyWith(progress: (m.progress + inc).clamp(0, m.target));
+    }).toList();
+
+    state = state!.copyWith(dailyMissions: updated);
+    _svc.savePlayer(state!).catchError(
+        (e) => print('[PlayerNotifier] reportBattleResult: $e'));
+  }
+
+  /// Cobra la recompensa de una misión completa. No-op si no está lista.
+  void claimMission(String missionId) {
+    if (state == null) return;
+    final mission =
+        state!.dailyMissions.where((m) => m.id == missionId).firstOrNull;
+    if (mission == null || !mission.isComplete || mission.claimed) return;
+
+    final updated = state!.dailyMissions
+        .map((m) => m.id == missionId ? m.copyWith(claimed: true) : m)
+        .toList();
+
+    var next = state!.copyWith(dailyMissions: updated);
+    if (mission.rewardType == 'tokens') {
+      next = next.copyWith(tokens: next.tokens + mission.rewardAmount);
+    } else {
+      next = next.copyWith(softCoins: next.softCoins + mission.rewardAmount);
+    }
+    state = next;
+    _svc.savePlayer(state!).catchError(
+        (e) => print('[PlayerNotifier] claimMission: $e'));
+  }
+
+  // ── Camino del nuevo jugador ────────────────────────────────────────────────
+
+  /// Cobra un hito del camino del nuevo jugador. No-op si no está completo o
+  /// ya fue cobrado.
+  void claimMilestone(String milestoneId) {
+    if (state == null) return;
+    if (state!.claimedMilestones.contains(milestoneId)) return;
+    final milestone = NewPlayerJourneyData.milestones
+        .where((m) => m.id == milestoneId)
+        .firstOrNull;
+    if (milestone == null || !milestone.isComplete(state!)) return;
+
+    var next = state!.copyWith(
+      claimedMilestones: [...state!.claimedMilestones, milestoneId],
+    );
+    if (milestone.rewardType == 'tokens') {
+      next = next.copyWith(tokens: next.tokens + milestone.rewardAmount);
+    } else {
+      next = next.copyWith(softCoins: next.softCoins + milestone.rewardAmount);
+    }
+    state = next;
+    _svc.savePlayer(state!).catchError(
+        (e) => print('[PlayerNotifier] claimMilestone: $e'));
   }
 
   Future<void> claimProgressReward() async {

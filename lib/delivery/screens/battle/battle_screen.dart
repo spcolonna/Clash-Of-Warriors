@@ -149,11 +149,38 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
     if (!mounted) return;
     final endState = ref.read(battleProvider);
     if (!endState.isBattleOver) {
+      // Mecánica de carta retenida (solo batallas no-tutorial)
+      if (!endState.isTutorial && endState.player.hand.isNotEmpty) {
+        await _showHoldCardSheet(endState.player.hand, notifier);
+      }
+      if (!mounted) return;
       notifier.startNextRound();
       if (mounted && ref.read(battleProvider).passiveJustUnlocked) {
         setState(() => _showPassiveBanner = true);
       }
     }
+  }
+
+  Future<void> _showHoldCardSheet(
+    List<GameCard> hand,
+    BattleNotifier notifier,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A2E),
+      isDismissible: false,
+      enableDrag: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _HoldCardSheet(
+        hand: hand,
+        onHold: (card) {
+          if (card != null) notifier.holdCard(card);
+          Navigator.of(context).pop();
+        },
+      ),
+    );
   }
 
   void _showRoundLog(BuildContext context, RoundResult last) {
@@ -211,7 +238,12 @@ class _TopHpRow extends StatelessWidget {
             currentHp: battle.opponent.currentHp,
             currentStamina: battle.opponent.currentStamina,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
+          _OpponentStaminaBadge(
+            stamina: opp.currentStamina,
+            maxStamina: opp.hero.maxStamina,
+          ),
+          const SizedBox(width: 6),
           Expanded(
             child: _HealthBar(
               current: opp.currentHp,
@@ -278,7 +310,14 @@ class _ArenaZone extends ConsumerWidget {
           child: Column(
             children: [
             const SizedBox(height: 10),
-            _OpponentSlotsRow(battle: battle, resolvingSlot: resolvingSlot),
+            _OpponentSlotsRow(
+              battle: battle,
+              resolvingSlot: resolvingSlot,
+              onScoutSlot: battle.phase == BattlePhase.planning &&
+                      battle.scoutTokensRemaining > 0
+                  ? (slotIndex) => _showScoutDialog(context, ref, slotIndex, battle)
+                  : null,
+            ),
             Expanded(
               child: _HeroFaceoffSection(battle: battle),
             ),
@@ -351,6 +390,48 @@ class _ArenaZone extends ConsumerWidget {
       ],
     );
   }
+
+  static void _showScoutDialog(
+    BuildContext context,
+    WidgetRef ref,
+    int slotIndex,
+    BattleState battle,
+  ) {
+    if (battle.revealedOpponentSlots.containsKey(slotIndex)) return;
+
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          '¿Querés ver la carta de tu oponente?',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+        ),
+        content: Text(
+          'Consumirás un scout  ·  Te quedan ${battle.scoutTokensRemaining}',
+          style: const TextStyle(color: Colors.white54, fontSize: 12),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white38)),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(battleProvider.notifier).useScout(slotIndex);
+              Navigator.of(context).pop();
+            },
+            child: const Text(
+              'Ver',
+              style: TextStyle(color: Color(0xFF3498DB), fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ─── OPPONENT SLOTS ROW ───────────────────────────────────────────────────────
@@ -358,27 +439,47 @@ class _ArenaZone extends ConsumerWidget {
 class _OpponentSlotsRow extends StatelessWidget {
   final BattleState battle;
   final int resolvingSlot;
-  const _OpponentSlotsRow({required this.battle, required this.resolvingSlot});
+  final void Function(int slotIndex)? onScoutSlot;
+
+  const _OpponentSlotsRow({
+    required this.battle,
+    required this.resolvingSlot,
+    this.onScoutSlot,
+  });
 
   @override
   Widget build(BuildContext context) {
     final opponent = battle.opponent;
+    final canScout = onScoutSlot != null;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(3, (i) {
-        const slotH = 72.0;
-        const slotW = slotH / 1.5;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: _OpponentSlot(
-            card: opponent.plannedSequence[i],
-            phase: battle.phase,
-            isResolving: resolvingSlot == i,
-            width: slotW,
-            height: slotH,
-          ),
-        );
-      }),
+      children: [
+        // Columna de tokens de scout (izquierda)
+        _ScoutTokensColumn(remaining: battle.scoutTokensRemaining),
+        const SizedBox(width: 8),
+        ...List.generate(3, (i) {
+          const slotH = 72.0;
+          const slotW = slotH / 1.5;
+          final revealedCard = battle.revealedOpponentSlots[i];
+          final slotCanScout = canScout && revealedCard == null;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: GestureDetector(
+              onTap: slotCanScout ? () => onScoutSlot!(i) : null,
+              child: _OpponentSlot(
+                card: opponent.plannedSequence[i],
+                phase: battle.phase,
+                isResolving: resolvingSlot == i,
+                width: slotW,
+                height: slotH,
+                revealedCard: revealedCard,
+                canScout: slotCanScout,
+              ),
+            ),
+          );
+        }),
+      ],
     );
   }
 }
@@ -717,6 +818,89 @@ class _HealthBarState extends State<_HealthBar>
   }
 }
 
+// ─── OPPONENT STAMINA BADGE ───────────────────────────────────────────────────
+
+class _OpponentStaminaBadge extends StatelessWidget {
+  final int stamina;
+  final int maxStamina;
+
+  const _OpponentStaminaBadge({required this.stamina, required this.maxStamina});
+
+  @override
+  Widget build(BuildContext context) {
+    final fraction = maxStamina > 0 ? stamina / maxStamina : 0.0;
+    final color = fraction > 0.6
+        ? const Color(0xFF27AE60)
+        : fraction > 0.3
+            ? const Color(0xFFE67E22)
+            : const Color(0xFFE74C3C);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: color.withValues(alpha: 0.5)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.bolt, size: 9, color: color),
+              const SizedBox(width: 2),
+              Text(
+                '$stamina',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'STM',
+          style: TextStyle(
+            color: color.withValues(alpha: 0.6),
+            fontSize: 7,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── SCOUT TOKENS COLUMN ─────────────────────────────────────────────────────
+
+class _ScoutTokensColumn extends StatelessWidget {
+  final int remaining;
+  const _ScoutTokensColumn({required this.remaining});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (i) {
+        final isActive = i < remaining;
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Icon(
+            isActive ? Icons.remove_red_eye : Icons.remove_red_eye_outlined,
+            size: 15,
+            color: isActive ? const Color(0xFF3498DB) : Colors.white12,
+          ),
+        );
+      }),
+    );
+  }
+}
+
 // ─── OPPONENT SLOT ────────────────────────────────────────────────────────────
 
 class _OpponentSlot extends StatelessWidget {
@@ -725,6 +909,8 @@ class _OpponentSlot extends StatelessWidget {
   final bool isResolving;
   final double width;
   final double height;
+  final GameCard? revealedCard; // carta revelada por scout
+  final bool canScout;
 
   const _OpponentSlot({
     this.card,
@@ -732,12 +918,16 @@ class _OpponentSlot extends StatelessWidget {
     required this.isResolving,
     required this.width,
     required this.height,
+    this.revealedCard,
+    this.canScout = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final isRevealed =
         phase == BattlePhase.resolving || phase == BattlePhase.roundEnd;
+    final cardToShow = revealedCard ?? (isRevealed ? card : null);
+    final isScouted = revealedCard != null;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -747,15 +937,55 @@ class _OpponentSlot extends StatelessWidget {
         color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: isResolving ? Colors.yellow : const Color(0xFF2A2A3E),
-          width: isResolving ? 2 : 1,
+          color: isScouted
+              ? const Color(0xFF3498DB)
+              : isResolving
+                  ? Colors.yellow
+                  : canScout
+                      ? Colors.white24
+                      : const Color(0xFF2A2A3E),
+          width: isScouted || isResolving ? 2 : 1,
         ),
       ),
-      child: Center(
-        child: isRevealed && card != null
-            ? GameCardWidget(card: card!, width: width)
-            : Icon(Icons.help_outline,
-                color: Colors.white10, size: height * 0.3),
+      child: Stack(
+        children: [
+          Center(
+            child: cardToShow != null
+                ? GameCardWidget(card: cardToShow, width: width)
+                : canScout
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.remove_red_eye,
+                              color: Colors.white24, size: height * 0.25),
+                          const SizedBox(height: 2),
+                          Text(
+                            'ver',
+                            style: TextStyle(
+                                color: Colors.white24,
+                                fontSize: height * 0.11),
+                          ),
+                        ],
+                      )
+                    : Icon(Icons.help_outline,
+                        color: Colors.white10, size: height * 0.3),
+          ),
+          // Badge scout (ojo azul en esquina superior derecha)
+          if (isScouted)
+            Positioned(
+              top: 2,
+              right: 2,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3498DB),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: const Icon(Icons.remove_red_eye,
+                    size: 7, color: Colors.white),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1136,6 +1366,20 @@ class _SlotLogRow extends StatelessWidget {
                       color: resultColor,
                       fontSize: 9,
                       fontWeight: FontWeight.bold)),
+              if (slot.conditionalBonusApplied)
+                Container(
+                  margin: const EdgeInsets.only(top: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5B800).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(color: const Color(0xFFF5B800).withValues(alpha: 0.5)),
+                  ),
+                  child: const Text(
+                    '⚡ bonus',
+                    style: TextStyle(color: Color(0xFFF5B800), fontSize: 7, fontWeight: FontWeight.bold),
+                  ),
+                ),
             ],
           ),
           const SizedBox(width: 8),
@@ -1213,6 +1457,134 @@ class _DmgChip extends StatelessWidget {
         Text(label,
             style: const TextStyle(color: Colors.white38, fontSize: 10)),
       ],
+    );
+  }
+}
+
+// ─── HOLD CARD SHEET ─────────────────────────────────────────────────────────
+
+class _HoldCardSheet extends StatefulWidget {
+  final List<GameCard> hand;
+  final void Function(GameCard?) onHold;
+
+  const _HoldCardSheet({required this.hand, required this.onHold});
+
+  @override
+  State<_HoldCardSheet> createState() => _HoldCardSheetState();
+}
+
+class _HoldCardSheetState extends State<_HoldCardSheet> {
+  GameCard? _selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            '¿Cuál carta guardás?',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'La carta elegida pasa a tu próxima mano. Las demás se descartan.',
+            style: TextStyle(color: Colors.white54, fontSize: 11),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 120,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              shrinkWrap: true,
+              itemCount: widget.hand.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final card = widget.hand[i];
+                final isSelected = _selected == card;
+                return GestureDetector(
+                  onTap: () => setState(() => _selected = card),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFFF5B800)
+                            : Colors.transparent,
+                        width: 2,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFFF5B800).withValues(alpha: 0.4),
+                                blurRadius: 8,
+                              )
+                            ]
+                          : null,
+                    ),
+                    child: GameCardWidget(card: card, width: 72),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => widget.onHold(null),
+                  child: const Text(
+                    'No guardar',
+                    style: TextStyle(color: Colors.white38, fontSize: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _selected != null
+                        ? const Color(0xFFF5B800)
+                        : const Color(0xFF2A2A3E),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: _selected != null
+                      ? () => widget.onHold(_selected)
+                      : null,
+                  child: Text(
+                    _selected != null ? 'Guardar' : 'Elegir carta',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: _selected != null ? Colors.black : Colors.white24,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

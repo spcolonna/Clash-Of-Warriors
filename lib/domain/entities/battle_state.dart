@@ -20,6 +20,8 @@ class CombatantState {
   final List<StatusEffect> statusEffects;
   // null = slot vacío
   final List<GameCard?> plannedSequence; // 3 slots
+  // Carta conservada entre rondas (elegida por el jugador al final del round).
+  final GameCard? heldCard;
 
   const CombatantState({
     required this.hero,
@@ -31,6 +33,7 @@ class CombatantState {
     this.passiveUsed = false,
     this.statusEffects = const [],
     this.plannedSequence = const [null, null, null],
+    this.heldCard,
   });
 
   bool get isAlive => currentHp > 0;
@@ -47,6 +50,8 @@ class CombatantState {
     bool? passiveUsed,
     List<StatusEffect>? statusEffects,
     List<GameCard?>? plannedSequence,
+    GameCard? heldCard,
+    bool clearHeld = false,
   }) =>
       CombatantState(
         hero: hero,
@@ -58,6 +63,7 @@ class CombatantState {
         passiveUsed: passiveUsed ?? this.passiveUsed,
         statusEffects: statusEffects ?? this.statusEffects,
         plannedSequence: plannedSequence ?? this.plannedSequence,
+        heldCard: clearHeld ? null : (heldCard ?? this.heldCard),
       );
 }
 
@@ -89,7 +95,7 @@ class SlotResult {
   final double playerDamageDealt;
   final double opponentDamageDealt;
   final String? winner; // 'player' | 'opponent' | 'tie' | 'empty'
-  final int? diceRoll;
+  final bool conditionalBonusApplied;
   final String narrative;
 
   const SlotResult({
@@ -99,7 +105,7 @@ class SlotResult {
     required this.playerDamageDealt,
     required this.opponentDamageDealt,
     required this.winner,
-    this.diceRoll,
+    this.conditionalBonusApplied = false,
     required this.narrative,
   });
 }
@@ -135,6 +141,12 @@ class BattleState {
   final GameMode gameMode;
   final bool passiveJustUnlocked; // true solo el round en que se inyecta la pasiva
 
+  // ── Scout mechanic ────────────────────────────────────────────────────────
+  // 3 tokens por batalla (no se recargan entre rondas).
+  final int scoutTokensRemaining;
+  // Slots del oponente revelados esta ronda (se limpia al iniciar cada ronda).
+  final Map<int, GameCard> revealedOpponentSlots;
+
   const BattleState({
     required this.phase,
     required this.player,
@@ -147,6 +159,8 @@ class BattleState {
     this.botDifficulty,
     this.gameMode = GameMode.expert,
     this.passiveJustUnlocked = false,
+    this.scoutTokensRemaining = 3,
+    this.revealedOpponentSlots = const {},
   });
 
   bool get isBattleOver => playerWon != null;
@@ -163,6 +177,8 @@ class BattleState {
     BotDifficulty? botDifficulty,
     GameMode? gameMode,
     bool? passiveJustUnlocked,
+    int? scoutTokensRemaining,
+    Map<int, GameCard>? revealedOpponentSlots,
   }) =>
       BattleState(
         phase: phase ?? this.phase,
@@ -176,5 +192,7 @@ class BattleState {
         botDifficulty: botDifficulty ?? this.botDifficulty,
         gameMode: gameMode ?? this.gameMode,
         passiveJustUnlocked: passiveJustUnlocked ?? this.passiveJustUnlocked,
+        scoutTokensRemaining: scoutTokensRemaining ?? this.scoutTokensRemaining,
+        revealedOpponentSlots: revealedOpponentSlots ?? this.revealedOpponentSlots,
       );
 }
