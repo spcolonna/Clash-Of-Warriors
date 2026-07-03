@@ -1,9 +1,12 @@
 // lib/delivery/widgets/slot_clash_animator.dart
 
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../domain/entities/battle_state.dart';
 import '../../domain/entities/game_card.dart';
+import '../../infra/services/haptics_service.dart';
+import '../../infra/sound/sound_service.dart';
 import 'game_card_widget.dart';
 
 /// Overlay de pantalla completa que reproduce la animación de un slot de combate.
@@ -65,6 +68,40 @@ class _SlotClashAnimatorState extends State<SlotClashAnimator>
     _controller.forward().then((_) {
       if (mounted) widget.onComplete();
     });
+    _scheduleFx();
+  }
+
+  /// Dispara SFX y haptics sincronizados con las fases de la animación.
+  void _scheduleFx() {
+    final r = widget.result;
+    if (r.playerCard == null && r.opponentCard == null) return;
+
+    SoundService().play('whoosh');
+
+    // Momento del impacto: clash ≈ t 0.30 (450ms) · direct hit ≈ t 0.40 (600ms)
+    final bothCards = r.playerCard != null && r.opponentCard != null;
+    final impactMs = bothCards ? 450 : 600;
+    Future.delayed(Duration(milliseconds: impactMs), () {
+      if (!mounted) return;
+      HapticsService().heavy();
+      SoundService().play(_impactSfxKey(r));
+    });
+  }
+
+  String _impactSfxKey(SlotResult r) {
+    final winnerCard = switch (r.winner) {
+      'opponent' => r.opponentCard,
+      'player' => r.playerCard,
+      _ => r.playerCard ?? r.opponentCard,
+    };
+    return switch (winnerCard?.category) {
+      CardCategory.punch => 'punch',
+      CardCategory.kick => 'kick',
+      CardCategory.grapple => 'grapple',
+      CardCategory.defense => 'block',
+      CardCategory.dodge => 'palm',
+      null => 'hit',
+    };
   }
 
   @override
@@ -220,6 +257,24 @@ class _SlotClashAnimatorState extends State<SlotClashAnimator>
             child: Container(
               color: Colors.white.withOpacity(
                 clashT < 0.5 ? clashT * 1.4 : (1 - clashT) * 1.4,
+              ),
+            ),
+          ),
+
+        // Chispas radiales en el momento del impacto
+        if (t > 0.28 && t < 0.75)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _SparksPainter(
+                  progress: ((t - 0.28) / 0.47).clamp(0.0, 1.0),
+                  center: Offset(screenSize.width / 2, centerY),
+                  color: winner == 'player'
+                      ? const Color(0xFF7CFC8A)
+                      : winner == 'opponent'
+                          ? const Color(0xFFFF7A6B)
+                          : const Color(0xFFFFC966),
+                ),
               ),
             ),
           ),
@@ -601,4 +656,46 @@ class _SlotClashAnimatorState extends State<SlotClashAnimator>
   }
 
   double _lerp(double a, double b, double t) => a + (b - a) * t;
+}
+
+/// Ráfaga de chispas radiales desde el punto de impacto.
+/// Determinística (sin estado aleatorio) para poder redibujar por frame.
+class _SparksPainter extends CustomPainter {
+  final double progress; // 0..1
+  final Offset center;
+  final Color color;
+
+  const _SparksPainter({
+    required this.progress,
+    required this.center,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const count = 16;
+    final eased = Curves.easeOutCubic.transform(progress);
+    final opacity = (1 - progress).clamp(0.0, 1.0);
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    for (int i = 0; i < count; i++) {
+      // Jitter determinístico por índice
+      final seed = (i * 2654435761) & 0xFFFF;
+      final jitterA = (seed % 1000) / 1000.0;
+      final jitterR = ((seed >> 4) % 1000) / 1000.0;
+
+      final angle = (i / count) * 2 * math.pi + jitterA * 0.5;
+      final maxDist = 60 + jitterR * 70;
+      final dist = eased * maxDist;
+      final pos = center + Offset(math.cos(angle), math.sin(angle)) * dist;
+      final radius = (3.5 - eased * 2.5) * (0.6 + jitterR * 0.8);
+
+      paint.color = color.withValues(alpha: opacity * (0.5 + jitterA * 0.5));
+      canvas.drawCircle(pos, radius.clamp(0.5, 4.0), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SparksPainter old) =>
+      old.progress != progress || old.color != color;
 }

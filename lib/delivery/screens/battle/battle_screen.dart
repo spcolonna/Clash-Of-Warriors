@@ -1,6 +1,7 @@
 // lib/delivery/screens/battle/battle_screen.dart
 
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,12 +9,15 @@ import 'package:go_router/go_router.dart';
 import '../../../domain/entities/battle_state.dart';
 import '../../../domain/entities/game_card.dart';
 import '../../../domain/entities/hero_entity.dart';
+import '../../../infra/services/haptics_service.dart';
+import '../../../infra/sound/sound_service.dart';
 import '../../state/battle_provider.dart';
 import '../../widgets/game_card_widget.dart';
 import '../../widgets/hero_stats_dialog.dart';
 import '../../widgets/passive_ready_banner.dart';
 import '../../widgets/player_hand_widget.dart';
 import '../../widgets/card_conjure_overlay.dart';
+import '../../widgets/round_banner.dart';
 import '../../widgets/slot_clash_animator.dart';
 import '../../widgets/stamina_globe.dart';
 import '../../widgets/tap_scale_button.dart';
@@ -27,12 +31,67 @@ class BattleScreen extends ConsumerStatefulWidget {
   ConsumerState<BattleScreen> createState() => _BattleScreenState();
 }
 
-class _BattleScreenState extends ConsumerState<BattleScreen> {
+class _BattleScreenState extends ConsumerState<BattleScreen>
+    with SingleTickerProviderStateMixin {
   int _resolvingSlot = -1;
   bool _handReady = false;
   Widget? _activeClash;
   GameCard? _conjuredCard;
   bool _showPassiveBanner = false;
+  int? _bannerRound;
+  late final AnimationController _shakeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    // Banner de ronda 1 al entrar a la batalla
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showRoundBanner(1);
+    });
+  }
+
+  @override
+  void dispose() {
+    _shakeController.dispose();
+    super.dispose();
+  }
+
+  void _showRoundBanner(int round) {
+    SoundService().play('round_start');
+    setState(() => _bannerRound = round);
+  }
+
+  void _triggerShake() {
+    HapticsService().heavy();
+    _shakeController.forward(from: 0);
+  }
+
+  /// Coloca la carta desde el tap de la mano (primer slot libre).
+  void _onCardPlay(GameCard card) {
+    final slot =
+        ref.read(battleProvider.notifier).playCardToFirstFreeSlot(card);
+    if (slot >= 0) {
+      HapticsService().medium();
+      SoundService().play('card_place');
+      setState(() => _conjuredCard = card);
+    } else {
+      HapticsService().error();
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('No hay slot libre o falta stamina'),
+            duration: Duration(milliseconds: 1200),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Color(0xFF2A2A3E),
+          ),
+        );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +99,8 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
 
     ref.listen(battleProvider, (prev, next) {
       if (next.isBattleOver && !(prev?.isBattleOver ?? false)) {
+        SoundService().play('ko');
+        HapticsService().success();
         Future.delayed(const Duration(milliseconds: 1500), () {
           if (context.mounted) context.go('/end-battle');
         });
@@ -58,37 +119,49 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
             ),
           ),
 
-          // ── UI principal ───────────────────────────────────────────────────
-          SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                // 1. HP bars de ambos luchadores
-                _TopHpRow(battle: battle),
+          // ── UI principal (con screen shake al recibir daño) ────────────────
+          AnimatedBuilder(
+            animation: _shakeController,
+            builder: (context, child) {
+              final v = _shakeController.value;
+              final dx = v == 0 || v == 1
+                  ? 0.0
+                  : (v * 24 % 2 < 1 ? -1 : 1) * 7.0 * (1 - v);
+              return Transform.translate(offset: Offset(dx, 0), child: child);
+            },
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  // 1. HP bars de ambos luchadores
+                  _TopHpRow(battle: battle),
 
-                // 2. Arena: slots del oponente + sprites + slots del jugador
-                Expanded(
-                  child: _ArenaZone(
-                    battle: battle,
-                    resolvingSlot: _resolvingSlot,
-                    onCardConjured: (card) =>
-                        setState(() => _conjuredCard = card),
-                    onShowLog: battle.roundHistory.isNotEmpty
-                        ? () => _showRoundLog(context, battle.roundHistory.last)
-                        : null,
+                  // 2. Arena: slots del oponente + sprites + slots del jugador
+                  Expanded(
+                    child: _ArenaZone(
+                      battle: battle,
+                      resolvingSlot: _resolvingSlot,
+                      onCardConjured: (card) =>
+                          setState(() => _conjuredCard = card),
+                      onShowLog: battle.roundHistory.isNotEmpty
+                          ? () =>
+                              _showRoundLog(context, battle.roundHistory.last)
+                          : null,
+                    ),
                   ),
-                ),
 
-                // 3. Mano + acción
-                _BottomSection(
-                  battle: battle,
-                  handReady: _handReady,
-                  onConfirm: _handReady ? _onConfirmSequence : () {},
-                  onDealComplete: () {
-                    if (mounted) setState(() => _handReady = true);
-                  },
-                ),
-              ],
+                  // 3. Mano + acción
+                  _BottomSection(
+                    battle: battle,
+                    handReady: _handReady,
+                    onConfirm: _handReady ? _onConfirmSequence : () {},
+                    onDealComplete: () {
+                      if (mounted) setState(() => _handReady = true);
+                    },
+                    onCardPlay: _onCardPlay,
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -104,6 +177,16 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
               ),
             ),
           if (_activeClash != null) Positioned.fill(child: _activeClash!),
+          if (_bannerRound != null)
+            Positioned.fill(
+              child: RoundBanner(
+                key: ValueKey('round_banner_$_bannerRound'),
+                round: _bannerRound!,
+                onComplete: () {
+                  if (mounted) setState(() => _bannerRound = null);
+                },
+              ),
+            ),
           if (_showPassiveBanner)
             Positioned(
               top: 0,
@@ -124,6 +207,8 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
   }
 
   Future<void> _onConfirmSequence() async {
+    HapticsService().medium();
+    SoundService().play('select');
     final notifier = ref.read(battleProvider.notifier);
     await notifier.confirmSequenceAndResolve();
 
@@ -137,7 +222,12 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
       setState(() => _resolvingSlot = i);
 
       await _playSlotAnimation(lastRound.slotResults[i]);
+
+      final hpBefore = ref.read(battleProvider).player.currentHp;
       notifier.applySlotDamage(i);
+      final hpAfter = ref.read(battleProvider).player.currentHp;
+      if (hpAfter < hpBefore) _triggerShake();
+
       await Future.delayed(const Duration(milliseconds: 400));
     }
 
@@ -155,7 +245,12 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
       }
       if (!mounted) return;
       notifier.startNextRound();
-      if (mounted && ref.read(battleProvider).passiveJustUnlocked) {
+      if (!mounted) return;
+      final nextState = ref.read(battleProvider);
+      if (!nextState.isBattleOver) {
+        _showRoundBanner(nextState.currentRound);
+      }
+      if (nextState.passiveJustUnlocked) {
         setState(() => _showPassiveBanner = true);
       }
     }
@@ -319,7 +414,10 @@ class _ArenaZone extends ConsumerWidget {
                   : null,
             ),
             Expanded(
-              child: _HeroFaceoffSection(battle: battle),
+              child: _HeroFaceoffSection(
+                battle: battle,
+                resolvingSlot: resolvingSlot,
+              ),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -345,11 +443,21 @@ class _ArenaZone extends ConsumerWidget {
                             .firstOrNull
                         : null,
                     onDrop: (card) {
-                      ref.read(battleProvider.notifier).placeCardInSlot(card, i);
-                      onCardConjured(card);
+                      final placed = ref
+                          .read(battleProvider.notifier)
+                          .placeCardInSlot(card, i);
+                      if (placed) {
+                        HapticsService().medium();
+                        SoundService().play('card_place');
+                        onCardConjured(card);
+                      } else {
+                        HapticsService().error();
+                      }
                     },
-                    onTap: () =>
-                        ref.read(battleProvider.notifier).removeCardFromSlot(i),
+                    onTap: () {
+                      HapticsService().light();
+                      ref.read(battleProvider.notifier).removeCardFromSlot(i);
+                    },
                   ),
                 );
               }),
@@ -420,6 +528,8 @@ class _ArenaZone extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () {
+              HapticsService().medium();
+              SoundService().play('unlock');
               ref.read(battleProvider.notifier).useScout(slotIndex);
               Navigator.of(context).pop();
             },
@@ -486,18 +596,142 @@ class _OpponentSlotsRow extends StatelessWidget {
 
 // ─── HERO FACEOFF ─────────────────────────────────────────────────────────────
 
-class _HeroFaceoffSection extends StatelessWidget {
+class _HeroFaceoffSection extends StatefulWidget {
   final BattleState battle;
+  final int resolvingSlot;
 
-  const _HeroFaceoffSection({required this.battle});
+  const _HeroFaceoffSection({
+    required this.battle,
+    required this.resolvingSlot,
+  });
+
+  @override
+  State<_HeroFaceoffSection> createState() => _HeroFaceoffSectionState();
+}
+
+class _HeroFaceoffSectionState extends State<_HeroFaceoffSection>
+    with TickerProviderStateMixin {
+  // Idle: respiración continua sutil de ambos héroes.
+  late final AnimationController _idleController;
+  // Reacción del slot en resolución: lunge del atacante + flinch del golpeado.
+  late final AnimationController _playerReact;
+  late final AnimationController _opponentReact;
+  String? _playerRole; // 'attack' | 'hurt' | null
+  String? _opponentRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _idleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
+    _playerReact = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
+    _opponentReact = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _HeroFaceoffSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.resolvingSlot != oldWidget.resolvingSlot &&
+        widget.resolvingSlot >= 0 &&
+        widget.battle.roundHistory.isNotEmpty) {
+      final slots = widget.battle.roundHistory.last.slotResults;
+      if (widget.resolvingSlot < slots.length) {
+        _reactToSlot(slots[widget.resolvingSlot]);
+      }
+    }
+  }
+
+  /// Sincronizado con SlotClashAnimator (~1.5s): el choque ocurre alrededor
+  /// de t≈0.35 → disparamos las reacciones ~500ms después de iniciar el slot.
+  Future<void> _reactToSlot(SlotResult slot) async {
+    if (slot.winner == null || slot.winner == 'empty') return;
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+
+    setState(() {
+      _playerRole = switch (slot.winner) {
+        'player' => 'attack',
+        'opponent' => 'hurt',
+        _ => slot.playerCard != null ? 'attack' : null,
+      };
+      _opponentRole = switch (slot.winner) {
+        'player' => 'hurt',
+        'opponent' => 'attack',
+        _ => slot.opponentCard != null ? 'attack' : null,
+      };
+    });
+    if (_playerRole != null) _playerReact.forward(from: 0);
+    if (_opponentRole != null) _opponentReact.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _idleController.dispose();
+    _playerReact.dispose();
+    _opponentReact.dispose();
+    super.dispose();
+  }
 
   String _withoutBgPath(String path) {
     final fileName = path.split('/').last;
     return 'assets/images/heros/withoutBG/$fileName';
   }
 
+  /// Offset y tinte del héroe según su rol en la reacción actual.
+  /// [towardCenter]: dirección del lunge (+1 = derecha, -1 = izquierda).
+  Widget _animatedHero({
+    required Widget child,
+    required AnimationController react,
+    required String? role,
+    required double towardCenter,
+    required double idlePhase,
+  }) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_idleController, react]),
+      builder: (context, _) {
+        // Respiración: bob vertical sutil, desfasado entre héroes
+        final idleT = _idleController.value;
+        final bob = math.sin((idleT + idlePhase) * math.pi) * 3.0;
+
+        double dx = 0, dy = -bob;
+        Color? tint;
+        final t = react.value;
+        if (role == 'attack' && t > 0 && t < 1) {
+          // Lunge: avanza rápido y vuelve (curva de ida y vuelta)
+          final lunge = math.sin(t * math.pi);
+          dx = towardCenter * lunge * 26;
+          dy -= lunge * 6;
+        } else if (role == 'hurt' && t > 0 && t < 1) {
+          // Flinch: sacudida + retroceso + tinte rojo
+          final recoil = math.sin(t * math.pi);
+          dx = -towardCenter * recoil * 14 +
+              (t * 30 % 2 < 1 ? -1 : 1) * 4.0 * (1 - t);
+          tint = Colors.red.withValues(alpha: recoil * 0.45);
+        }
+
+        Widget hero = Transform.translate(offset: Offset(dx, dy), child: child);
+        if (tint != null) {
+          hero = ColorFiltered(
+            colorFilter: ColorFilter.mode(tint, BlendMode.srcATop),
+            child: hero,
+          );
+        }
+        return hero;
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final battle = widget.battle;
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -510,12 +744,18 @@ class _HeroFaceoffSection extends StatelessWidget {
             Expanded(
               child: Align(
                 alignment: Alignment.bottomCenter,
-                child: Image.asset(
-                  _withoutBgPath(battle.opponent.hero.imagePath),
-                  height: 130,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) =>
-                      const SizedBox(width: 80, height: 130),
+                child: _animatedHero(
+                  react: _opponentReact,
+                  role: _opponentRole,
+                  towardCenter: 1,
+                  idlePhase: 0.0,
+                  child: Image.asset(
+                    _withoutBgPath(battle.opponent.hero.imagePath),
+                    height: 130,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) =>
+                        const SizedBox(width: 80, height: 130),
+                  ),
                 ),
               ),
             ),
@@ -542,15 +782,21 @@ class _HeroFaceoffSection extends StatelessWidget {
             Expanded(
               child: Align(
                 alignment: Alignment.bottomCenter,
-                child: Transform(
-                  alignment: Alignment.center,
-                  transform: Matrix4.diagonal3Values(-1, 1, 1),
-                  child: Image.asset(
-                    _withoutBgPath(battle.player.hero.imagePath),
-                    height: 130,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
-                        const SizedBox(width: 80, height: 130),
+                child: _animatedHero(
+                  react: _playerReact,
+                  role: _playerRole,
+                  towardCenter: -1,
+                  idlePhase: 0.5,
+                  child: Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.diagonal3Values(-1, 1, 1),
+                    child: Image.asset(
+                      _withoutBgPath(battle.player.hero.imagePath),
+                      height: 130,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) =>
+                          const SizedBox(width: 80, height: 130),
+                    ),
                   ),
                 ),
               ),
@@ -596,12 +842,14 @@ class _BottomSection extends StatelessWidget {
   final bool handReady;
   final VoidCallback onConfirm;
   final VoidCallback onDealComplete;
+  final void Function(GameCard card) onCardPlay;
 
   const _BottomSection({
     required this.battle,
     required this.handReady,
     required this.onConfirm,
     required this.onDealComplete,
+    required this.onCardPlay,
   });
 
   @override
@@ -621,6 +869,8 @@ class _BottomSection extends StatelessWidget {
                 cards: battle.player.hand,
                 isDraggable: battle.phase == BattlePhase.planning,
                 onDealAnimationComplete: onDealComplete,
+                remainingStamina: battle.player.remainingStamina,
+                onCardPlay: onCardPlay,
               ),
             ),
             Positioned(

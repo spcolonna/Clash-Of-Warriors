@@ -277,10 +277,12 @@ class BattleNotifier extends Notifier<BattleState> {
     );
   }
 
-  void placeCardInSlot(GameCard card, int slotIndex) {
+  /// Retorna true si la carta se colocó; false si no alcanzó la stamina
+  /// o el slot/carta no eran válidos (para que la UI dé feedback de error).
+  bool placeCardInSlot(GameCard card, int slotIndex) {
     final player = state.player;
-    if (slotIndex < 0 || slotIndex >= 3) return;
-    if (!player.hand.contains(card)) return;
+    if (slotIndex < 0 || slotIndex >= 3) return false;
+    if (!player.hand.contains(card)) return false;
 
     final currentSequence = List<GameCard?>.from(player.plannedSequence);
     final currentHand = List<GameCard>.from(player.hand);
@@ -300,7 +302,7 @@ class BattleNotifier extends Notifier<BattleState> {
         currentSequence[slotIndex] = previousCard;
         currentHand.remove(previousCard);
       }
-      return;
+      return false;
     }
 
     currentHand.remove(card);
@@ -312,6 +314,23 @@ class BattleNotifier extends Notifier<BattleState> {
         hand: currentHand,
       ),
     );
+    return true;
+  }
+
+  /// Coloca la carta en el primer slot libre (y no bloqueado).
+  /// Retorna el índice del slot usado, o -1 si no se pudo colocar.
+  int playCardToFirstFreeSlot(GameCard card) {
+    final blockedSlots = state.player.statusEffects
+        .where((e) => e.type == StatusEffectType.slotBlocked)
+        .map((e) => e.value)
+        .toSet();
+    for (int i = 0; i < 3; i++) {
+      if (blockedSlots.contains(i)) continue;
+      if (state.player.plannedSequence[i] != null) continue;
+      if (placeCardInSlot(card, i)) return i;
+      return -1; // slot libre pero sin stamina suficiente
+    }
+    return -1; // no hay slots libres
   }
 
   void removeCardFromSlot(int slotIndex) {

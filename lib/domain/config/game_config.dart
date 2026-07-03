@@ -105,12 +105,13 @@ class GameConfig {
   // ── SONIDOS ───────────────────────────────────────────
   static const String sfxPath = 'assets/sounds/';
   static const Map<String, String> sfxFiles = {
-    'punch': 'punch.mp3', 'kick': 'kick.mp3', 'block': 'block.mp3',
-    'grapple': 'grapple.mp3', 'palm': 'palm.mp3', 'hit': 'hit.mp3',
-    'ko': 'ko.mp3', 'victory': 'victory.mp3', 'defeat': 'defeat.mp3',
-    'round_start': 'round_start.mp3', 'select': 'select.mp3',
-    'coin': 'coin.mp3', 'level_up': 'level_up.mp3',
-    'unlock': 'unlock.mp3', 'menu_tap': 'menu_tap.mp3',
+    'punch': 'punch.wav', 'kick': 'kick.wav', 'block': 'block.wav',
+    'grapple': 'grapple.wav', 'palm': 'palm.wav', 'hit': 'hit.wav',
+    'ko': 'ko.wav', 'victory': 'victory.wav', 'defeat': 'defeat.wav',
+    'round_start': 'round_start.wav', 'select': 'select.wav',
+    'coin': 'coin.wav', 'level_up': 'level_up.wav',
+    'unlock': 'unlock.wav', 'menu_tap': 'menu_tap.wav',
+    'whoosh': 'whoosh.wav', 'card_place': 'card_place.wav',
   };
 }
 

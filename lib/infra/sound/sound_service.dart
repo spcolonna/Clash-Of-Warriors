@@ -10,7 +10,12 @@ class SoundService {
   factory SoundService() => _instance;
   SoundService._();
 
-  final AudioPlayer _sfxPlayer = AudioPlayer();
+  // Pool de players para permitir SFX superpuestos (clash + hit + whoosh)
+  // sin que uno corte al otro.
+  static const _poolSize = 4;
+  final List<AudioPlayer> _sfxPool =
+      List.generate(_poolSize, (_) => AudioPlayer());
+  int _poolIndex = 0;
   final AudioPlayer _musicPlayer = AudioPlayer();
   bool _sfxEnabled = true;
   bool _musicEnabled = true;
@@ -38,8 +43,10 @@ class SoundService {
     final file = GameConfig.sfxFiles[key];
     if (file == null) return;
     try {
-      await _sfxPlayer.setVolume(_sfxVolume);
-      await _sfxPlayer.play(AssetSource('sounds/$file'));
+      final player = _sfxPool[_poolIndex];
+      _poolIndex = (_poolIndex + 1) % _poolSize;
+      await player.setVolume(_sfxVolume);
+      await player.play(AssetSource('sounds/$file'));
     } catch (e) {
       // Silently fail — no crashear por un sonido faltante
     }
@@ -89,7 +96,9 @@ class SoundService {
   }
 
   void dispose() {
-    _sfxPlayer.dispose();
+    for (final p in _sfxPool) {
+      p.dispose();
+    }
     _musicPlayer.dispose();
   }
 }

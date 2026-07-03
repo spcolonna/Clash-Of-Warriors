@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../infra/services/haptics_service.dart';
 import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  @override
+  Widget build(BuildContext context) {
     final player = ref.watch(playerProvider);
     final authUser = ref.watch(authStateProvider).value;
     final sound = ref.read(soundProvider);
@@ -68,7 +74,7 @@ class SettingsScreen extends ConsumerWidget {
             trailing: Switch(
               value: sound.sfxEnabled,
               activeColor: AppColors.primary,
-              onChanged: (_) { sound.toggleSfx(); },
+              onChanged: (_) => setState(() => sound.toggleSfx()),
             ),
           ),
           _SettingTile(
@@ -76,7 +82,18 @@ class SettingsScreen extends ConsumerWidget {
             trailing: Switch(
               value: sound.musicEnabled,
               activeColor: AppColors.primary,
-              onChanged: (_) { sound.toggleMusic(); },
+              onChanged: (_) => setState(() => sound.toggleMusic()),
+            ),
+          ),
+          _SettingTile(
+            title: '📳 Vibración',
+            trailing: Switch(
+              value: HapticsService().enabled,
+              activeColor: AppColors.primary,
+              onChanged: (_) => setState(() {
+                HapticsService().toggle();
+                HapticsService().medium(); // feedback inmediato al activar
+              }),
             ),
           ),
 

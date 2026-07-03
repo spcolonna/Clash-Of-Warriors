@@ -1,5 +1,7 @@
 // lib/delivery/screens/battle/end_battle_screen.dart
 
+import 'dart:math' as math;
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,11 +9,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../infra/local/heroes_data.dart';
 import '../../../infra/local/daily_rewards_data.dart';
+import '../../../infra/services/haptics_service.dart';
+import '../../../infra/sound/sound_service.dart';
 import '../../state/battle_provider.dart';
 import '../../state/providers.dart';
 import '../../state/story_provider.dart';
 
-class EndBattleScreen extends ConsumerWidget {
+class EndBattleScreen extends ConsumerStatefulWidget {
   const EndBattleScreen({super.key});
 
   static const int tutorialMedalReward = 25;
@@ -34,15 +38,36 @@ class EndBattleScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EndBattleScreen> createState() => _EndBattleScreenState();
+}
+
+class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
+  @override
+  void initState() {
+    super.initState();
+    final won = ref.read(battleProvider).playerWon ?? true;
+    SoundService().play(won ? 'victory' : 'defeat');
+    if (won) {
+      HapticsService().success();
+    } else {
+      HapticsService().medium();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final battle = ref.watch(battleProvider);
     final playerWon = battle.playerWon ?? true;
     final isTutorial = battle.isTutorial;
     final isStoryBattle = battle.isStoryBattle;
 
-    final medals = isTutorial ? tutorialMedalReward : arenaMedalReward;
-    final baseCoins = isTutorial ? tutorialCoinReward : arenaCoinReward;
-    final tokens = _tokenReward(isTutorial, battle.botDifficulty);
+    final medals = isTutorial
+        ? EndBattleScreen.tutorialMedalReward
+        : EndBattleScreen.arenaMedalReward;
+    final baseCoins = isTutorial
+        ? EndBattleScreen.tutorialCoinReward
+        : EndBattleScreen.arenaCoinReward;
+    final tokens = widget._tokenReward(isTutorial, battle.botDifficulty);
 
     // ── Retención: primera victoria del día (x2) + XP de toda batalla ──────────
     final player = ref.watch(playerProvider);
@@ -66,34 +91,55 @@ class EndBattleScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
-      body: SafeArea(
+      body: Stack(
+        children: [
+          if (playerWon)
+            const Positioned.fill(
+              child: IgnorePointer(child: _ConfettiOverlay()),
+            ),
+          SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: SingleChildScrollView(
             child: Column(
               children: [
               const SizedBox(height: 32),
-              Icon(
-                playerWon ? Icons.emoji_events : Icons.sentiment_very_dissatisfied,
-                size: 72,
-                color: playerWon ? Colors.amber : Colors.red,
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.elasticOut,
+                builder: (context, v, child) =>
+                    Transform.scale(scale: v, child: child),
+                child: Icon(
+                  playerWon
+                      ? Icons.emoji_events
+                      : Icons.sentiment_very_dissatisfied,
+                  size: 72,
+                  color: playerWon ? Colors.amber : Colors.red,
+                ),
               ),
               const SizedBox(height: 16),
-              Text(
-                playerWon ? '¡Victoria!' : 'Derrota',
-                style: TextStyle(
-                  color: playerWon ? Colors.amber : Colors.red,
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
+              _Appear(
+                delayMs: 150,
+                child: Text(
+                  playerWon ? '¡Victoria!' : 'Derrota',
+                  style: TextStyle(
+                    color: playerWon ? Colors.amber : Colors.red,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                playerWon
-                    ? 'Demostraste tu valía en la Arena'
-                    : 'La batalla continúa. Volvé más fuerte.',
-                style: const TextStyle(color: Color(0xFF8A8A9A), fontSize: 14),
-                textAlign: TextAlign.center,
+              _Appear(
+                delayMs: 250,
+                child: Text(
+                  playerWon
+                      ? 'Demostraste tu valía en la Arena'
+                      : 'La batalla continúa. Volvé más fuerte.',
+                  style: const TextStyle(color: Color(0xFF8A8A9A), fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
               ),
               const SizedBox(height: 48),
               const Text(
@@ -102,25 +148,37 @@ class EndBattleScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               if (playerWon) ...[
-                _RewardRow(icon: Icons.military_tech,   label: 'Medallas', value: '+$medals', color: Colors.amber),
-                const SizedBox(height: 12),
-                _RewardRow(
-                  icon: Icons.monetization_on,
-                  label: 'Monedas',
-                  value: '+$coins',
-                  color: const Color(0xFF27AE60),
-                  badge: isFirstWinOfDay ? '1ª del día · x2' : null,
+                _Appear(
+                  delayMs: 350,
+                  child: _RewardRow(icon: Icons.military_tech, label: 'Medallas', value: '+$medals', color: Colors.amber),
                 ),
                 const SizedBox(height: 12),
-                _RewardRow(icon: Icons.diamond,         label: 'Tokens',   value: '+$tokens', color: const Color(0xFFB39DDB)),
+                _Appear(
+                  delayMs: 470,
+                  child: _RewardRow(
+                    icon: Icons.monetization_on,
+                    label: 'Monedas',
+                    value: '+$coins',
+                    color: const Color(0xFF27AE60),
+                    badge: isFirstWinOfDay ? '1ª del día · x2' : null,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _Appear(
+                  delayMs: 590,
+                  child: _RewardRow(icon: Icons.diamond, label: 'Tokens', value: '+$tokens', color: const Color(0xFFB39DDB)),
+                ),
                 const SizedBox(height: 12),
               ],
               // XP siempre se otorga, gane o pierda — la progresión nunca es nula.
-              _RewardRow(
-                icon: Icons.trending_up,
-                label: 'XP',
-                value: '+$xpReward',
-                color: const Color(0xFF3498DB),
+              _Appear(
+                delayMs: playerWon ? 710 : 350,
+                child: _RewardRow(
+                  icon: Icons.trending_up,
+                  label: 'XP',
+                  value: '+$xpReward',
+                  color: const Color(0xFF3498DB),
+                ),
               ),
               const SizedBox(height: 32),
               Container(
@@ -311,8 +369,141 @@ class EndBattleScreen extends ConsumerWidget {
           ),
         ),
       ),
+        ],
+      ),
     );
   }
+}
+
+/// Aparece con fade + slide-up después de [delayMs].
+class _Appear extends StatefulWidget {
+  final int delayMs;
+  final Widget child;
+
+  const _Appear({required this.delayMs, required this.child});
+
+  @override
+  State<_Appear> createState() => _AppearState();
+}
+
+class _AppearState extends State<_Appear> {
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(Duration(milliseconds: widget.delayMs), () {
+      if (mounted) setState(() => _visible = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: _visible ? 1 : 0,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOut,
+      child: AnimatedSlide(
+        offset: _visible ? Offset.zero : const Offset(0, 0.25),
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// Confetti que cae desde arriba (victoria). ~3.5s y se detiene.
+class _ConfettiOverlay extends StatefulWidget {
+  const _ConfettiOverlay();
+
+  @override
+  State<_ConfettiOverlay> createState() => _ConfettiOverlayState();
+}
+
+class _ConfettiOverlayState extends State<_ConfettiOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3500),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) => CustomPaint(
+        painter: _ConfettiPainter(progress: _controller.value),
+        size: Size.infinite,
+      ),
+    );
+  }
+}
+
+class _ConfettiPainter extends CustomPainter {
+  final double progress;
+  const _ConfettiPainter({required this.progress});
+
+  static const _colors = [
+    Color(0xFFF5B800),
+    Color(0xFFE74C3C),
+    Color(0xFF27AE60),
+    Color(0xFF3498DB),
+    Color(0xFFB39DDB),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size, ) {
+    const count = 60;
+    final paint = Paint();
+    for (int i = 0; i < count; i++) {
+      // Pseudoaleatorio determinístico por índice
+      final seed = (i * 2654435761) & 0xFFFFFF;
+      final rx = (seed % 1000) / 1000.0;
+      final rSpeed = 0.6 + ((seed >> 6) % 1000) / 1000.0 * 0.8;
+      final rDelay = ((seed >> 10) % 1000) / 1000.0 * 0.5;
+      final rSize = 4.0 + ((seed >> 14) % 100) / 100.0 * 5.0;
+      final color = _colors[i % _colors.length];
+
+      final t = ((progress - rDelay) / (1 - rDelay)).clamp(0.0, 1.0);
+      if (t <= 0) continue;
+
+      final x = rx * size.width +
+          math.sin((t * 4 + i) * math.pi) * 20; // vaivén lateral
+      final y = t * rSpeed * (size.height + 60) - 30;
+      final fade = progress > 0.8 ? (1 - progress) / 0.2 : 1.0;
+
+      paint.color = color.withValues(alpha: 0.85 * fade);
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate((t * 6 + i) * 0.7);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+              center: Offset.zero, width: rSize, height: rSize * 0.6),
+          const Radius.circular(1.5),
+        ),
+        paint,
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConfettiPainter old) =>
+      old.progress != progress;
 }
 
 class _RewardRow extends StatelessWidget {

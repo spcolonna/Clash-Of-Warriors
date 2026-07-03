@@ -1,8 +1,8 @@
 // lib/delivery/widgets/player_hand_widget.dart
 
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../domain/entities/game_card.dart';
+import '../../infra/services/haptics_service.dart';
 import 'card_preview_dialog.dart';
 import 'game_card_widget.dart';
 
@@ -12,12 +12,21 @@ class PlayerHandWidget extends StatefulWidget {
   final bool isDraggable;
   final VoidCallback? onDealAnimationComplete;
 
+  /// Stamina restante del jugador. Si se pasa, las cartas cuyo costo la
+  /// supera se muestran atenuadas y no se pueden jugar.
+  final int? remainingStamina;
+
+  /// Callback al tocar "Jugar" en el preview de una carta.
+  final void Function(GameCard card)? onCardPlay;
+
   const PlayerHandWidget({
     super.key,
     required this.cards,
     this.passive,
     this.isDraggable = true,
     this.onDealAnimationComplete,
+    this.remainingStamina,
+    this.onCardPlay,
   });
 
   @override
@@ -121,26 +130,53 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
           final normalized = totalCards > 1 ? (i / (totalCards - 1) - 0.5) * 2 : 0.0;
           final yOffset = (normalized * normalized) * 20.0; // más abajo los de los extremos
 
-          final cardWidget = GameCardWidget(
+          final affordable = widget.remainingStamina == null ||
+              cardData.card.staminaCost <= widget.remainingStamina!;
+
+          // Cartas fuera de presupuesto de stamina: atenuadas y en escala
+          // de grises para que se lea de un vistazo qué se puede jugar.
+          final rawCard = GameCardWidget(
             card: cardData.card,
             width: cardWidth,
             isPassive: false,
           );
+          final cardWidget = affordable
+              ? rawCard
+              : Opacity(
+                  opacity: 0.45,
+                  child: ColorFiltered(
+                    colorFilter: const ColorFilter.matrix(<double>[
+                      0.5, 0.4, 0.1, 0, 0,
+                      0.5, 0.4, 0.1, 0, 0,
+                      0.5, 0.4, 0.1, 0, 0,
+                      0, 0, 0, 1, 0,
+                    ]),
+                    child: rawCard,
+                  ),
+                );
 
-          // Envolvemos con GestureDetector para el tap de preview
+          // Tap: preview grande con botón "Jugar" (si la batalla lo permite)
           final tappable = GestureDetector(
-            onTap: () => CardPreviewDialog.show(
-              context,
-              cardData.card,
-              isPassive: false,
-            ),
+            onTap: () {
+              HapticsService().selection();
+              CardPreviewDialog.show(
+                context,
+                cardData.card,
+                isPassive: false,
+                onPlay: widget.isDraggable && widget.onCardPlay != null
+                    ? () => widget.onCardPlay!(cardData.card)
+                    : null,
+                canPlay: affordable,
+              );
+            },
             child: cardWidget,
           );
 
-          final draggable = widget.isDraggable
+          final draggable = widget.isDraggable && affordable
               ? LongPressDraggable<GameCard>(
             data: cardData.card,
             delay: const Duration(milliseconds: 150),
+            onDragStarted: () => HapticsService().medium(),
             feedback: Material(
               color: Colors.transparent,
               child: Transform.scale(
@@ -154,7 +190,7 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
             ),
             childWhenDragging: Opacity(
               opacity: 0.3,
-              child: cardWidget,
+              child: rawCard,
             ),
             dragAnchorStrategy: pointerDragAnchorStrategy,
             child: tappable,

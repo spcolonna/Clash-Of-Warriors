@@ -359,11 +359,17 @@ class BotAI {
             .firstOrNull;
       }
 
-      // Fallback: cualquier carta aleatoria que entre en stamina
+      // Fallback: carta que entre en stamina.
+      // Hard elige la de mayor daño efectivo; el resto, aleatoria.
       if (picked == null) {
         final available = workingHand.where((c) => c.staminaCost <= stamina).toList();
         if (available.isNotEmpty) {
-          picked = available[random.nextInt(available.length)];
+          picked = difficulty == BotDifficulty.hard
+              ? available.reduce((a, b) =>
+                  botHero.effectiveDamage(a) >= botHero.effectiveDamage(b)
+                      ? a
+                      : b)
+              : available[random.nextInt(available.length)];
         }
       }
 
