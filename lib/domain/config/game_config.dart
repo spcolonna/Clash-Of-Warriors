@@ -102,6 +102,36 @@ class GameConfig {
   // ── ANIMACIÓN 3v3 ─────────────────────────────────────
   static const int animAutoAdvanceMs = 2200;
 
+  // ── PROFUNDIDAD ESTRATÉGICA ───────────────────────────
+  // Curva de stamina: arranca escasa y crece por ronda → arco de batalla.
+  // La stamina de la ronda R = min(staminaRoundOne + growth*(R-1), maxStamina del héroe).
+  static const int staminaRoundOne = 3;
+  static const int staminaGrowthPerRound = 1;
+
+  /// Stamina disponible en una ronda dada, limitada por el máximo del héroe.
+  static int staminaForRound(int round, int heroMaxStamina) {
+    final curve = staminaRoundOne + staminaGrowthPerRound * (round - 1);
+    return curve.clamp(1, heroMaxStamina);
+  }
+
+  // Escala global de daño (acorta batallas sin tocar datos de cartas/héroes).
+  static const double damageScale = 1.3;
+
+  // Defensa que pierde el choque igual mitiga este % del daño entrante.
+  static const double defenseMitigation = 0.5;
+
+  // Scouts: se empieza con 1 y se gana 1 por ronda ganada (con tope).
+  static const int scoutInitialTokens = 1;
+  static const int scoutMaxTokens = 2;
+  static const int scoutPerRoundWon = 1;
+
+  // Cadenas de combo: si ganaste el slot anterior con la categoría que
+  // encadena en la actual (Puño→Patada→Agarre→Puño), +50% de daño.
+  static const double chainBonusMultiplier = 1.5;
+
+  // Ronda perfecta: ganar los 3 slots suma un bonus de daño extra.
+  static const double perfectRoundBonus = 0.25;
+
   // ── SONIDOS ───────────────────────────────────────────
   static const String sfxPath = 'assets/sounds/';
   static const Map<String, String> sfxFiles = {

@@ -8,6 +8,7 @@ import 'delivery/state/providers.dart';
 import 'infra/services/admob_service.dart';
 import 'delivery/theme/app_theme.dart';
 import 'infra/services/game_seed_service.dart';
+import 'infra/sound/sound_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +28,9 @@ void main() async {
   }
   
   await AdMobService().initialize();
+
+  // Pre-carga de SFX en background (no bloquea el arranque)
+  SoundService().init().ignore();
 
   runApp(const ProviderScope(child: ClashOfStylesApp()));
 }

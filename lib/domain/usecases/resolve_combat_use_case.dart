@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import '../config/game_config.dart';
 import '../entities/battle_state.dart';
 import '../entities/game_card.dart';
 import '../entities/hero_entity.dart';
@@ -31,6 +32,29 @@ class CombatEngine {
   static bool beats(CardCategory a, CardCategory b, {GameMode mode = GameMode.expert}) {
     final table = mode == GameMode.normal ? _simpleModeWinTable : _winTable;
     return table[a]?.contains(b) ?? false;
+  }
+
+  // ── Cadenas de combo ──────────────────────────────────────────────────
+  // Puño → Patada → Agarre → Puño. Si ganaste el slot anterior con la
+  // categoría que encadena en la actual, la carta actual pega +50%.
+  static const chainMap = <CardCategory, CardCategory>{
+    CardCategory.punch:   CardCategory.kick,
+    CardCategory.kick:    CardCategory.grapple,
+    CardCategory.grapple: CardCategory.punch,
+  };
+
+  /// True si [card] continúa una cadena para [side] ('player'/'opponent').
+  static bool _chainMet(
+    String side,
+    GameCard card,
+    List<SlotResult> previousSlotResults,
+  ) {
+    if (previousSlotResults.isEmpty) return false;
+    final last = previousSlotResults.last;
+    if (last.winner != side) return false;
+    final lastCard = side == 'player' ? last.playerCard : last.opponentCard;
+    if (lastCard == null) return false;
+    return chainMap[lastCard.category] == card.category;
   }
 
   /// Evalúa si el bonus condicional de una carta se cumple en este slot.
@@ -88,9 +112,10 @@ class CombatEngine {
       );
     }
 
-    // Slot vacío del jugador
+    // Slot vacío del jugador — el oponente conecta (con cadena si aplica)
     if (playerCard == null) {
-      final dmg = _calcDamage(opponentCard!, opponentHero);
+      final chainMet = _chainMet('opponent', opponentCard!, previousSlotResults);
+      final dmg = _calcDamage(opponentCard, opponentHero, chainMet: chainMet);
       return SlotResult(
         slotIndex: slotIndex,
         playerCard: null,
@@ -98,11 +123,12 @@ class CombatEngine {
         playerDamageDealt: 0,
         opponentDamageDealt: dmg,
         winner: 'opponent',
+        chainBonusBy: chainMet ? 'opponent' : null,
         narrative: '${opponentCard.name} conecta sin resistencia.',
       );
     }
 
-    // Slot vacío del oponente — evaluar bonus opponentRested
+    // Slot vacío del oponente — evaluar bonus opponentRested + cadena
     if (opponentCard == null) {
       final conditionalMet = _isConditionalMet(
         bonus: playerCard.conditionalBonus,
@@ -112,7 +138,9 @@ class CombatEngine {
         opponentCurrentHp: opponentCurrentHp,
         playerMaxHp: playerMaxHp,
       );
-      final dmg = _calcDamage(playerCard, playerHero, conditionalMet: conditionalMet);
+      final chainMet = _chainMet('player', playerCard, previousSlotResults);
+      final dmg = _calcDamage(playerCard, playerHero,
+          conditionalMet: conditionalMet, chainMet: chainMet);
       return SlotResult(
         slotIndex: slotIndex,
         playerCard: playerCard,
@@ -121,6 +149,7 @@ class CombatEngine {
         opponentDamageDealt: 0,
         winner: 'player',
         conditionalBonusApplied: conditionalMet,
+        chainBonusBy: chainMet ? 'player' : null,
         narrative: '${playerCard.name} conecta sin resistencia.',
       );
     }
@@ -138,7 +167,12 @@ class CombatEngine {
         opponentCurrentHp: opponentCurrentHp,
         playerMaxHp: playerMaxHp,
       );
-      final dmg = _calcDamage(playerCard, playerHero, conditionalMet: conditionalMet);
+      final chainMet = _chainMet('player', playerCard, previousSlotResults);
+      var dmg = _calcDamage(playerCard, playerHero,
+          conditionalMet: conditionalMet, chainMet: chainMet);
+      // Defensa que pierde igual bloquea parte del golpe
+      final mitigated = opponentCard.category == CardCategory.defense;
+      if (mitigated) dmg *= GameConfig.defenseMitigation;
       return SlotResult(
         slotIndex: slotIndex,
         playerCard: playerCard,
@@ -147,10 +181,17 @@ class CombatEngine {
         opponentDamageDealt: 0,
         winner: 'player',
         conditionalBonusApplied: conditionalMet,
-        narrative: '${playerCard.name} supera a ${opponentCard.name}.',
+        chainBonusBy: chainMet ? 'player' : null,
+        mitigatedBy: mitigated ? 'opponent' : null,
+        narrative: mitigated
+            ? '${opponentCard.name} amortigua el golpe de ${playerCard.name}.'
+            : '${playerCard.name} supera a ${opponentCard.name}.',
       );
     } else if (opponentWins) {
-      final dmg = _calcDamage(opponentCard, opponentHero);
+      final chainMet = _chainMet('opponent', opponentCard, previousSlotResults);
+      var dmg = _calcDamage(opponentCard, opponentHero, chainMet: chainMet);
+      final mitigated = playerCard.category == CardCategory.defense;
+      if (mitigated) dmg *= GameConfig.defenseMitigation;
       return SlotResult(
         slotIndex: slotIndex,
         playerCard: playerCard,
@@ -158,7 +199,11 @@ class CombatEngine {
         playerDamageDealt: 0,
         opponentDamageDealt: dmg,
         winner: 'opponent',
-        narrative: '${opponentCard.name} supera a ${playerCard.name}.',
+        chainBonusBy: chainMet ? 'opponent' : null,
+        mitigatedBy: mitigated ? 'player' : null,
+        narrative: mitigated
+            ? '${playerCard.name} amortigua el golpe de ${opponentCard.name}.'
+            : '${opponentCard.name} supera a ${playerCard.name}.',
       );
     } else {
       // Empate — mismo tipo
@@ -181,11 +226,13 @@ class CombatEngine {
     HeroEntity hero, {
     double tieFactor = 1.0,
     bool conditionalMet = false,
+    bool chainMet = false,
   }) {
     if (card.baseDamage == null) return 0;
 
     final stat = hero.stats.statFor(card.category);
-    double dmg = card.baseDamage! * (stat / 10.0) * tieFactor;
+    double dmg =
+        card.baseDamage! * (stat / 10.0) * tieFactor * GameConfig.damageScale;
 
     // Sinergia héroe-carta (+10%)
     if (card.heroId == hero.id) dmg *= 1.1;
@@ -194,6 +241,9 @@ class CombatEngine {
     if (conditionalMet && card.conditionalBonus != null) {
       dmg *= _conditionalMultiplier(card.conditionalBonus!);
     }
+
+    // Cadena de combo (Puño→Patada→Agarre→Puño ganando el slot anterior)
+    if (chainMet) dmg *= GameConfig.chainBonusMultiplier;
 
     return dmg;
   }
@@ -233,10 +283,30 @@ class CombatEngine {
       totalOpponentDamage += result.opponentDamageDealt;
     }
 
-    final playerHpAfter =
-        (player.currentHp - totalOpponentDamage).ceil().clamp(0, player.hero.maxHp);
-    final opponentHpAfter =
-        (opponent.currentHp - totalPlayerDamage).ceil().clamp(0, opponent.hero.maxHp);
+    // Ronda perfecta: ganar los 3 slots otorga daño extra (se aplica al
+    // cerrar el round, con su propio banner en la UI).
+    final playerPerfect =
+        slotResults.every((s) => s.winner == 'player') && totalPlayerDamage > 0;
+    final opponentPerfect =
+        slotResults.every((s) => s.winner == 'opponent') &&
+            totalOpponentDamage > 0;
+    final playerPerfectBonus = playerPerfect
+        ? (totalPlayerDamage * GameConfig.perfectRoundBonus).ceil()
+        : 0;
+    final opponentPerfectBonus = opponentPerfect
+        ? (totalOpponentDamage * GameConfig.perfectRoundBonus).ceil()
+        : 0;
+
+    final playerHpAfter = (player.currentHp -
+            totalOpponentDamage -
+            opponentPerfectBonus)
+        .ceil()
+        .clamp(0, player.hero.maxHp);
+    final opponentHpAfter = (opponent.currentHp -
+            totalPlayerDamage -
+            playerPerfectBonus)
+        .ceil()
+        .clamp(0, opponent.hero.maxHp);
 
     return RoundResult(
       roundNumber: roundNumber,
@@ -245,6 +315,8 @@ class CombatEngine {
       totalOpponentDamage: totalOpponentDamage,
       playerHpAfter: playerHpAfter,
       opponentHpAfter: opponentHpAfter,
+      playerPerfectBonus: playerPerfectBonus,
+      opponentPerfectBonus: opponentPerfectBonus,
     );
   }
 }
@@ -254,7 +326,7 @@ class TutorialBotAI {
   /// El bot juega una secuencia variada: mezcla de ataques y defensas.
   /// La variedad genera algún daño al jugador (20-40%) pero sin optimizar.
   /// No usa cartas especiales ni estrategia profunda.
-  static List<GameCard?> decideSequence(List<GameCard> hand) {
+  static List<GameCard?> decideSequence(List<GameCard> hand, {int stamina = 10}) {
     final sequence = List<GameCard?>.filled(3, null);
 
     // Separar cartas por tipo para variar la secuencia
@@ -271,7 +343,7 @@ class TutorialBotAI {
 
     // Patrón: 1-2 ataques + 1 defensa + 1 vacío
     // Mezcla entre tipos de ataque para no ser predecible
-    int availableStamina = 10;
+    int availableStamina = stamina;
     int slotIndex = 0;
 
     // Slot 1: atacar con cartas baratas
@@ -318,10 +390,11 @@ class BotAI {
   // Por dificultad: probabilidad (0.0–1.0) de que el bot intente jugar
   // la carta que gana contra lo que el jugador puso en ese slot la ronda anterior.
   // Ronda 1 siempre es aleatoria (no hay secuencia previa del jugador).
+  // Valores subidos para compensar que la apertura del bot ahora es visible.
   static const _counterChance = {
     BotDifficulty.easy:   0.0,   // puramente aleatorio
-    BotDifficulty.normal: 0.35,  // 35% por slot
-    BotDifficulty.hard:   0.70,  // 70% por slot
+    BotDifficulty.normal: 0.45,  // 45% por slot
+    BotDifficulty.hard:   0.80,  // 80% por slot
   };
 
   static List<GameCard?> decideSequence(
@@ -330,6 +403,7 @@ class BotAI {
     BotDifficulty difficulty, {
     List<GameCard?> playerLastSequence = const [],
     GameMode mode = GameMode.expert,
+    int? stamina,
   }) {
     final random = Random();
 
@@ -340,7 +414,8 @@ class BotAI {
         ..shuffle(random);
 
     final sequence = List<GameCard?>.filled(3, null);
-    int stamina = botHero.maxStamina;
+    final counterPick = List<bool>.filled(3, false);
+    int remaining = stamina ?? botHero.maxStamina;
     final chance = _counterChance[difficulty] ?? 0.0;
 
     for (int i = 0; i < 3; i++) {
@@ -354,15 +429,16 @@ class BotAI {
         final playerCard = playerLastSequence[i]!;
         picked = workingHand
             .where((c) =>
-                c.staminaCost <= stamina &&
+                c.staminaCost <= remaining &&
                 CombatEngine.beats(c.category, playerCard.category, mode: mode))
             .firstOrNull;
+        if (picked != null) counterPick[i] = true;
       }
 
       // Fallback: carta que entre en stamina.
       // Hard elige la de mayor daño efectivo; el resto, aleatoria.
       if (picked == null) {
-        final available = workingHand.where((c) => c.staminaCost <= stamina).toList();
+        final available = workingHand.where((c) => c.staminaCost <= remaining).toList();
         if (available.isNotEmpty) {
           picked = difficulty == BotDifficulty.hard
               ? available.reduce((a, b) =>
@@ -376,7 +452,26 @@ class BotAI {
       if (picked != null) {
         workingHand.remove(picked); // remove() elimina la primera ocurrencia
         sequence[i] = picked;
-        stamina -= picked.staminaCost;
+        remaining -= picked.staminaCost;
+      }
+    }
+
+    // La apertura (slot 1) es visible para el jugador: normal/hard evitan
+    // exponer su mejor carta y mueven la más débil de la secuencia al slot 0
+    // (salvo que el slot 0 sea una contra-lectura deliberada).
+    if (difficulty != BotDifficulty.easy && !counterPick[0] && sequence[0] != null) {
+      int weakest = 0;
+      for (int j = 1; j < 3; j++) {
+        if (counterPick[j] || sequence[j] == null) continue;
+        if (botHero.effectiveDamage(sequence[j]!) <
+            botHero.effectiveDamage(sequence[weakest]!)) {
+          weakest = j;
+        }
+      }
+      if (weakest != 0) {
+        final tmp = sequence[0];
+        sequence[0] = sequence[weakest];
+        sequence[weakest] = tmp;
       }
     }
 

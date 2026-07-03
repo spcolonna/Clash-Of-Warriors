@@ -2,6 +2,7 @@
 
 import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../domain/config/game_config.dart';
 import '../../domain/entities/battle_state.dart';
 import '../../domain/entities/game_card.dart';
 import '../../domain/entities/hero_entity.dart';
@@ -126,9 +127,13 @@ class BattleNotifier extends Notifier<BattleState> {
     final botHand = botDeck.take(5).toList();
     final botRemainingDeck = botDeck.skip(5).toList();
 
+    // Curva de stamina: ronda 1 arranca escasa
+    final playerStamina = GameConfig.staminaForRound(1, playerHero.maxStamina);
+    final botStamina = GameConfig.staminaForRound(1, botHero.maxStamina);
+
     // Pre-computar secuencia del bot para ronda 1 (habilita scout desde el inicio)
     final initialBotSequence = BotAI.decideSequence(
-      botHand, botHero, difficulty, mode: gameMode,
+      botHand, botHero, difficulty, mode: gameMode, stamina: botStamina,
     );
 
     state = BattleState(
@@ -136,12 +141,12 @@ class BattleNotifier extends Notifier<BattleState> {
       isTutorial: false,
       botDifficulty: difficulty,
       gameMode: gameMode,
-      scoutTokensRemaining: 3,
+      scoutTokensRemaining: GameConfig.scoutInitialTokens,
       revealedOpponentSlots: const {},
       player: CombatantState(
         hero: playerHero,
         currentHp: playerHero.maxHp,
-        currentStamina: playerHero.maxStamina,
+        currentStamina: playerStamina,
         hand: hand,
         deck: remainingDeck,
         discardPile: [],
@@ -150,7 +155,7 @@ class BattleNotifier extends Notifier<BattleState> {
       opponent: CombatantState(
         hero: botHero,
         currentHp: botHero.maxHp,
-        currentStamina: botHero.maxStamina,
+        currentStamina: botStamina,
         hand: botHand,
         deck: botRemainingDeck,
         discardPile: [],
@@ -190,7 +195,7 @@ class BattleNotifier extends Notifier<BattleState> {
       player: CombatantState(
         hero: playerHero,
         currentHp: playerHero.maxHp,
-        currentStamina: playerHero.maxStamina,
+        currentStamina: GameConfig.staminaForRound(1, playerHero.maxStamina),
         hand: hand,
         deck: remainingDeck,
         discardPile: [],
@@ -199,7 +204,7 @@ class BattleNotifier extends Notifier<BattleState> {
       opponent: CombatantState(
         hero: weakenedBot,
         currentHp: weakenedBot.maxHp,
-        currentStamina: weakenedBot.maxStamina,
+        currentStamina: GameConfig.staminaForRound(1, weakenedBot.maxStamina),
         hand: botHand,
         deck: botRemainingDeck,
         discardPile: [],
@@ -242,8 +247,12 @@ class BattleNotifier extends Notifier<BattleState> {
     final botHand = botDeck.take(5).toList();
     final botRemainingDeck = botDeck.skip(5).toList();
 
+    final storyPlayerStamina =
+        GameConfig.staminaForRound(1, playerHero.maxStamina);
+    final storyBotStamina = GameConfig.staminaForRound(1, botHero.maxStamina);
+
     final storyInitialBotSequence = BotAI.decideSequence(
-      botHand, botHero, difficulty, mode: gameMode,
+      botHand, botHero, difficulty, mode: gameMode, stamina: storyBotStamina,
     );
 
     state = BattleState(
@@ -252,12 +261,12 @@ class BattleNotifier extends Notifier<BattleState> {
       isStoryBattle: true,
       botDifficulty: difficulty,
       gameMode: gameMode,
-      scoutTokensRemaining: 3,
+      scoutTokensRemaining: GameConfig.scoutInitialTokens,
       revealedOpponentSlots: const {},
       player: CombatantState(
         hero: playerHero,
         currentHp: playerHero.maxHp,
-        currentStamina: playerHero.maxStamina,
+        currentStamina: storyPlayerStamina,
         hand: hand,
         deck: remainingDeck,
         discardPile: [],
@@ -266,7 +275,7 @@ class BattleNotifier extends Notifier<BattleState> {
       opponent: CombatantState(
         hero: botHero,
         currentHp: botHero.maxHp,
-        currentStamina: botHero.maxStamina,
+        currentStamina: storyBotStamina,
         hand: botHand,
         deck: botRemainingDeck,
         discardPile: [],
@@ -279,9 +288,12 @@ class BattleNotifier extends Notifier<BattleState> {
 
   /// Retorna true si la carta se colocó; false si no alcanzó la stamina
   /// o el slot/carta no eran válidos (para que la UI dé feedback de error).
+  /// El slot 0 (apertura) queda sellado una vez colocado: al comprometerla
+  /// se revela la apertura del rival, así que no se puede cambiar.
   bool placeCardInSlot(GameCard card, int slotIndex) {
     final player = state.player;
     if (slotIndex < 0 || slotIndex >= 3) return false;
+    if (slotIndex == 0 && player.plannedSequence[0] != null) return false;
     if (!player.hand.contains(card)) return false;
 
     final currentSequence = List<GameCard?>.from(player.plannedSequence);
@@ -334,6 +346,8 @@ class BattleNotifier extends Notifier<BattleState> {
   }
 
   void removeCardFromSlot(int slotIndex) {
+    // La apertura queda sellada (ya reveló la del rival)
+    if (slotIndex == 0) return;
     final player = state.player;
     final sequence = List<GameCard?>.from(player.plannedSequence);
     final hand = List<GameCard>.from(player.hand);
@@ -393,7 +407,9 @@ class BattleNotifier extends Notifier<BattleState> {
   }
 
   /// Revela la carta del oponente en un slot específico consumiendo un scout token.
+  /// El slot 0 (apertura) ya es visible gratis, no se puede scoutear.
   void useScout(int slotIndex) {
+    if (slotIndex == 0) return;
     if (state.scoutTokensRemaining <= 0) return;
     if (state.phase != BattlePhase.planning) return;
     if (state.revealedOpponentSlots.containsKey(slotIndex)) return;
@@ -437,11 +453,43 @@ class BattleNotifier extends Notifier<BattleState> {
     );
   }
 
-  /// Cierra el round: detecta fin de batalla, genera StatusEffects desde
+  /// Cierra el round: aplica bonus de ronda perfecta, otorga scouts al
+  /// ganador del round, detecta fin de batalla, genera StatusEffects desde
   /// passives ganadores y hace tick-down de efectos existentes.
   void finalizeRound() {
-    final player = state.player;
-    final opponent = state.opponent;
+    var player = state.player;
+    var opponent = state.opponent;
+    var scoutTokens = state.scoutTokensRemaining;
+
+    if (state.roundHistory.isNotEmpty) {
+      final last = state.roundHistory.last;
+
+      // 0a. Bonus de ronda perfecta (los 3 slots ganados)
+      if (last.playerPerfectBonus > 0) {
+        opponent = opponent.copyWith(
+          currentHp: (opponent.currentHp - last.playerPerfectBonus)
+              .clamp(0, opponent.hero.maxHp),
+        );
+      }
+      if (last.opponentPerfectBonus > 0) {
+        player = player.copyWith(
+          currentHp: (player.currentHp - last.opponentPerfectBonus)
+              .clamp(0, player.hero.maxHp),
+        );
+      }
+
+      // 0b. Scout ganado: quien gana más slots que el rival gana un scout
+      if (!state.isTutorial) {
+        final playerSlots =
+            last.slotResults.where((s) => s.winner == 'player').length;
+        final opponentSlots =
+            last.slotResults.where((s) => s.winner == 'opponent').length;
+        if (playerSlots > opponentSlots) {
+          scoutTokens = (scoutTokens + GameConfig.scoutPerRoundWon)
+              .clamp(0, GameConfig.scoutMaxTokens);
+        }
+      }
+    }
 
     bool? playerWon;
     if (!opponent.isAlive) playerWon = true;
@@ -488,6 +536,7 @@ class BattleNotifier extends Notifier<BattleState> {
       phase: playerWon != null ? BattlePhase.battleEnd : BattlePhase.roundEnd,
       currentRound: state.currentRound + 1,
       playerWon: playerWon,
+      scoutTokensRemaining: scoutTokens,
       player: player.copyWith(statusEffects: newPlayerEffects),
       opponent: opponent.copyWith(statusEffects: newOpponentEffects),
     );
@@ -529,13 +578,21 @@ class BattleNotifier extends Notifier<BattleState> {
         .where((e) => e.type == StatusEffectType.continuousDamage)
         .fold(0, (sum, e) => sum + e.value);
 
+    // Curva de stamina: la base crece con cada ronda (arco de batalla).
+    // state.currentRound ya fue incrementado en finalizeRound → es la ronda nueva.
+    final playerBaseStamina =
+        GameConfig.staminaForRound(state.currentRound, player.hero.maxStamina);
+    final opponentBaseStamina =
+        GameConfig.staminaForRound(state.currentRound, opponent.hero.maxStamina);
+
     // Aplicar reducción de stamina + carry-over bonus
     final playerStaminaReduction = player.statusEffects
         .where((e) => e.type == StatusEffectType.staminaReduction)
         .fold(0, (sum, e) => sum + e.value);
     final carryBonus = playerUsedAllStamina ? 0 : 1;
-    final effectivePlayerStamina = (player.hero.maxStamina - playerStaminaReduction + carryBonus)
-        .clamp(1, player.hero.maxStamina + 1);
+    final effectivePlayerStamina =
+        (playerBaseStamina - playerStaminaReduction + carryBonus)
+            .clamp(1, playerBaseStamina + 1);
 
     final newPlayerHp = (player.currentHp - playerDoT).clamp(0, player.hero.maxHp);
     final newOpponentHp = (opponent.currentHp - opponentDoT).clamp(0, opponent.hero.maxHp);
@@ -564,7 +621,7 @@ class BattleNotifier extends Notifier<BattleState> {
     // Pre-computar la secuencia del bot para la próxima ronda (habilita scout)
     final updatedOpponent = opponent.copyWith(
       currentHp: newOpponentHp,
-      currentStamina: opponent.hero.maxStamina,
+      currentStamina: opponentBaseStamina,
       plannedSequence: List.filled(3, null),
     );
 
@@ -579,8 +636,10 @@ class BattleNotifier extends Notifier<BattleState> {
             _botDifficulty!,
             playerLastSequence: playerLastSequence,
             mode: _gameMode,
+            stamina: opponentBaseStamina,
           )
-        : TutorialBotAI.decideSequence(updatedOpponent.hand);
+        : TutorialBotAI.decideSequence(updatedOpponent.hand,
+            stamina: opponentBaseStamina);
 
     state = state.copyWith(
       phase: playerWon != null ? BattlePhase.battleEnd : BattlePhase.planning,

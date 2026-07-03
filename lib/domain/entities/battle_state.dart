@@ -96,6 +96,10 @@ class SlotResult {
   final double opponentDamageDealt;
   final String? winner; // 'player' | 'opponent' | 'tie' | 'empty'
   final bool conditionalBonusApplied;
+  // 'player' | 'opponent' | null — quién ganó con bonus de cadena de combo
+  final String? chainBonusBy;
+  // 'player' | 'opponent' | null — quién mitigó daño perdiendo con Defensa
+  final String? mitigatedBy;
   final String narrative;
 
   const SlotResult({
@@ -106,6 +110,8 @@ class SlotResult {
     required this.opponentDamageDealt,
     required this.winner,
     this.conditionalBonusApplied = false,
+    this.chainBonusBy,
+    this.mitigatedBy,
     required this.narrative,
   });
 }
@@ -117,6 +123,9 @@ class RoundResult {
   final double totalOpponentDamage;
   final int playerHpAfter;
   final int opponentHpAfter;
+  // Ronda perfecta: ganó los 3 slots → daño extra aplicado al final del round.
+  final int playerPerfectBonus;
+  final int opponentPerfectBonus;
 
   const RoundResult({
     required this.roundNumber,
@@ -125,6 +134,8 @@ class RoundResult {
     required this.totalOpponentDamage,
     required this.playerHpAfter,
     required this.opponentHpAfter,
+    this.playerPerfectBonus = 0,
+    this.opponentPerfectBonus = 0,
   });
 }
 

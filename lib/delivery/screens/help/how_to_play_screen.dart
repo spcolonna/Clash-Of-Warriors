@@ -108,10 +108,36 @@ class HowToPlayContent extends StatelessWidget {
         ),
         _Section(
           title: 'Stamina',
-          body: 'Cada carta cuesta stamina. Tu héroe empieza el round con su '
-              'stamina máxima. Si no te alcanza, dejá el slot vacío — pero '
-              'cuidado: si el rival te ataca en ese slot, el daño entra sin '
-              'resistencia.',
+          body: 'Cada carta cuesta stamina. La stamina arranca escasa (3 en la '
+              'ronda 1) y crece +1 por ronda hasta el máximo de tu héroe: las '
+              'primeras rondas son de tanteo y las últimas son los golpes '
+              'grandes. Si no gastás todo, la ronda siguiente arrancás con +1. '
+              'Un slot vacío recibe daño sin resistencia.',
+        ),
+        _Section(
+          title: 'Apertura',
+          body: 'Cuando colocás tu carta en el slot 1 se revela la apertura del '
+              'rival — y la tuya queda sellada: ya no se puede cambiar. Tocá su '
+              'carta revelada para verla en grande. Usá esa información para '
+              'planear los slots 2 y 3.',
+        ),
+        _Section(
+          title: 'Cadenas de combo',
+          body: 'Puño → Patada → Agarre → Puño. Si ganás un slot y en el '
+              'siguiente jugás la categoría que encadena, esa carta pega +50%. '
+              'El eslabón dorado entre tus slots avisa cuando armaste cadena.',
+        ),
+        _Section(
+          title: 'Defensa y ronda perfecta',
+          body: 'La Defensa, aunque pierda el choque, bloquea la mitad del daño '
+              'entrante: es la jugada segura. Y si ganás los 3 slots de una '
+              'ronda hacés RONDA PERFECTA: +25% de daño extra.',
+        ),
+        _Section(
+          title: 'Scouts',
+          body: 'Empezás con 1 scout para espiar un slot oculto del rival. '
+              'Ganás otro por cada ronda que ganes (máximo 2 en reserva). '
+              'Gastalo cuando la información valga más que la sorpresa.',
         ),
         _Section(
           title: 'Rondas y mazo',

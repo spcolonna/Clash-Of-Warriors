@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../domain/config/game_config.dart';
 import '../../../domain/entities/battle_state.dart';
 import '../../../domain/entities/game_card.dart';
 import '../../../domain/entities/hero_entity.dart';
+import '../../../domain/usecases/resolve_combat_use_case.dart' show CombatEngine;
 import '../../../infra/services/haptics_service.dart';
 import '../../../infra/sound/sound_service.dart';
 import '../../state/battle_provider.dart';
@@ -17,6 +19,7 @@ import '../../widgets/hero_stats_dialog.dart';
 import '../../widgets/passive_ready_banner.dart';
 import '../../widgets/player_hand_widget.dart';
 import '../../widgets/card_conjure_overlay.dart';
+import '../../widgets/card_preview_dialog.dart';
 import '../../widgets/round_banner.dart';
 import '../../widgets/slot_clash_animator.dart';
 import '../../widgets/stamina_globe.dart';
@@ -38,7 +41,8 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
   Widget? _activeClash;
   GameCard? _conjuredCard;
   bool _showPassiveBanner = false;
-  int? _bannerRound;
+  ({String title, String subtitle})? _banner;
+  int _bannerSeq = 0; // fuerza rebuild del banner entre usos consecutivos
   late final AnimationController _shakeController;
 
   @override
@@ -60,9 +64,19 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
     super.dispose();
   }
 
-  void _showRoundBanner(int round) {
+  void _showBanner(String title, String subtitle) {
+    setState(() {
+      _banner = (title: title, subtitle: subtitle);
+      _bannerSeq++;
+    });
+  }
+
+  void _showRoundBanner(int round, {bool scoutEarned = false}) {
     SoundService().play('round_start');
-    setState(() => _bannerRound = round);
+    _showBanner(
+      'RONDA $round',
+      scoutEarned ? '+1 SCOUT · ¡PELEA!' : '¡PELEA!',
+    );
   }
 
   void _triggerShake() {
@@ -177,13 +191,14 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
               ),
             ),
           if (_activeClash != null) Positioned.fill(child: _activeClash!),
-          if (_bannerRound != null)
+          if (_banner != null)
             Positioned.fill(
               child: RoundBanner(
-                key: ValueKey('round_banner_$_bannerRound'),
-                round: _bannerRound!,
+                key: ValueKey('banner_$_bannerSeq'),
+                title: _banner!.title,
+                subtitle: _banner!.subtitle,
                 onComplete: () {
-                  if (mounted) setState(() => _bannerRound = null);
+                  if (mounted) setState(() => _banner = null);
                 },
               ),
             ),
@@ -233,7 +248,26 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
 
     if (mounted) setState(() => _resolvingSlot = -1);
 
+    final scoutsBefore = ref.read(battleProvider).scoutTokensRemaining;
     notifier.finalizeRound();
+    final scoutEarned =
+        ref.read(battleProvider).scoutTokensRemaining > scoutsBefore;
+
+    // Banner de ronda perfecta (el bonus ya se aplicó en finalizeRound)
+    final finalized = ref.read(battleProvider);
+    if (finalized.roundHistory.isNotEmpty) {
+      final last = finalized.roundHistory.last;
+      if (last.playerPerfectBonus > 0) {
+        SoundService().play('level_up');
+        HapticsService().success();
+        _showBanner('¡RONDA PERFECTA!', '+${last.playerPerfectBonus} DAÑO EXTRA');
+        await Future.delayed(const Duration(milliseconds: 1300));
+      } else if (last.opponentPerfectBonus > 0) {
+        _triggerShake();
+        _showBanner('RONDA PERFECTA RIVAL', '-${last.opponentPerfectBonus} HP');
+        await Future.delayed(const Duration(milliseconds: 1300));
+      }
+    }
 
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
@@ -248,7 +282,7 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
       if (!mounted) return;
       final nextState = ref.read(battleProvider);
       if (!nextState.isBattleOver) {
-        _showRoundBanner(nextState.currentRound);
+        _showRoundBanner(nextState.currentRound, scoutEarned: scoutEarned);
       }
       if (nextState.passiveJustUnlocked) {
         setState(() => _showPassiveBanner = true);
@@ -419,49 +453,74 @@ class _ArenaZone extends ConsumerWidget {
                 resolvingSlot: resolvingSlot,
               ),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(3, (i) {
-                const slotH = 100.0;
-                const slotW = slotH / 1.5;
-                final blockedSlots = player.statusEffects
-                    .where((e) => e.type == StatusEffectType.slotBlocked)
-                    .map((e) => e.value)
-                    .toList();
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: _PlayerSlot(
-                    slotIndex: i,
-                    card: player.plannedSequence[i],
-                    isResolving: resolvingSlot == i,
-                    isBlocked: blockedSlots.contains(i),
-                    width: slotW,
-                    height: slotH,
-                    slotResult: battle.roundHistory.isNotEmpty
-                        ? battle.roundHistory.last.slotResults
-                            .where((r) => r.slotIndex == i)
-                            .firstOrNull
-                        : null,
-                    onDrop: (card) {
-                      final placed = ref
-                          .read(battleProvider.notifier)
-                          .placeCardInSlot(card, i);
-                      if (placed) {
-                        HapticsService().medium();
-                        SoundService().play('card_place');
-                        onCardConjured(card);
-                      } else {
-                        HapticsService().error();
-                      }
-                    },
-                    onTap: () {
-                      HapticsService().light();
-                      ref.read(battleProvider.notifier).removeCardFromSlot(i);
-                    },
-                  ),
-                );
-              }),
-            ),
+            Builder(builder: (context) {
+              const slotH = 100.0;
+              const slotW = slotH / 1.5;
+              final blockedSlots = player.statusEffects
+                  .where((e) => e.type == StatusEffectType.slotBlocked)
+                  .map((e) => e.value)
+                  .toList();
+              final seq = player.plannedSequence;
+
+              Widget slotAt(int i) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: _PlayerSlot(
+                      slotIndex: i,
+                      card: seq[i],
+                      isResolving: resolvingSlot == i,
+                      isBlocked: blockedSlots.contains(i),
+                      width: slotW,
+                      height: slotH,
+                      slotResult: battle.roundHistory.isNotEmpty
+                          ? battle.roundHistory.last.slotResults
+                              .where((r) => r.slotIndex == i)
+                              .firstOrNull
+                          : null,
+                      onDrop: (card) {
+                        final placed = ref
+                            .read(battleProvider.notifier)
+                            .placeCardInSlot(card, i);
+                        if (placed) {
+                          HapticsService().medium();
+                          SoundService().play('card_place');
+                          onCardConjured(card);
+                        } else {
+                          HapticsService().error();
+                        }
+                      },
+                      onTap: () {
+                        if (i == 0 && seq[0] != null) {
+                          // Apertura sellada: no se puede quitar
+                          HapticsService().error();
+                          return;
+                        }
+                        HapticsService().light();
+                        ref
+                            .read(battleProvider.notifier)
+                            .removeCardFromSlot(i);
+                      },
+                    ),
+                  );
+
+              // Eslabón entre slots: se enciende si las cartas colocadas
+              // forman cadena (Puño→Patada→Agarre→Puño).
+              bool chained(int i) =>
+                  seq[i] != null &&
+                  seq[i + 1] != null &&
+                  CombatEngine.chainMap[seq[i]!.category] ==
+                      seq[i + 1]!.category;
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  slotAt(0),
+                  _ChainLink(active: chained(0)),
+                  slotAt(1),
+                  _ChainLink(active: chained(1)),
+                  slotAt(2),
+                ],
+              );
+            }),
             Padding(
               padding: const EdgeInsets.only(top: 4, bottom: 2),
               child: Text(
@@ -562,6 +621,13 @@ class _OpponentSlotsRow extends StatelessWidget {
     final opponent = battle.opponent;
     final canScout = onScoutSlot != null;
 
+    // La apertura del rival se revela recién cuando el jugador compromete la
+    // suya (o si su slot 0 está bloqueado y no puede colocar nada ahí).
+    final playerSlot0Blocked = battle.player.statusEffects.any(
+        (e) => e.type == StatusEffectType.slotBlocked && e.value == 0);
+    final openingCommitted =
+        battle.player.plannedSequence[0] != null || playerSlot0Blocked;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -571,12 +637,25 @@ class _OpponentSlotsRow extends StatelessWidget {
         ...List.generate(3, (i) {
           const slotH = 72.0;
           const slotW = slotH / 1.5;
-          final revealedCard = battle.revealedOpponentSlots[i];
-          final slotCanScout = canScout && revealedCard == null;
+          final isOpening = i == 0;
+          final revealedCard = isOpening
+              ? (battle.phase == BattlePhase.planning && openingCommitted
+                  ? opponent.plannedSequence[0]
+                  : null)
+              : battle.revealedOpponentSlots[i];
+          final slotCanScout = !isOpening && canScout && revealedCard == null;
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: GestureDetector(
-              onTap: slotCanScout ? () => onScoutSlot!(i) : null,
+              onTap: slotCanScout
+                  ? () => onScoutSlot!(i)
+                  : revealedCard != null
+                      // Carta revelada (apertura o scout): tap para verla en grande
+                      ? () {
+                          HapticsService().selection();
+                          CardPreviewDialog.show(context, revealedCard);
+                        }
+                      : null,
               child: _OpponentSlot(
                 card: opponent.plannedSequence[i],
                 phase: battle.phase,
@@ -585,6 +664,10 @@ class _OpponentSlotsRow extends StatelessWidget {
                 height: slotH,
                 revealedCard: revealedCard,
                 canScout: slotCanScout,
+                isOpening: isOpening,
+                openingHidden: isOpening &&
+                    battle.phase == BattlePhase.planning &&
+                    !openingCommitted,
               ),
             ),
           );
@@ -871,6 +954,10 @@ class _BottomSection extends StatelessWidget {
                 onDealAnimationComplete: onDealComplete,
                 remainingStamina: battle.player.remainingStamina,
                 onCardPlay: onCardPlay,
+                nextSlotIsOpening: battle.player.plannedSequence[0] == null &&
+                    !battle.player.statusEffects.any((e) =>
+                        e.type == StatusEffectType.slotBlocked &&
+                        e.value == 0),
               ),
             ),
             Positioned(
@@ -1136,7 +1223,7 @@ class _ScoutTokensColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: List.generate(3, (i) {
+      children: List.generate(GameConfig.scoutMaxTokens, (i) {
         final isActive = i < remaining;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 3),
@@ -1151,6 +1238,31 @@ class _ScoutTokensColumn extends StatelessWidget {
   }
 }
 
+// ─── CHAIN LINK ───────────────────────────────────────────────────────────────
+
+/// Eslabón entre slots del jugador: se ilumina cuando las dos cartas
+/// adyacentes forman una cadena de combo.
+class _ChainLink extends StatelessWidget {
+  final bool active;
+  const _ChainLink({required this.active});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 250),
+      opacity: active ? 1.0 : 0.15,
+      child: Icon(
+        Icons.link,
+        size: 16,
+        color: active ? const Color(0xFFF5B800) : Colors.white38,
+        shadows: active
+            ? const [Shadow(color: Color(0xFFF5B800), blurRadius: 8)]
+            : null,
+      ),
+    );
+  }
+}
+
 // ─── OPPONENT SLOT ────────────────────────────────────────────────────────────
 
 class _OpponentSlot extends StatelessWidget {
@@ -1159,8 +1271,10 @@ class _OpponentSlot extends StatelessWidget {
   final bool isResolving;
   final double width;
   final double height;
-  final GameCard? revealedCard; // carta revelada por scout
+  final GameCard? revealedCard; // carta revelada por scout o apertura
   final bool canScout;
+  final bool isOpening; // slot 0: apertura
+  final bool openingHidden; // apertura aún oculta (falta comprometer la tuya)
 
   const _OpponentSlot({
     this.card,
@@ -1170,6 +1284,8 @@ class _OpponentSlot extends StatelessWidget {
     required this.height,
     this.revealedCard,
     this.canScout = false,
+    this.isOpening = false,
+    this.openingHidden = false,
   });
 
   @override
@@ -1177,7 +1293,10 @@ class _OpponentSlot extends StatelessWidget {
     final isRevealed =
         phase == BattlePhase.resolving || phase == BattlePhase.roundEnd;
     final cardToShow = revealedCard ?? (isRevealed ? card : null);
-    final isScouted = revealedCard != null;
+    final isScouted = revealedCard != null && !isOpening;
+    final isOpenNow =
+        isOpening && phase == BattlePhase.planning && !openingHidden;
+    const openingColor = Color(0xFFE5A93C);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -1191,34 +1310,73 @@ class _OpponentSlot extends StatelessWidget {
               ? const Color(0xFF3498DB)
               : isResolving
                   ? Colors.yellow
-                  : canScout
-                      ? Colors.white24
-                      : const Color(0xFF2A2A3E),
-          width: isScouted || isResolving ? 2 : 1,
+                  : isOpenNow
+                      ? openingColor
+                      : canScout
+                          ? Colors.white24
+                          : const Color(0xFF2A2A3E),
+          width: isScouted || isResolving || isOpenNow ? 2 : 1,
         ),
       ),
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
           Center(
             child: cardToShow != null
                 ? GameCardWidget(card: cardToShow, width: width)
-                : canScout
+                : isOpenNow
+                    // Apertura vacía: el rival descansa este slot (info gratis)
                     ? Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.remove_red_eye,
-                              color: Colors.white24, size: height * 0.25),
+                          Icon(Icons.hotel,
+                              color: openingColor.withValues(alpha: 0.6),
+                              size: height * 0.25),
                           const SizedBox(height: 2),
                           Text(
-                            'ver',
+                            'descansa',
                             style: TextStyle(
-                                color: Colors.white24,
-                                fontSize: height * 0.11),
+                                color: openingColor.withValues(alpha: 0.6),
+                                fontSize: height * 0.1),
                           ),
                         ],
                       )
-                    : Icon(Icons.help_outline,
-                        color: Colors.white10, size: height * 0.3),
+                : openingHidden && phase == BattlePhase.planning
+                    // Apertura oculta: se revela al comprometer la tuya
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.lock_outline,
+                              color: openingColor.withValues(alpha: 0.45),
+                              size: height * 0.22),
+                          const SizedBox(height: 2),
+                          Text(
+                            'poné tu\napertura',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: openingColor.withValues(alpha: 0.45),
+                                fontSize: height * 0.09,
+                                height: 1.2),
+                          ),
+                        ],
+                      )
+                    : canScout
+                        ? Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.remove_red_eye,
+                                  color: Colors.white24, size: height * 0.25),
+                              const SizedBox(height: 2),
+                              Text(
+                                'ver',
+                                style: TextStyle(
+                                    color: Colors.white24,
+                                    fontSize: height * 0.11),
+                              ),
+                            ],
+                          )
+                        : Icon(Icons.help_outline,
+                            color: Colors.white10, size: height * 0.3),
           ),
           // Badge scout (ojo azul en esquina superior derecha)
           if (isScouted)
@@ -1233,6 +1391,32 @@ class _OpponentSlot extends StatelessWidget {
                 ),
                 child: const Icon(Icons.remove_red_eye,
                     size: 7, color: Colors.white),
+              ),
+            ),
+          // Badge "APERTURA" (slot 0 visible gratis)
+          if (isOpenNow)
+            Positioned(
+              top: -7,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: openingColor,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'APERTURA',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 6.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
               ),
             ),
         ],
@@ -1322,7 +1506,27 @@ class _PlayerSlot extends StatelessWidget {
                     child: Text('${slotIndex + 1}',
                         style: const TextStyle(color: Colors.white24)),
                   )
-                : GameCardWidget(card: card!, width: width),
+                : Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      GameCardWidget(card: card!, width: width),
+                      // Apertura sellada: candado (no se puede quitar)
+                      if (slotIndex == 0)
+                        Positioned(
+                          top: 2,
+                          right: 2,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE5A93C),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: const Icon(Icons.lock,
+                                size: 8, color: Colors.black),
+                          ),
+                        ),
+                    ],
+                  ),
           ),
         );
       },
@@ -1617,18 +1821,20 @@ class _SlotLogRow extends StatelessWidget {
                       fontSize: 9,
                       fontWeight: FontWeight.bold)),
               if (slot.conditionalBonusApplied)
-                Container(
-                  margin: const EdgeInsets.only(top: 2),
-                  padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5B800).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border.all(color: const Color(0xFFF5B800).withValues(alpha: 0.5)),
-                  ),
-                  child: const Text(
-                    '⚡ bonus',
-                    style: TextStyle(color: Color(0xFFF5B800), fontSize: 7, fontWeight: FontWeight.bold),
-                  ),
+                const _LogChip(label: '⚡ bonus', color: Color(0xFFF5B800)),
+              if (slot.chainBonusBy != null)
+                _LogChip(
+                  label: '⛓ cadena',
+                  color: slot.chainBonusBy == 'player'
+                      ? const Color(0xFFF5B800)
+                      : const Color(0xFFE74C3C),
+                ),
+              if (slot.mitigatedBy != null)
+                _LogChip(
+                  label: '🛡 bloqueo',
+                  color: slot.mitigatedBy == 'player'
+                      ? const Color(0xFF3498DB)
+                      : const Color(0xFF8A8A9A),
                 ),
             ],
           ),
@@ -1640,6 +1846,29 @@ class _SlotLogRow extends StatelessWidget {
                 alignRight: true),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LogChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _LogChip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: color, fontSize: 7, fontWeight: FontWeight.bold),
       ),
     );
   }

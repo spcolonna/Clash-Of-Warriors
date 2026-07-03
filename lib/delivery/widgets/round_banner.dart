@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
-/// Banner animado de inicio de ronda: "RONDA N" entra con zoom + slide,
-/// se sostiene un instante y sale con fade. ~1.2s en total.
+/// Banner animado central: entra con zoom + slide, se sostiene un instante
+/// y sale con fade. ~1.2s en total. Usado para "RONDA N", "¡RONDA PERFECTA!",
+/// etc.
 class RoundBanner extends StatefulWidget {
-  final int round;
+  final String title;
+  final String subtitle;
   final VoidCallback onComplete;
 
   const RoundBanner({
     super.key,
-    required this.round,
+    required this.title,
+    this.subtitle = '¡PELEA!',
     required this.onComplete,
   });
 
@@ -77,7 +80,8 @@ class _RoundBannerState extends State<RoundBanner>
                           end: Alignment.bottomCenter,
                         ).createShader(bounds),
                         child: Text(
-                          'RONDA ${widget.round}',
+                          widget.title,
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 40,
                             fontWeight: FontWeight.w900,
@@ -92,7 +96,7 @@ class _RoundBannerState extends State<RoundBanner>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '¡PELEA!',
+                      widget.subtitle,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w900,

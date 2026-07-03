@@ -19,6 +19,10 @@ class PlayerHandWidget extends StatefulWidget {
   /// Callback al tocar "Jugar" en el preview de una carta.
   final void Function(GameCard card)? onCardPlay;
 
+  /// True cuando el próximo slot libre es la apertura (slot 0): el botón
+  /// del preview avisa que la carta quedará sellada.
+  final bool nextSlotIsOpening;
+
   const PlayerHandWidget({
     super.key,
     required this.cards,
@@ -27,6 +31,7 @@ class PlayerHandWidget extends StatefulWidget {
     this.onDealAnimationComplete,
     this.remainingStamina,
     this.onCardPlay,
+    this.nextSlotIsOpening = false,
   });
 
   @override
@@ -167,6 +172,9 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
                     ? () => widget.onCardPlay!(cardData.card)
                     : null,
                 canPlay: affordable,
+                playLabel: widget.nextSlotIsOpening
+                    ? 'Jugar como apertura 🔒'
+                    : 'Jugar',
               );
             },
             child: cardWidget,

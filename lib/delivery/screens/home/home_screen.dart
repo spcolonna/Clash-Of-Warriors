@@ -1121,6 +1121,10 @@ class _MissionRow extends StatelessWidget {
                   backgroundColor: const Color(0xFFF5B800),
                   disabledBackgroundColor: Colors.white10,
                   foregroundColor: Colors.black,
+                  // El theme global fuerza padding vertical 16 y el botón mide
+                  // 34px → el texto quedaba recortado e invisible.
+                  padding: EdgeInsets.zero,
+                  textStyle: const TextStyle(fontSize: 13),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),

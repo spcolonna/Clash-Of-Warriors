@@ -7,6 +7,7 @@ class CardPreviewDialog extends StatelessWidget {
   final bool isPassive;
   final VoidCallback? onPlay;
   final bool canPlay;
+  final String playLabel;
 
   const CardPreviewDialog({
     super.key,
@@ -14,17 +15,20 @@ class CardPreviewDialog extends StatelessWidget {
     this.isPassive = false,
     this.onPlay,
     this.canPlay = true,
+    this.playLabel = 'Jugar',
   });
 
   /// [onPlay] agrega un botón "Jugar" debajo de la carta (cierra el dialog
   /// antes de invocar el callback). [canPlay] en false lo muestra
-  /// deshabilitado con la razón "Sin stamina".
+  /// deshabilitado con la razón "Sin stamina". [playLabel] permite avisar
+  /// destinos especiales (p. ej. "Jugar como apertura").
   static Future<void> show(
       BuildContext context,
       GameCard card, {
         bool isPassive = false,
         VoidCallback? onPlay,
         bool canPlay = true,
+        String playLabel = 'Jugar',
       }) {
     return showDialog<void>(
       context: context,
@@ -34,6 +38,7 @@ class CardPreviewDialog extends StatelessWidget {
         isPassive: isPassive,
         onPlay: onPlay,
         canPlay: canPlay,
+        playLabel: playLabel,
       ),
     );
   }
@@ -99,7 +104,7 @@ class CardPreviewDialog extends StatelessWidget {
                         color: canPlay ? Colors.white : Colors.white38,
                       ),
                       label: Text(
-                        canPlay ? 'Jugar' : 'Sin stamina',
+                        canPlay ? playLabel : 'Sin stamina',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
