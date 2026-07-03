@@ -5,10 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../domain/entities/hero_entity.dart';
+import '../../../domain/entities/player_profile.dart';
 import '../../../infra/local/heroes_data.dart';
 import '../../../infra/local/story_arcs_data.dart';
+import '../../../infra/services/haptics_service.dart';
+import '../../../infra/sound/sound_service.dart';
 import '../../state/providers.dart';
 import '../../state/story_provider.dart';
+import '../../widgets/comic/comic_cover.dart';
 import '../shell/main_shell_scaffold.dart';
 
 class StoryHubScreen extends ConsumerWidget {
@@ -58,26 +62,21 @@ class StoryHubScreen extends ConsumerWidget {
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 itemCount: _heroIds.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, __) => const SizedBox(height: 20),
                 itemBuilder: (ctx, i) {
                   final heroId = _heroIds[i];
                   final hero = HeroesData.findByIdSafe(heroId);
                   if (hero == null) return const SizedBox.shrink();
 
                   final isUnlocked = player?.unlockedHeroIds.contains(heroId) ?? false;
-                  final rarity = player?.nextPlayableRarity(heroId) ?? 'common';
-                  final stagesDone = (player?.storyStageFor(heroId, rarity) ?? -1) + 1;
-                  final isAllComplete = player?.nextPlayableRarity(heroId) == null;
                   final color = _factionColors[hero.faction] ?? const Color(0xFFE5A93C);
 
-                  return _HeroArcCard(
+                  return _HeroSeriesShelf(
                     hero: hero,
                     color: color,
-                    rarity: rarity,
-                    stagesDone: stagesDone,
-                    isAllComplete: isAllComplete,
+                    player: player,
                     isUnlocked: isUnlocked,
-                    onPlay: () => _startArc(context, ref, heroId, rarity),
+                    onPlay: (rarity) => _startArc(context, ref, heroId, rarity),
                     onLocked: () => _showLockedDialog(context, ref, hero, color),
                   );
                 },
@@ -267,229 +266,127 @@ class _LockedHeroDialog extends StatelessWidget {
   }
 }
 
-// ─── Hero Arc Card ─────────────────────────────────────────────────────────────
+// ─── Hero Series Shelf ────────────────────────────────────────────────────────
 
-class _HeroArcCard extends StatelessWidget {
+/// Serie de cómics de un héroe: título de la serie + carrusel horizontal de
+/// 4 números (Acto I–IV = common/rare/epic/legendary).
+class _HeroSeriesShelf extends StatelessWidget {
   final HeroEntity hero;
   final Color color;
-  final String rarity;
-  final int stagesDone;
-  final bool isAllComplete;
+  final PlayerProfile? player;
   final bool isUnlocked;
-  final VoidCallback onPlay;
+  final void Function(String rarity) onPlay;
   final VoidCallback onLocked;
 
-  const _HeroArcCard({
+  const _HeroSeriesShelf({
     required this.hero,
     required this.color,
-    required this.rarity,
-    required this.stagesDone,
-    required this.isAllComplete,
+    required this.player,
     required this.isUnlocked,
     required this.onPlay,
     required this.onLocked,
   });
 
-  static const _rarityLabels = {
-    'common': 'Común',
-    'rare': 'Rara',
-    'epic': 'Épica',
-    'legendary': 'Legendaria',
-  };
-
-  static const _rarityColors = {
-    'common':    Color(0xFFAAAAAA),
-    'rare':      Color(0xFF4FC3F7),
-    'epic':      Color(0xFFCE93D8),
-    'legendary': Color(0xFFFFD700),
-  };
+  static const _rarities = ['common', 'rare', 'epic', 'legendary'];
 
   @override
   Widget build(BuildContext context) {
-    final arc = StoryArcsData.findArc(hero.id, rarity);
-    final title = arc?.title ?? '—';
-    final rarityColor = _rarityColors[rarity] ?? const Color(0xFFAAAAAA);
-    final cardColor = isUnlocked ? color : const Color(0xFF4A4A5A);
+    final nextRarity =
+        isUnlocked ? player?.nextPlayableRarity(hero.id) : null;
 
-    return GestureDetector(
-      onTap: isUnlocked ? null : onLocked,
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1A2E),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: cardColor.withValues(alpha: 0.35), width: 1),
-        ),
-        child: Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Título de la serie
+        Row(
           children: [
-            // Portrait
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    bottomLeft: Radius.circular(16),
-                  ),
-                  child: ColorFiltered(
-                    colorFilter: isUnlocked
-                        ? const ColorFilter.mode(Colors.transparent, BlendMode.dst)
-                        : const ColorFilter.matrix([
-                            0.33, 0.33, 0.33, 0, 0,
-                            0.33, 0.33, 0.33, 0, 0,
-                            0.33, 0.33, 0.33, 0, 0,
-                            0,    0,    0,    1, 0,
-                          ]),
-                    child: Image.asset(
-                      hero.imagePath,
-                      width: 88,
-                      height: 104,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 88,
-                        height: 104,
-                        color: cardColor.withValues(alpha: 0.15),
-                        child: Icon(Icons.person, color: cardColor, size: 40),
-                      ),
-                    ),
-                  ),
-                ),
-                if (!isUnlocked)
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.45),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          bottomLeft: Radius.circular(16),
-                        ),
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.lock_rounded, color: Colors.white54, size: 28),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            // Info
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          hero.name,
-                          style: TextStyle(
-                            color: isUnlocked ? color : const Color(0xFF6A6A7A),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        if (isUnlocked) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: rarityColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: rarityColor.withValues(alpha: 0.5)),
-                            ),
-                            child: Text(
-                              _rarityLabels[rarity] ?? rarity,
-                              style: TextStyle(color: rarityColor, fontSize: 9, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isUnlocked ? title : 'Héroe bloqueado',
-                      style: TextStyle(
-                        color: isUnlocked ? const Color(0xFF8A8A9A) : const Color(0xFF5A5A6A),
-                        fontSize: 11,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    if (isUnlocked)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: isAllComplete ? 1.0 : stagesDone / 10,
-                                backgroundColor: const Color(0xFF2A2A3E),
-                                valueColor: AlwaysStoppedAnimation(
-                                  isAllComplete ? const Color(0xFFFFD700) : color,
-                                ),
-                                minHeight: 5,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            isAllComplete ? '✓' : '$stagesDone/10',
-                            style: TextStyle(
-                              color: isAllComplete ? const Color(0xFFFFD700) : const Color(0xFF8A8A9A),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      )
-                    else
-                      const Text(
-                        'Desbloquealo en la Tienda',
-                        style: TextStyle(color: Color(0xFF5A5A6A), fontSize: 10),
-                      ),
-                  ],
-                ),
+            Container(width: 4, height: 18, color: color),
+            const SizedBox(width: 8),
+            Text(
+              '${hero.name.toUpperCase()} — ${_seriesName(hero.id)}',
+              style: TextStyle(
+                color: isUnlocked ? Colors.white : const Color(0xFF6A6A7A),
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.5,
               ),
             ),
-            // Acción
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: isAllComplete
-                  ? const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFD700), size: 28)
-                  : isUnlocked
-                      ? GestureDetector(
-                          onTap: onPlay,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: color,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Text(
-                              'JUGAR',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                        )
-                      : GestureDetector(
-                          onTap: onLocked,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2A2A3A),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.white12),
-                            ),
-                            child: const Icon(Icons.lock_rounded, color: Colors.white38, size: 18),
-                          ),
-                        ),
-            ),
+            if (!isUnlocked) ...[
+              const SizedBox(width: 8),
+              const Icon(Icons.lock_rounded, color: Colors.white38, size: 14),
+            ],
           ],
         ),
-      ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 118 * 1.5 + 8,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _rarities.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (ctx, i) {
+              final rarity = _rarities[i];
+              final arc = StoryArcsData.findArc(hero.id, rarity);
+              final complete =
+                  player?.isArcComplete(hero.id, rarity) ?? false;
+              final stagesDone =
+                  (player?.storyStageFor(hero.id, rarity) ?? -1) + 1;
+
+              final CoverState state;
+              if (!isUnlocked) {
+                state = CoverState.locked;
+              } else if (complete) {
+                state = CoverState.completed;
+              } else if (rarity == nextRarity && stagesDone > 0) {
+                state = CoverState.inProgress;
+              } else if (rarity == nextRarity) {
+                state = CoverState.unread;
+              } else {
+                state = CoverState.locked;
+              }
+
+              return ComicCover(
+                heroId: hero.id,
+                title: arc?.title ?? '—',
+                actNumber: arc?.actNumber ?? (i + 1),
+                state: state,
+                currentPage:
+                    state == CoverState.inProgress ? stagesDone : null,
+                onTap: () {
+                  if (!isUnlocked) {
+                    onLocked();
+                    return;
+                  }
+                  if (state == CoverState.locked) {
+                    HapticsService().error();
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(SnackBar(
+                        content: Text(
+                            'Terminá el número anterior para leer el Nº ${arc?.actNumber ?? i + 1}'),
+                        duration: const Duration(milliseconds: 1400),
+                        behavior: SnackBarBehavior.floating,
+                      ));
+                    return;
+                  }
+                  HapticsService().medium();
+                  SoundService().play('page_flip');
+                  onPlay(rarity);
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
+
+  static String _seriesName(String heroId) => switch (heroId) {
+        'puo_liu' => 'EL CAMINO DEL DRAGÓN',
+        'kage' => 'LA SOMBRA',
+        'ryoto' => 'HONOR EN EL TATAMI',
+        'kai' => 'BARRIO SUR',
+        'mila' => 'LA DANZA LIBRE',
+        _ => 'LA SAGA',
+      };
 }

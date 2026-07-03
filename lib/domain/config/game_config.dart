@@ -142,6 +142,7 @@ class GameConfig {
     'coin': 'coin.wav', 'level_up': 'level_up.wav',
     'unlock': 'unlock.wav', 'menu_tap': 'menu_tap.wav',
     'whoosh': 'whoosh.wav', 'card_place': 'card_place.wav',
+    'page_flip': 'page_flip.wav', 'panel_pop': 'panel_pop.wav',
   };
 }
 

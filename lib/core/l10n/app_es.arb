@@ -7,7 +7,13 @@
   "login_prompt": "Ingresa tu nombre de guerrero",
   "login_enter": "ENTRAR",
   "home_hello": "Hola, {name}",
-  "@home_hello": { "placeholders": { "name": { "type": "String" } } },
+  "@home_hello": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "home_ready": "¿Listo para pelear?",
   "home_1v1": "⚔️ COMBATIR 1v1",
   "home_3v3": "🏆 COMBATE 3v3",
@@ -19,16 +25,20 @@
   "home_pro_teaser_title": "🔥 MODO LEYENDA",
   "home_pro_teaser_desc": "Desbloquea héroes, sube de nivel, mejora stats y compite en 3v3.",
   "home_pro_teaser_cta": "ACTIVAR PRO →",
-
   "heroes_title": "ELIGE TU GUERRERO",
   "heroes_subtitle": "Toca para ver detalle",
   "heroes_unlock": "🔓 DESBLOQUEAR ({cost} 🪙)",
-  "@heroes_unlock": { "placeholders": { "cost": { "type": "int" } } },
+  "@heroes_unlock": {
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
   "heroes_choose": "ELEGIR →",
   "heroes_lore_btn": "🔄 VER LORE Y MOVIMIENTOS",
   "heroes_stats_btn": "🔄 VER STATS",
   "heroes_first": "⭐ MI PRIMER GUERRERO",
-
   "diff_title": "DIFICULTAD",
   "diff_easy": "Fácil",
   "diff_easy_desc": "Elige al azar",
@@ -37,9 +47,14 @@
   "diff_hard": "Difícil",
   "diff_hard_desc": "Lee tus jugadas",
   "diff_go": "⚔️ ¡A LA ARENA!",
-
   "battle_round": "ROUND {n}",
-  "@battle_round": { "placeholders": { "n": { "type": "int" } } },
+  "@battle_round": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "battle_pick": "ELIGE TU TÉCNICA",
   "battle_fighting": "¡COMBATIENDO!",
   "battle_win": "¡GANASTE!",
@@ -49,19 +64,42 @@
   "battle_ref": "📖 REF",
   "battle_history": "HISTORIAL",
   "battle_power": "Poder {n}",
-  "@battle_power": { "placeholders": { "n": { "type": "int" } } },
+  "@battle_power": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "battle_beats": "vence",
-
   "battle3v3_round": "🏆 RONDA {n}",
-  "@battle3v3_round": { "placeholders": { "n": { "type": "int" } } },
+  "@battle3v3_round": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "battle3v3_subtitle": "1 técnica = ataque + defensa · Resolución simultánea",
   "battle3v3_enemies": "⚔️ ENEMIGOS",
   "battle3v3_your_team": "🛡️ TU EQUIPO",
   "battle3v3_pick_tech": "{name}: elige TÉCNICA",
-  "@battle3v3_pick_tech": { "placeholders": { "name": { "type": "String" } } },
+  "@battle3v3_pick_tech": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "battle3v3_pick_hint": "⚔️ Ataca y 🛡️ defiende con la misma técnica",
   "battle3v3_pick_target": "{name}: ¿a quién atacar?",
-  "@battle3v3_pick_target": { "placeholders": { "name": { "type": "String" } } },
+  "@battle3v3_pick_target": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "battle3v3_target_hint": "Toca un enemigo arriba · Tu técnica también te defiende",
   "battle3v3_all_ready": "✅ Todos los guerreros listos",
   "battle3v3_execute": "⚔️ ¡EJECUTAR RONDA!",
@@ -72,14 +110,24 @@
   "battle3v3_tap_advance": "Toca para avanzar",
   "battle3v3_your_attack": "⚔️ TU ATAQUE",
   "battle3v3_rival_attack": "🛡️ ATAQUE RIVAL",
-
   "anim_hit": "¡GOLPE! −{n} HP",
-  "@anim_hit": { "placeholders": { "n": { "type": "int" } } },
+  "@anim_hit": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "anim_blocked": "¡BLOQUEADO!",
   "anim_draw_dmg": "EMPATE −{n} HP",
-  "@anim_draw_dmg": { "placeholders": { "n": { "type": "int" } } },
+  "@anim_draw_dmg": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "anim_draw_neutral": "EMPATE NEUTRO",
-
   "result_victory": "¡VICTORIA!",
   "result_defeat": "DERROTA",
   "result_draw": "EMPATE",
@@ -87,25 +135,28 @@
   "result_defeat_3v3": "DERROTA 3v3",
   "result_draw_3v3": "EMPATE 3v3",
   "result_rounds": "{n} rounds",
-  "@result_rounds": { "placeholders": { "n": { "type": "int" } } },
+  "@result_rounds": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "result_rematch": "⚔️ REVANCHA",
   "result_change_hero": "🔄 CAMBIAR GUERRERO",
   "result_menu": "MENÚ PRINCIPAL",
   "result_another_3v3": "🏆 OTRA 3v3",
-
   "rank_title": "🏆 RANKING",
   "rank_empty": "Sin guerreros aún",
   "rank_wins": "Victorias",
   "rank_elo": "ELO",
   "rank_streak": "Racha",
-
   "settings_title": "⚙️ AJUSTES",
   "settings_pro": "Modo PRO",
   "settings_pro_desc_on": "Progresión, niveles, 3v3",
   "settings_pro_desc_off": "$2.99 para desbloquear",
   "settings_tokens": "🪙 Tokens",
   "settings_close": "CERRAR",
-
   "shop_title": "🛒 TIENDA",
   "shop_tokens_title": "PAQUETES DE TOKENS",
   "shop_special_title": "PACKS ESPECIALES",
@@ -122,34 +173,77 @@
   "shop_popular": "POPULAR",
   "shop_confirm_title": "CONFIRMAR COMPRA",
   "shop_confirm_charge": "Se cobrará {price} a tu cuenta",
-  "@shop_confirm_charge": { "placeholders": { "price": { "type": "String" } } },
+  "@shop_confirm_charge": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
   "shop_confirm_btn": "✅ CONFIRMAR COMPRA",
   "shop_cancel": "CANCELAR",
   "shop_success": "¡COMPRA EXITOSA!",
   "shop_tokens_total": "tokens totales",
   "shop_heroes_unlocked": "HÉROES DESBLOQUEADOS",
   "shop_great": "¡GENIAL!",
-
   "upgrade_title": "⬆️ MEJORAS",
   "upgrade_level_up": "SUBIR DE NIVEL",
   "upgrade_unlock_heroes": "DESBLOQUEAR HÉROES",
   "upgrade_cards": "Cartas: {have}/{need}",
-  "@upgrade_cards": { "placeholders": { "have": { "type": "int" }, "need": { "type": "int" } } },
+  "@upgrade_cards": {
+    "placeholders": {
+      "have": {
+        "type": "int"
+      },
+      "need": {
+        "type": "int"
+      }
+    }
+  },
   "upgrade_improve": "MEJORAR ({cost} 🪙)",
-  "@upgrade_improve": { "placeholders": { "cost": { "type": "int" } } },
+  "@upgrade_improve": {
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
   "upgrade_new_warrior": "¡NUEVO GUERRERO!",
   "upgrade_level_up_title": "¡LEVEL UP!",
   "upgrade_card_obtained": "CARTA OBTENIDA",
   "upgrade_stats_plus1": "Todas las stats +1",
   "upgrade_remaining": "🪙 {n} tokens restantes",
-  "@upgrade_remaining": { "placeholders": { "n": { "type": "int" } } },
+  "@upgrade_remaining": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "upgrade_more_for": "{n} más para nivel {lv}",
-  "@upgrade_more_for": { "placeholders": { "n": { "type": "int" }, "lv": { "type": "int" } } },
-
+  "@upgrade_more_for": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "lv": {
+        "type": "int"
+      }
+    }
+  },
   "story_title": "MODO LEYENDA",
-  "story_subtitle": "El Torneo de las Eras — Elige tu héroe",
+  "story_subtitle": "El Gran Torneo — Elegí tu héroe",
   "story_chapters": "{n}/{total} capítulos",
-  "@story_chapters": { "placeholders": { "n": { "type": "int" }, "total": { "type": "int" } } },
+  "@story_chapters": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "story_locked": "HÉROES BLOQUEADOS",
   "story_play": "JUGAR →",
   "story_boss": "⚠️ BOSS",
@@ -162,36 +256,48 @@
   "story_retry": "🔄 REINTENTAR",
   "story_completed_title": "¡LEYENDA COMPLETADA!",
   "story_completed_desc": "{name} ha liberado la Arena",
-  "@story_completed_desc": { "placeholders": { "name": { "type": "String" } } },
+  "@story_completed_desc": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "story_another": "📜 OTRA LEYENDA",
-  "story_epilogue": "El Oráculo ha sido derrotado y los guerreros atrapados son libres. Pero la Arena siempre vuelve...",
-
+  "story_epilogue": "El Arquitecto cayó y el Consejo Sombra quedó al descubierto. Pero las sombras de La Ciudadela nunca duermen del todo...",
   "team_title": "🏆 COMBATE 3v3",
   "team_subtitle": "Elige 3 guerreros",
-
   "rules_title": "REGLAS",
   "rules_damage": "Daño: Tu stat en la técnica",
   "rules_draw": "Empate: Mayor stat gana (+1)",
   "rules_ko": "KO: Pelea hasta HP=0",
   "rules_understood": "ENTENDIDO",
-
   "ad_space": "— ESPACIO PUBLICITARIO —",
   "ad_remove": "Activa PRO para remover anuncios",
   "ad_continue": "CONTINUAR",
   "ad_reward_watch": "Ver anuncio = +{n} 🪙",
-  "@ad_reward_watch": { "placeholders": { "n": { "type": "int" } } },
-
+  "@ad_reward_watch": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "daily_title": "🎁 RECOMPENSA DIARIA",
   "daily_claim": "¡RECLAMAR!",
   "daily_day": "Día {n}",
-  "@daily_day": { "placeholders": { "n": { "type": "int" } } },
-
+  "@daily_day": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "tech_fist": "Puño",
   "tech_kick": "Patada",
   "tech_grapple": "Agarre",
   "tech_block": "Bloqueo",
   "tech_palm": "Palma",
-
   "verb_fist_kick": "El Puño intercepta la Patada",
   "verb_fist_grapple": "El Puño golpea antes del Agarre",
   "verb_kick_grapple": "La Patada aleja del Agarre",
@@ -203,7 +309,6 @@
   "verb_palm_fist": "La Palma desvía el Puño",
   "verb_palm_kick": "La Palma neutraliza la Patada",
   "verb_draw": "Empate de técnicas",
-
   "hero_karate": "Karateca",
   "hero_karate_desc": "Disciplina y golpe certero",
   "hero_karate_lore": "Formado en el dojo desde los cinco años, el karate moldeó su carácter tanto como su cuerpo.",
@@ -212,7 +317,6 @@
   "move_karate_grapple": "Agarre Ippon",
   "move_karate_block": "Uke Bloqueo",
   "move_karate_palm": "Palma Shuto",
-
   "hero_templar": "Templario",
   "hero_templar_desc": "Defensa y golpe letal",
   "hero_templar_lore": "Caballero cruzado jurado a proteger los sagrados.",
@@ -221,7 +325,6 @@
   "move_templar_grapple": "Presa de Hierro",
   "move_templar_block": "Escudo Divino",
   "move_templar_palm": "Imposición Santa",
-
   "hero_ninja": "Ninja",
   "hero_ninja_desc": "Velocidad oculta",
   "hero_ninja_lore": "Sombra entre sombras. Cuando lo ves, ya es tarde.",
@@ -230,7 +333,6 @@
   "move_ninja_grapple": "Llave Serpiente",
   "move_ninja_block": "Niebla Evasiva",
   "move_ninja_palm": "Toque Mortal",
-
   "hero_sumo": "Sumo",
   "hero_sumo_desc": "Fuerza y agarre",
   "hero_sumo_lore": "Montaña de músculos y tradición milenaria.",
@@ -239,7 +341,6 @@
   "move_sumo_grapple": "Abrazo de Oso",
   "move_sumo_block": "Postura Montaña",
   "move_sumo_palm": "Empujón Tsunami",
-
   "hero_kungfu": "Kung Fu",
   "hero_kungfu_desc": "Ofensiva total",
   "hero_kungfu_lore": "Maestro de las formas animales, cada golpe es un arte.",
@@ -248,7 +349,6 @@
   "move_kungfu_grapple": "Zarpa del Leopardo",
   "move_kungfu_block": "Postura del Mono",
   "move_kungfu_palm": "Palma de la Serpiente",
-
   "hero_samurai": "Samurai",
   "hero_samurai_desc": "Precisión y honor",
   "hero_samurai_lore": "Sigue el código del Bushido con devoción absoluta.",
@@ -257,7 +357,6 @@
   "move_samurai_grapple": "Agarre Kendo",
   "move_samurai_block": "Guardia Iaido",
   "move_samurai_palm": "Palma del Vacío",
-
   "hero_gladiator": "Gladiador",
   "hero_gladiator_desc": "Feroz del Coliseo",
   "hero_gladiator_lore": "Nacido en la arena, forjado por la sangre.",
@@ -266,7 +365,6 @@
   "move_gladiator_grapple": "Presa Mortal",
   "move_gladiator_block": "Escudo Romano",
   "move_gladiator_palm": "Palma del César",
-
   "hero_monk": "Monje Tibetano",
   "hero_monk_desc": "Defensa suprema",
   "hero_monk_lore": "Años de meditación le otorgaron el dominio del chi.",
@@ -275,7 +373,6 @@
   "move_monk_grapple": "Abrazo Compasivo",
   "move_monk_block": "Barrera de Chi",
   "move_monk_palm": "Palma Celestial",
-
   "hero_viking": "Vikingo",
   "hero_viking_desc": "Furia nórdica",
   "hero_viking_lore": "Descendiente de Odín, no conoce el miedo.",
@@ -284,7 +381,6 @@
   "move_viking_grapple": "Agarre del Lobo",
   "move_viking_block": "Muro de Escudos",
   "move_viking_palm": "Palma Rúnica",
-
   "hero_capoeira": "Capoeirista",
   "hero_capoeira_desc": "Danza mortal",
   "hero_capoeira_lore": "En las calles de Salvador, la capoeira es libertad.",
@@ -293,7 +389,6 @@
   "move_capoeira_grapple": "Rasteira",
   "move_capoeira_block": "Esquiva Ginga",
   "move_capoeira_palm": "Palma Axé",
-
   "hero_spartan": "Espartano",
   "hero_spartan_desc": "Disciplina absoluta",
   "hero_spartan_lore": "Criado en la agogé, su vida entera es guerra.",
@@ -302,7 +397,6 @@
   "move_spartan_grapple": "Presa Falange",
   "move_spartan_block": "Escudo Termópilas",
   "move_spartan_palm": "Golpe de Lanza",
-
   "hero_muaythai": "Nak Muay",
   "hero_muaythai_desc": "Ocho miembros",
   "hero_muaythai_lore": "El arte de los ocho miembros: puños, codos, rodillas y espinillas.",
@@ -311,7 +405,6 @@
   "move_muaythai_grapple": "Clinch Tailandés",
   "move_muaythai_block": "Guardia Alta",
   "move_muaythai_palm": "Palma Muay Boran",
-
   "hero_taichi": "Tai Chi",
   "hero_taichi_desc": "Redirige la fuerza",
   "hero_taichi_lore": "El agua vence a la roca. Suave por fuera, letal por dentro.",
@@ -320,7 +413,6 @@
   "move_taichi_grapple": "Flujo del Río",
   "move_taichi_block": "Raíz del Sauce",
   "move_taichi_palm": "Palma Tai Ji",
-
   "hero_wrestler": "Luchador Olímpico",
   "hero_wrestler_desc": "Dominio del suelo",
   "hero_wrestler_lore": "Su técnica de derribo es perfecta. En el suelo, el combate ya terminó.",
@@ -329,7 +421,6 @@
   "move_wrestler_grapple": "Derribo Doble",
   "move_wrestler_block": "Sprawl Defensivo",
   "move_wrestler_palm": "Palma de Control",
-
   "hero_pirate": "Pirata",
   "hero_pirate_desc": "Sin reglas",
   "hero_pirate_lore": "Los siete mares forjaron su estilo: sucio e impredecible.",
@@ -338,7 +429,6 @@
   "move_pirate_grapple": "Abrazo del Kraken",
   "move_pirate_block": "Tabla Salvadora",
   "move_pirate_palm": "Bofetada Pirata",
-
   "hero_amazon": "Amazona",
   "hero_amazon_desc": "Guerrera de la selva",
   "hero_amazon_lore": "Hija de la selva, criada entre jaguares.",
@@ -347,7 +437,6 @@
   "move_amazon_grapple": "Liana Mortal",
   "move_amazon_block": "Escudo de Corteza",
   "move_amazon_palm": "Palma Venenosa",
-
   "hero_shaman": "Chamán",
   "hero_shaman_desc": "Poder místico",
   "hero_shaman_lore": "Conectado con los espíritus ancestrales.",
@@ -356,7 +445,6 @@
   "move_shaman_grapple": "Raíces Ancestrales",
   "move_shaman_block": "Barrera Mística",
   "move_shaman_palm": "Palma del Más Allá",
-
   "hero_berserker": "Berserker",
   "hero_berserker_desc": "Rabia sin defensa",
   "hero_berserker_lore": "La furia lo consume en batalla. No siente dolor.",
@@ -365,7 +453,6 @@
   "move_berserker_grapple": "Embestida Brutal",
   "move_berserker_block": "Grito de Guerra",
   "move_berserker_palm": "Zarpazo Final",
-
   "hero_wushu": "Wushu",
   "hero_wushu_desc": "Forma perfecta",
   "hero_wushu_lore": "Cada movimiento es coreografiado a la perfección.",
@@ -374,7 +461,6 @@
   "move_wushu_grapple": "Llave de Seda",
   "move_wushu_block": "Postura del Fénix",
   "move_wushu_palm": "Palma del Dragón Dorado",
-
   "hero_mongol": "Mongol",
   "hero_mongol_desc": "Adaptación brutal",
   "hero_mongol_lore": "Heredero de Genghis Khan, imparable como la horda dorada.",

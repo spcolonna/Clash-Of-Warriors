@@ -831,7 +831,7 @@ abstract class AppLocalizations {
   /// No description provided for @story_subtitle.
   ///
   /// In es, this message translates to:
-  /// **'El Torneo de las Eras — Elige tu héroe'**
+  /// **'El Gran Torneo — Elegí tu héroe'**
   String get story_subtitle;
 
   /// No description provided for @story_chapters.
@@ -921,7 +921,7 @@ abstract class AppLocalizations {
   /// No description provided for @story_epilogue.
   ///
   /// In es, this message translates to:
-  /// **'El Oráculo ha sido derrotado y los guerreros atrapados son libres. Pero la Arena siempre vuelve...'**
+  /// **'El Arquitecto cayó y el Consejo Sombra quedó al descubierto. Pero las sombras de La Ciudadela nunca duermen del todo...'**
   String get story_epilogue;
 
   /// No description provided for @team_title.

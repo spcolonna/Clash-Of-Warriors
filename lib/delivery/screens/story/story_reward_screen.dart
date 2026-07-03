@@ -1,11 +1,21 @@
 // lib/delivery/screens/story/story_reward_screen.dart
+//
+// Contratapa del número: héroe desbloqueado con burst + teaser
+// "En el próximo número..." como gancho al siguiente acto.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../infra/local/heroes_data.dart';
+import '../../../infra/local/story_arcs_data.dart';
 import '../../state/providers.dart';
+import '../../widgets/comic/chapter_cover.dart' show NarratorBoxWide;
+import '../../widgets/comic/comic_page.dart';
+import '../../widgets/comic/comic_portrait.dart';
+import '../../widgets/comic/comic_theme.dart';
+import '../../widgets/comic/halftone_painter.dart';
+import '../../widgets/comic/onomatopeia.dart';
 
 class StoryRewardScreen extends ConsumerWidget {
   const StoryRewardScreen({super.key});
@@ -41,166 +51,119 @@ class StoryRewardScreen extends ConsumerWidget {
     final rarity = hero?.rarity ?? 'legendary';
     final color = _rarityColors[rarity] ?? const Color(0xFFE5A93C);
 
+    // Teaser del próximo número: el arco de la rareza recién desbloqueada
+    final baseHeroId = recentlyUnlocked
+        ?.replaceAll(RegExp(r'_(rare|epic|legendary)$'), '');
+    final nextArc = baseHeroId != null
+        ? StoryArcsData.findArc(baseHeroId, rarity)
+        : null;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF050510),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: [
-              const Spacer(),
-              // Título
-              Text(
-                isLegendaryAchievement
-                    ? '¡LOGRO DESBLOQUEADO!'
-                    : '¡HÉROE DESBLOQUEADO!',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              if (isLegendaryAchievement)
-                const Text(
-                  'Camino del Dragón',
-                  style: TextStyle(
-                    color: Color(0xFFFFD700),
-                    fontSize: 16,
-                    fontStyle: FontStyle.italic,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              const SizedBox(height: 32),
-              // Hero card
-              if (hero != null) ...[
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: color.withValues(alpha: 0.6), width: 2),
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [color.withValues(alpha: 0.15), const Color(0xFF0D0D1A)],
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-                        child: Image.asset(
-                          hero.imagePath,
-                          height: 260,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => Container(
-                            height: 260,
-                            color: color.withValues(alpha: 0.1),
-                            child: Icon(Icons.person, color: color, size: 80),
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  hero.name,
-                                  style: TextStyle(
-                                    color: color,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: color.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: color.withValues(alpha: 0.5)),
-                                  ),
-                                  child: Text(
-                                    _rarityLabels[rarity] ?? rarity,
-                                    style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              hero.title,
-                              style: const TextStyle(color: Color(0xFF8A8A9A), fontSize: 13),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              hero.lore,
-                              style: const TextStyle(
-                                color: Color(0xFFD0D0D0),
-                                fontSize: 12,
-                                height: 1.5,
-                                fontStyle: FontStyle.italic,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                // Achievement visual para Legendary
-                Container(
-                  width: 180,
-                  height: 180,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFFFD700), width: 3),
-                    gradient: RadialGradient(
-                      colors: [const Color(0xFFFFD700).withValues(alpha: 0.2), const Color(0xFF050510)],
-                    ),
-                  ),
-                  child: const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFD700), size: 80),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Completaste el camino completo\nde este héroe.',
-                  style: TextStyle(color: Color(0xFF8A8A9A), fontSize: 14, height: 1.5),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-              const Spacer(),
-              // Botón continuar
-              GestureDetector(
-                onTap: () => context.go('/home'),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(
-                    'CONTINUAR',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: rarity == 'legendary' ? Colors.black : Colors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
+      backgroundColor: ComicTheme.paper,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          CustomPaint(
+            painter: SunburstPainter(color: color, rays: 22, opacity: 0.22),
           ),
-        ),
+          CustomPaint(
+            painter: HalftonePainter(
+              dotColor: color,
+              focus: Alignment.topCenter,
+              opacity: 0.14,
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                children: [
+                  const Spacer(),
+                  OnomatopoeiaText(
+                    isLegendaryAchievement
+                        ? '¡SAGA COMPLETA!'
+                        : '¡NUEVO HÉROE!',
+                    size: 40,
+                    gradient: [color, ComicTheme.ink],
+                  ),
+                  const SizedBox(height: 24),
+                  if (hero != null) ...[
+                    ComicPortrait(speakerId: baseHeroId ?? hero.id, height: 210),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: ComicTheme.ink,
+                        boxShadow: [
+                          BoxShadow(color: color, offset: const Offset(3, 3)),
+                        ],
+                      ),
+                      child: Text(
+                        '${hero.name} — ${hero.title}'.toUpperCase(),
+                        textAlign: TextAlign.center,
+                        style: ComicTheme.display(
+                            size: 18, color: ComicTheme.paper),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _rarityLabels[rarity] ?? rarity,
+                      style: ComicTheme.display(size: 14, color: color)
+                          .copyWith(shadows: const [
+                        Shadow(color: ComicTheme.ink, offset: Offset(1, 1)),
+                      ]),
+                    ),
+                    const SizedBox(height: 12),
+                    NarratorBoxWide(text: hero.lore),
+                  ] else ...[
+                    const Icon(Icons.emoji_events_rounded,
+                        color: Color(0xFFB8860B), size: 90),
+                    const SizedBox(height: 16),
+                    const NarratorBoxWide(
+                      text:
+                          'Completaste el camino completo de este héroe. Su leyenda ya es parte de La Ciudadela.',
+                    ),
+                  ],
+                  const Spacer(),
+                  // Teaser del próximo número
+                  if (nextArc != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: ComicTheme.ink,
+                        border: Border.all(color: color, width: 2),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'EN EL PRÓXIMO NÚMERO...',
+                            style: ComicTheme.display(size: 14, color: color),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            nextArc.synopsis ?? nextArc.title,
+                            textAlign: TextAlign.center,
+                            style: ComicTheme.caption(size: 12.5)
+                                .copyWith(color: ComicTheme.paper),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  ComicSticker(
+                    text: 'CONTINUAR ▸',
+                    color: const Color(0xFF27AE60),
+                    onTap: () => context.go('/home'),
+                  ),
+                  const SizedBox(height: 28),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

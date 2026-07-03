@@ -407,7 +407,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get story_title => 'MODO LEYENDA';
 
   @override
-  String get story_subtitle => 'El Torneo de las Eras — Elige tu héroe';
+  String get story_subtitle => 'El Gran Torneo — Elegí tu héroe';
 
   @override
   String story_chapters(int n, int total) {
@@ -457,7 +457,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get story_epilogue =>
-      'El Oráculo ha sido derrotado y los guerreros atrapados son libres. Pero la Arena siempre vuelve...';
+      'El Arquitecto cayó y el Consejo Sombra quedó al descubierto. Pero las sombras de La Ciudadela nunca duermen del todo...';
 
   @override
   String get team_title => '🏆 COMBATE 3v3';

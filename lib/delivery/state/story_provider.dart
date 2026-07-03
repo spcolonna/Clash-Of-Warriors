@@ -12,12 +12,22 @@ class StorySessionState {
   final int currentStageIndex;
   final int currentDialogueLine;
 
+  /// Portada/recap ya mostrada en esta sesión (no se persiste; sobrevive el
+  /// ida y vuelta a la batalla porque la sesión vive en el provider).
+  final bool coverShown;
+
+  /// Stage en el que arrancó la sesión (>0 → reanudó a mitad de arco,
+  /// se muestra el recap "Anteriormente..." en vez de la portada).
+  final int startedAtStage;
+
   const StorySessionState({
     required this.heroId,
     required this.rarity,
     required this.arc,
     required this.currentStageIndex,
     required this.currentDialogueLine,
+    this.coverShown = false,
+    this.startedAtStage = 0,
   });
 
   StoryStage get currentStage => arc.stages[currentStageIndex];
@@ -27,6 +37,7 @@ class StorySessionState {
   StorySessionState copyWith({
     int? currentStageIndex,
     int? currentDialogueLine,
+    bool? coverShown,
   }) =>
       StorySessionState(
         heroId: heroId,
@@ -34,6 +45,8 @@ class StorySessionState {
         arc: arc,
         currentStageIndex: currentStageIndex ?? this.currentStageIndex,
         currentDialogueLine: currentDialogueLine ?? this.currentDialogueLine,
+        coverShown: coverShown ?? this.coverShown,
+        startedAtStage: startedAtStage,
       );
 }
 
@@ -60,8 +73,16 @@ class StorySessionNotifier extends Notifier<StorySessionState?> {
       arc: arc,
       currentStageIndex: startIndex,
       currentDialogueLine: 0,
+      startedAtStage: startIndex,
     );
     return true;
+  }
+
+  /// Marca la portada/recap como vista en esta sesión.
+  void markCoverShown() {
+    final s = state;
+    if (s == null || s.coverShown) return;
+    state = s.copyWith(coverShown: true);
   }
 
   /// Avanza una línea de diálogo. Si es la última, pasa al siguiente stage.

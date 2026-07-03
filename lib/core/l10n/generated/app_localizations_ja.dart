@@ -402,7 +402,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get story_title => 'レジェンドモード';
 
   @override
-  String get story_subtitle => '時代の闘技会 — ヒーローを選べ';
+  String get story_subtitle => '大トーナメント — ヒーローを選べ';
 
   @override
   String story_chapters(int n, int total) {
@@ -451,7 +451,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get story_another => '📜 別のレジェンド';
 
   @override
-  String get story_epilogue => '神託者は倒され、囚われた戦士たちは自由になった。しかし闘技場はいつも戻ってくる...';
+  String get story_epilogue => '設計者は倒れ、影の評議会は暴かれた。だが城塞都市の影は決して完全には眠らない...';
 
   @override
   String get team_title => '🏆 3対3バトル';

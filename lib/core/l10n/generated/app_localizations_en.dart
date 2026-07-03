@@ -407,7 +407,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get story_title => 'LEGEND MODE';
 
   @override
-  String get story_subtitle => 'Tournament of the Ages — Choose your hero';
+  String get story_subtitle => 'The Grand Tournament — Choose your hero';
 
   @override
   String story_chapters(int n, int total) {
@@ -457,7 +457,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get story_epilogue =>
-      'The Oracle has been defeated and the trapped warriors are free. But the Arena always returns...';
+      'The Architect has fallen and the Shadow Council stands exposed. But the shadows of The Citadel never fully sleep...';
 
   @override
   String get team_title => '🏆 BATTLE 3v3';
