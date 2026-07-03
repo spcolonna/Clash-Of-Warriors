@@ -133,13 +133,18 @@ class _ComicDialogueViewState extends ConsumerState<_ComicDialogueView> {
       behavior: HitTestBehavior.opaque,
       child: Scaffold(
         backgroundColor: ComicTheme.paper,
+        // Todos los hijos del Stack son Positioned: sin fit expand el Stack
+        // colapsaría a la altura del header y la página quedaría en blanco.
         body: Stack(
+          fit: StackFit.expand,
           children: [
             Positioned.fill(
               child: SafeArea(
                 bottom: false,
                 child: ComicPage(
                   controller: _scrollController,
+                  // Deja lugar para el header superpuesto (cerrar + página)
+                  padding: const EdgeInsets.fromLTRB(14, 48, 14, 120),
                   locationLabel: stage.locationName,
                   panels: [
                     for (int p = 0; p <= currentPanel; p++)
@@ -158,38 +163,45 @@ class _ComicDialogueViewState extends ConsumerState<_ComicDialogueView> {
             ),
 
             // Header: cerrar + página
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 6, 14, 0),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => context.go('/home'),
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 6, 14, 0),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => context.go('/home'),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: ComicTheme.paper,
+                            border:
+                                Border.all(color: ComicTheme.ink, width: 2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close,
+                              color: ComicTheme.ink, size: 16),
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           color: ComicTheme.paper,
                           border: Border.all(color: ComicTheme.ink, width: 2),
-                          shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.close,
-                            color: ComicTheme.ink, size: 16),
+                        child: Text(
+                          'PÁG. ${session.currentStageIndex + 1}/10',
+                          style: ComicTheme.display(size: 12),
+                        ),
                       ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: ComicTheme.paper,
-                        border: Border.all(color: ComicTheme.ink, width: 2),
-                      ),
-                      child: Text(
-                        'PÁG. ${session.currentStageIndex + 1}/10',
-                        style: ComicTheme.display(size: 12),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

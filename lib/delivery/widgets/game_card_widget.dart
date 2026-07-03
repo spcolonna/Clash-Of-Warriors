@@ -41,7 +41,19 @@ class _GameCardWidgetState extends State<GameCardWidget>
   @override
   void initState() {
     super.initState();
-    if (_isPassive) {
+    _syncGlow();
+  }
+
+  @override
+  void didUpdateWidget(covariant GameCardWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // El framework puede reutilizar este State con otra carta (p.ej. cuando
+    // la pasiva se inyecta en la mano): sincronizar la animación de brillo.
+    _syncGlow();
+  }
+
+  void _syncGlow() {
+    if (_isPassive && _glowController == null) {
       _glowController = AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 900),
@@ -49,6 +61,10 @@ class _GameCardWidgetState extends State<GameCardWidget>
       _glowAnim = Tween<double>(begin: 0.3, end: 1.0).animate(
         CurvedAnimation(parent: _glowController!, curve: Curves.easeInOut),
       );
+    } else if (!_isPassive && _glowController != null) {
+      _glowController!.dispose();
+      _glowController = null;
+      _glowAnim = null;
     }
   }
 
