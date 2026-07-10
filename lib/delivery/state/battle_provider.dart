@@ -8,7 +8,8 @@ import '../../domain/entities/game_card.dart';
 import '../../domain/entities/hero_entity.dart';
 import '../../domain/usecases/resolve_combat_use_case.dart';
 import '../../infra/local/neutral_cards_data.dart';
-import 'providers.dart' show gameConfigProvider;
+import 'providers.dart'
+    show gameConfigProvider, cardCatalogProvider, playerProvider;
 
 export '../../domain/entities/battle_state.dart' show BotDifficulty, GameMode;
 
@@ -90,6 +91,41 @@ class BattleNotifier extends Notifier<BattleState> {
     CardCategory.defense,
   };
 
+  /// Mazo del jugador desde su deckCardIds (con el catálogo global).
+  /// Fallback: si el mazo es inválido/incompleto se completa (o reemplaza)
+  /// con el starter neutral. Nunca falla ni reescribe el mazo persistido.
+  List<GameCard> _buildPlayerDeck(GameMode mode) {
+    final catalog = ref.read(cardCatalogProvider);
+    final ids = ref.read(playerProvider)?.deckCardIds ?? const <String>[];
+    var deck = catalog.resolveDeck(ids);
+
+    if (deck.length < 20) {
+      final starter = NeutralCardsData.buildStarterDeck();
+      if (deck.isEmpty) {
+        deck = List<GameCard>.from(starter);
+      } else {
+        for (int i = 0; deck.length < 20; i++) {
+          deck.add(starter[i % starter.length]);
+        }
+      }
+    }
+
+    if (mode == GameMode.normal) {
+      deck = deck.where((c) => _simpleCategories.contains(c.category)).toList();
+    }
+    return deck;
+  }
+
+  /// Mazo temático del bot según su facción.
+  List<GameCard> _buildBotDeck(HeroEntity botHero, GameMode mode) {
+    final catalog = ref.read(cardCatalogProvider);
+    var deck = catalog.buildFactionDeck(botHero.faction);
+    if (mode == GameMode.normal) {
+      deck = deck.where((c) => _simpleCategories.contains(c.category)).toList();
+    }
+    return deck;
+  }
+
   /// Batalla de arena contra bot con IA escalable (no tutorial).
   void initArenaBattle({
     required HeroEntity playerHero,
@@ -100,30 +136,12 @@ class BattleNotifier extends Notifier<BattleState> {
     _botDifficulty = difficulty;
     _gameMode = gameMode;
 
-    final config = ref.read(gameConfigProvider).value;
-    final firestoreCards = config?.cards ?? [];
-
-    var fullDeck = firestoreCards.isNotEmpty
-        ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
-        : NeutralCardsData.buildStarterDeck();
-
-    if (gameMode == GameMode.normal) {
-      fullDeck = fullDeck.where((c) => _simpleCategories.contains(c.category)).toList();
-    }
-
-    final deck = List<GameCard>.from(fullDeck)..shuffle(Random());
+    // Mazo del jugador (su deckCardIds) y mazo temático del bot.
+    final deck = List<GameCard>.from(_buildPlayerDeck(gameMode))..shuffle(Random());
     final hand = deck.take(5).toList();
     final remainingDeck = deck.skip(5).toList();
 
-    final botFullDeck = firestoreCards.isNotEmpty
-        ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
-        : NeutralCardsData.buildStarterDeck();
-
-    var botFilteredDeck = gameMode == GameMode.normal
-        ? botFullDeck.where((c) => _simpleCategories.contains(c.category)).toList()
-        : botFullDeck;
-
-    final botDeck = List<GameCard>.from(botFilteredDeck)..shuffle(Random());
+    final botDeck = List<GameCard>.from(_buildBotDeck(botHero, gameMode))..shuffle(Random());
     final botHand = botDeck.take(5).toList();
     final botRemainingDeck = botDeck.skip(5).toList();
 
@@ -224,26 +242,12 @@ class BattleNotifier extends Notifier<BattleState> {
     _botDifficulty = difficulty;
     _gameMode = gameMode;
 
-    final config = ref.read(gameConfigProvider).value;
-    final firestoreCards = config?.cards ?? [];
-
-    // El jugador usa su propio mazo (igual que arena)
-    var fullDeck = firestoreCards.isNotEmpty
-        ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
-        : NeutralCardsData.buildStarterDeck();
-
-    if (gameMode == GameMode.normal) {
-      fullDeck = fullDeck.where((c) => _simpleCategories.contains(c.category)).toList();
-    }
-
-    final deck = List<GameCard>.from(fullDeck)..shuffle(Random());
+    // El jugador usa su propio mazo; el bot uno temático de su facción.
+    final deck = List<GameCard>.from(_buildPlayerDeck(gameMode))..shuffle(Random());
     final hand = deck.take(5).toList();
     final remainingDeck = deck.skip(5).toList();
 
-    final botFullDeck = firestoreCards.isNotEmpty
-        ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
-        : NeutralCardsData.buildStarterDeck();
-    final botDeck = List<GameCard>.from(botFullDeck)..shuffle(Random());
+    final botDeck = List<GameCard>.from(_buildBotDeck(botHero, gameMode))..shuffle(Random());
     final botHand = botDeck.take(5).toList();
     final botRemainingDeck = botDeck.skip(5).toList();
 

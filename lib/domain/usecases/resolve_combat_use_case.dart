@@ -116,6 +116,8 @@ class CombatEngine {
     if (playerCard == null) {
       final chainMet = _chainMet('opponent', opponentCard!, previousSlotResults);
       final dmg = _calcDamage(opponentCard, opponentHero, chainMet: chainMet);
+      final (affinityBy, rivalBy) =
+          _affinityFlags('opponent', opponentCard, opponentHero);
       return SlotResult(
         slotIndex: slotIndex,
         playerCard: null,
@@ -124,6 +126,8 @@ class CombatEngine {
         opponentDamageDealt: dmg,
         winner: 'opponent',
         chainBonusBy: chainMet ? 'opponent' : null,
+        affinityBy: affinityBy,
+        rivalBy: rivalBy,
         narrative: '${opponentCard.name} conecta sin resistencia.',
       );
     }
@@ -141,6 +145,8 @@ class CombatEngine {
       final chainMet = _chainMet('player', playerCard, previousSlotResults);
       final dmg = _calcDamage(playerCard, playerHero,
           conditionalMet: conditionalMet, chainMet: chainMet);
+      final (affinityBy, rivalBy) =
+          _affinityFlags('player', playerCard, playerHero);
       return SlotResult(
         slotIndex: slotIndex,
         playerCard: playerCard,
@@ -150,6 +156,8 @@ class CombatEngine {
         winner: 'player',
         conditionalBonusApplied: conditionalMet,
         chainBonusBy: chainMet ? 'player' : null,
+        affinityBy: affinityBy,
+        rivalBy: rivalBy,
         narrative: '${playerCard.name} conecta sin resistencia.',
       );
     }
@@ -173,6 +181,8 @@ class CombatEngine {
       // Defensa que pierde igual bloquea parte del golpe
       final mitigated = opponentCard.category == CardCategory.defense;
       if (mitigated) dmg *= GameConfig.defenseMitigation;
+      final (affinityBy, rivalBy) =
+          _affinityFlags('player', playerCard, playerHero);
       return SlotResult(
         slotIndex: slotIndex,
         playerCard: playerCard,
@@ -183,6 +193,8 @@ class CombatEngine {
         conditionalBonusApplied: conditionalMet,
         chainBonusBy: chainMet ? 'player' : null,
         mitigatedBy: mitigated ? 'opponent' : null,
+        affinityBy: affinityBy,
+        rivalBy: rivalBy,
         narrative: mitigated
             ? '${opponentCard.name} amortigua el golpe de ${playerCard.name}.'
             : '${playerCard.name} supera a ${opponentCard.name}.',
@@ -192,6 +204,8 @@ class CombatEngine {
       var dmg = _calcDamage(opponentCard, opponentHero, chainMet: chainMet);
       final mitigated = playerCard.category == CardCategory.defense;
       if (mitigated) dmg *= GameConfig.defenseMitigation;
+      final (affinityBy, rivalBy) =
+          _affinityFlags('opponent', opponentCard, opponentHero);
       return SlotResult(
         slotIndex: slotIndex,
         playerCard: playerCard,
@@ -201,6 +215,8 @@ class CombatEngine {
         winner: 'opponent',
         chainBonusBy: chainMet ? 'opponent' : null,
         mitigatedBy: mitigated ? 'player' : null,
+        affinityBy: affinityBy,
+        rivalBy: rivalBy,
         narrative: mitigated
             ? '${playerCard.name} amortigua el golpe de ${opponentCard.name}.'
             : '${opponentCard.name} supera a ${playerCard.name}.',
@@ -237,6 +253,18 @@ class CombatEngine {
     // Sinergia héroe-carta (+10%)
     if (card.heroId == hero.id) dmg *= 1.1;
 
+    // Afinidad de facción: +20% si la carta es de tu facción, −20% si es de
+    // una facción rival. Neutral → sin cambio. (Stackea con la sinergia de la
+    // pasiva propia, que es coherente: la pasiva también es de tu facción.)
+    switch (factionAffinityFor(hero.faction, card.factionId)) {
+      case FactionAffinity.affinity:
+        dmg *= GameConfig.factionAffinityMultiplier;
+      case FactionAffinity.rival:
+        dmg *= GameConfig.factionRivalMultiplier;
+      case FactionAffinity.none:
+        break;
+    }
+
     // Bonus condicional (reemplaza el dado: predecible y habilidad-dependiente)
     if (conditionalMet && card.conditionalBonus != null) {
       dmg *= _conditionalMultiplier(card.conditionalBonus!);
@@ -246,6 +274,17 @@ class CombatEngine {
     if (chainMet) dmg *= GameConfig.chainBonusMultiplier;
 
     return dmg;
+  }
+
+  /// Flags de afinidad para el SlotResult: el combatante [side] jugó [card].
+  /// Retorna (affinityBy, rivalBy) con [side] o null según corresponda.
+  static (String?, String?) _affinityFlags(
+      String side, GameCard card, HeroEntity hero) {
+    return switch (factionAffinityFor(hero.faction, card.factionId)) {
+      FactionAffinity.affinity => (side, null),
+      FactionAffinity.rival => (null, side),
+      FactionAffinity.none => (null, null),
+    };
   }
 
   /// Resuelve un round completo: retorna todos los SlotResults y los HP finales.

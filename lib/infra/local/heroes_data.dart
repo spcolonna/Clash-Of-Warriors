@@ -121,6 +121,10 @@ class FactionStarterCards {
     factionId: 'capoeira',
   );
 
+  static const List<GameCard> all = [
+    shaolinCard, ninjaCard, judokaCard, boxerCard, capoeiraCard,
+  ];
+
   static GameCard forFaction(String factionId) => switch (factionId) {
     'shaolin'  => shaolinCard,
     'ninja'    => ninjaCard,

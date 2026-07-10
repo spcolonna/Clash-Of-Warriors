@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/hero.dart';
 import '../../domain/entities/hero_entity.dart';
 import '../../domain/entities/player_profile.dart';
+import '../../infra/local/card_catalog.dart';
 import '../../infra/firebase/firebase_auth_service.dart';
 import '../../infra/firebase/firebase_game_service.dart';
 import '../../infra/firebase/firestore_player_repository.dart';
@@ -583,6 +584,13 @@ final gameConfigProvider =
     AsyncNotifierProvider<GameConfigNotifier, GameConfig>(
   GameConfigNotifier.new,
 );
+
+/// Registro global de cartas, derivado de la config remota. Se reconstruye
+/// cuando llegan/cambian las cartas de Firestore.
+final cardCatalogProvider = Provider<CardCatalog>((ref) {
+  final cards = ref.watch(gameConfigProvider).value?.cards ?? const [];
+  return CardCatalog.build(cards);
+});
 
 class GameConfigNotifier extends AsyncNotifier<GameConfig> {
   @override

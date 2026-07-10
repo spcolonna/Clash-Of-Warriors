@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../infra/local/heroes_data.dart';
-import '../../../infra/local/neutral_cards_data.dart';
 import '../../../domain/entities/hero_entity.dart';
 import '../../../domain/entities/game_card.dart';
 import '../../state/providers.dart';
@@ -35,9 +34,10 @@ class _DeckBuilderScreenState extends ConsumerState<DeckBuilderScreen> {
     );
   }
 
-  // Busca la GameCard por id en las cartas neutrales y en las de facción.
+  // Busca la GameCard por id en el catálogo global (neutrales + facción +
+  // cartas remotas cargadas desde el admin).
   GameCard? _findCard(String id) =>
-      NeutralCardsData.findById(id) ?? FactionStarterCards.findById(id);
+      ref.read(cardCatalogProvider).findById(id);
 
   @override
   Widget build(BuildContext context) {

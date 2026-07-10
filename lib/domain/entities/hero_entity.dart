@@ -10,6 +10,45 @@ enum Faction {
   capoeira,
 }
 
+/// Convierte el `factionId` (String? guardado en las cartas / Firestore) al
+/// enum `Faction`. Retorna null para neutrales o ids desconocidos.
+Faction? factionFromId(String? id) => switch (id) {
+      'shaolin' => Faction.shaolin,
+      'ninja' => Faction.ninja,
+      'judoka' => Faction.judoka,
+      'boxer' => Faction.boxer,
+      'capoeira' => Faction.capoeira,
+      _ => null,
+    };
+
+/// Rivalidades entre facciones según el lore (La Ciudadela).
+/// - Shaolin ↔ Clan ninja (secuestran al Maestro Lin).
+/// - Judoka ↔ Boxer (Federación corrupta vs promotores como Vespa).
+/// - Capoeira → Clan ninja (Mila busca a Lucas, endeudado con el Clan).
+const Map<Faction, Set<Faction>> factionEnemies = {
+  Faction.shaolin: {Faction.ninja},
+  Faction.ninja: {Faction.shaolin, Faction.capoeira},
+  Faction.judoka: {Faction.boxer},
+  Faction.boxer: {Faction.judoka},
+  Faction.capoeira: {Faction.ninja},
+};
+
+/// Relación de una carta con la facción del héroe que la juega.
+enum FactionAffinity { none, affinity, rival }
+
+/// Determina si una carta es afín (misma facción del héroe), rival (facción
+/// enemiga según el lore) o neutral. Usado tanto por el motor de combate
+/// (para el multiplicador de daño) como por la UI (badges y look de la carta).
+FactionAffinity factionAffinityFor(Faction heroFaction, String? cardFactionId) {
+  final cf = factionFromId(cardFactionId);
+  if (cf == null) return FactionAffinity.none;
+  if (cf == heroFaction) return FactionAffinity.affinity;
+  if (factionEnemies[heroFaction]?.contains(cf) ?? false) {
+    return FactionAffinity.rival;
+  }
+  return FactionAffinity.none;
+}
+
 class HeroStats {
   final int punch;   // P
   final int kick;    // K

@@ -100,6 +100,10 @@ class SlotResult {
   final String? chainBonusBy;
   // 'player' | 'opponent' | null — quién mitigó daño perdiendo con Defensa
   final String? mitigatedBy;
+  // 'player' | 'opponent' | null — quién pegó con bonus de afinidad de facción
+  final String? affinityBy;
+  // 'player' | 'opponent' | null — quién pegó nerfeado por facción rival
+  final String? rivalBy;
   final String narrative;
 
   const SlotResult({
@@ -112,6 +116,8 @@ class SlotResult {
     this.conditionalBonusApplied = false,
     this.chainBonusBy,
     this.mitigatedBy,
+    this.affinityBy,
+    this.rivalBy,
     required this.narrative,
   });
 }

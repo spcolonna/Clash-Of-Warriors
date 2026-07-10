@@ -504,6 +504,27 @@ class _SlotClashAnimatorState extends State<SlotClashAnimator>
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════
 
+  Widget _effectBadge(String text, Color color) => Container(
+        margin: const EdgeInsets.only(bottom: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 10),
+          ],
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 9,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.5,
+          ),
+        ),
+      );
+
   Widget _buildHighlightedCard(
       GameCard card,
       double cardWidth, {
@@ -513,43 +534,26 @@ class _SlotClashAnimatorState extends State<SlotClashAnimator>
         required Color labelColor,
         required bool showVerdict,
       }) {
-    // Badges extra: cadena (ganador) y bloqueo parcial (perdedor con Defensa)
+    // Badges de efectos aplicados a esta carta: afinidad/rival de facción,
+    // cadena (ganador) y bloqueo parcial (perdedor con Defensa).
     final side = label == 'TÚ' ? 'player' : 'opponent';
     final hasChain = isWinner && widget.result.chainBonusBy == side;
     final hasMitigation = isLoser && widget.result.mitigatedBy == side;
+    final hasAffinity = widget.result.affinityBy == side;
+    final hasRival = widget.result.rivalBy == side;
+
+    final effectBadges = <Widget>[
+      if (hasAffinity)
+        _effectBadge('⚡ AFINIDAD +20%', const Color(0xFFF5B800)),
+      if (hasRival) _effectBadge('💢 RIVAL −20%', const Color(0xFF9B59B6)),
+      if (hasChain) _effectBadge('⛓ CADENA +50%', const Color(0xFFF5B800)),
+      if (hasMitigation) _effectBadge('🛡 BLOQUEO −50%', const Color(0xFF3498DB)),
+    ];
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (showVerdict && (hasChain || hasMitigation))
-          Container(
-            margin: const EdgeInsets.only(bottom: 3),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: hasChain
-                  ? const Color(0xFFF5B800)
-                  : const Color(0xFF3498DB),
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: (hasChain
-                          ? const Color(0xFFF5B800)
-                          : const Color(0xFF3498DB))
-                      .withValues(alpha: 0.6),
-                  blurRadius: 10,
-                ),
-              ],
-            ),
-            child: Text(
-              hasChain ? '⛓ CADENA +50%' : '🛡 BLOQUEO −50%',
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 9,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
+        if (showVerdict) ...effectBadges,
         if (showVerdict && (isWinner || isLoser))
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),

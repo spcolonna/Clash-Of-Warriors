@@ -120,14 +120,14 @@ class NeutralCardsData {
     baseDamage: 16,
   );
 
-  static final _allUniqueCards = [
+  static final List<GameCard> allUniqueCards = [
     golpeBasico, golpeFuerte, patadaBasica, patadaFuerte,
     agarreBasico, llaveBasica, guardiaBasica, bloqueoBasico,
     pasoBasico, esquiveBasico,
   ];
 
   static GameCard? findById(String id) {
-    for (final c in _allUniqueCards) {
+    for (final c in allUniqueCards) {
       if (c.id == id) return c;
     }
     return null;
@@ -186,26 +186,33 @@ class NeutralCardsData {
     for (final entry in _deckComposition.entries) {
       final data = cardMap[entry.key];
       if (data == null) continue; // deshabilitada o no existe
-      final card = _mapToGameCard(data);
+      final card = mapToGameCard(data);
       for (int i = 0; i < entry.value; i++) { result.add(card); }
     }
     return result.isEmpty ? buildStarterDeck() : result;
   }
 
-  static GameCard _mapToGameCard(Map<String, dynamic> d) {
+  /// Convierte un doc de Firestore (gameData/cards/items) en un GameCard.
+  /// Público: es el único deserializador de cartas, reutilizado por CardCatalog.
+  static GameCard mapToGameCard(Map<String, dynamic> d) {
     final categoryStr = d['category'] as String? ?? 'punch';
     final rarityStr   = d['rarity']   as String? ?? 'neutral';
     return GameCard(
       id:          d['id']          as String,
       name:        d['name']        as String? ?? '',
-      lore:        d['lore']        as String? ?? '',
+      // El admin viejo guardaba el texto en 'description'; el nuevo en 'lore'.
+      lore:        (d['lore'] ?? d['description']) as String? ?? '',
       category:    _parseCategory(categoryStr),
       rarity:      _parseRarity(rarityStr),
       staminaCost: d['staminaCost'] as int? ?? 1,
       baseDamage:  d['baseDamage']  as int?,
       staminaBonus: d['staminaBonus'] as int?,
+      conditionalBonus: _parseConditionalBonus(d['conditionalBonus'] as String?),
       heroId:      d['heroId']      as String?,
       factionId:   d['factionId']   as String?,
+      imageFolder: d['imageFolder'] as String?,
+      imageName:   d['imageName']   as String?,
+      imageUrl:    d['imageUrl']    as String?,
     );
   }
 
@@ -219,9 +226,18 @@ class NeutralCardsData {
 
   static CardRarity _parseRarity(String s) => switch (s) {
     'common'    => CardRarity.common,
+    'uncommon'  => CardRarity.common, // el juego no distingue uncommon
     'rare'      => CardRarity.rare,
     'epic'      => CardRarity.epic,
     'legendary' => CardRarity.legendary,
     _           => CardRarity.neutral,
+  };
+
+  static ConditionalBonus? _parseConditionalBonus(String? s) => switch (s) {
+    'wonPreviousSlot' => ConditionalBonus.wonPreviousSlot,
+    'opponentRested'  => ConditionalBonus.opponentRested,
+    'playerAhead'     => ConditionalBonus.playerAhead,
+    'lowHp'           => ConditionalBonus.lowHp,
+    _                 => null,
   };
 }

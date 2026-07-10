@@ -11,19 +11,27 @@
 //
 // Para ajustar, cambiá los factores de cada SizedBox.
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../domain/entities/game_card.dart';
+import '../../domain/entities/hero_entity.dart';
 
 class GameCardWidget extends StatefulWidget {
   final GameCard card;
   final double width;
   final bool isPassive;
 
+  /// Facción del héroe en cuyo contexto se muestra la carta (mano de batalla).
+  /// Si se pasa, las cartas afines brillan (+20%) y las rivales se ven
+  /// atenuadas (−20%). null en tienda/deck builder → sin tratamiento.
+  final Faction? contextHeroFaction;
+
   const GameCardWidget({
     super.key,
     required this.card,
     this.width = 100,
     this.isPassive = false,
+    this.contextHeroFaction,
   });
 
   @override
@@ -88,11 +96,11 @@ class _GameCardWidgetState extends State<GameCardWidget>
     final bubbleSize = headerH * 0.55;
 
     if (!_isPassive) {
-      return _buildCard(
+      return _withAffinity(_buildCard(
         card: card, width: width, h: h,
         headerH: headerH, imageH: imageH, badgeH: badgeH,
         loreH: loreH, gapH: gapH, bubbleSize: bubbleSize, glowAlpha: 0,
-      );
+      ));
     }
 
     return AnimatedBuilder(
@@ -103,6 +111,86 @@ class _GameCardWidgetState extends State<GameCardWidget>
         loreH: loreH, gapH: gapH, bubbleSize: bubbleSize,
         glowAlpha: _glowAnim!.value,
       ),
+    );
+  }
+
+  /// Envuelve la carta con el tratamiento de afinidad de facción cuando se
+  /// muestra en el contexto de un héroe (mano de batalla): glow + badge +20%
+  /// si es afín, atenuada + badge −20% si es rival.
+  Widget _withAffinity(Widget card) {
+    final faction = widget.contextHeroFaction;
+    if (faction == null || widget.card.factionId == null) return card;
+
+    final affinity = factionAffinityFor(faction, widget.card.factionId);
+    if (affinity == FactionAffinity.none) return card;
+
+    final isAffinity = affinity == FactionAffinity.affinity;
+    final color =
+        isAffinity ? const Color(0xFFF5B800) : const Color(0xFF9B59B6);
+    final badgeText = isAffinity ? '+20%' : '−20%';
+
+    Widget content = card;
+    if (!isAffinity) {
+      // Rival: desaturar levemente para leer "penalizada" de un vistazo.
+      content = Opacity(
+        opacity: 0.82,
+        child: ColorFiltered(
+          colorFilter: const ColorFilter.matrix([
+            0.7, 0.2, 0.1, 0, 0,
+            0.2, 0.7, 0.1, 0, 0,
+            0.2, 0.2, 0.6, 0, 0,
+            0, 0, 0, 1, 0,
+          ]),
+          child: card,
+        ),
+      );
+    }
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        if (isAffinity)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.55),
+                    blurRadius: 12,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        content,
+        Positioned(
+          bottom: -4,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(6),
+                boxShadow: [
+                  BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 4),
+                ],
+              ),
+              child: Text(
+                badgeText,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -134,7 +222,10 @@ class _GameCardWidgetState extends State<GameCardWidget>
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: effectiveBorderColor,
-              width: _isPassive || factionColor != null ? 2.0 : 1.5,
+              // Cartas de facción: borde un poco más marcado (look premium).
+              width: _isPassive
+                  ? 2.0
+                  : (factionColor != null ? 2.5 : 1.5),
             ),
             boxShadow: [
               BoxShadow(
@@ -148,6 +239,13 @@ class _GameCardWidgetState extends State<GameCardWidget>
                       .withValues(alpha: glowAlpha * 0.7),
                   blurRadius: 12 + glowAlpha * 8,
                   spreadRadius: 1,
+                ),
+              // Glow suave del color de facción (cartas temáticas).
+              if (!_isPassive && factionColor != null)
+                BoxShadow(
+                  color: factionColor.withValues(alpha: 0.35),
+                  blurRadius: 8,
+                  spreadRadius: 0.5,
                 ),
             ],
           ),
@@ -222,18 +320,7 @@ class _GameCardWidgetState extends State<GameCardWidget>
                   padding: EdgeInsets.symmetric(horizontal: width * 0.05),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(6),
-                    child: Image.asset(
-                        _resolveCardImagePath(card),
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: imageH,
-                        errorBuilder: (_, __, ___) => Image.asset(
-                          _categoryImagePath(card.category),
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: imageH,
-                        ),
-                      ),
+                    child: _CardImage(card: card, height: imageH),
                   ),
                 ),
               ),
@@ -447,11 +534,48 @@ String _categoryLabel(CardCategory category) => switch (category) {
   CardCategory.dodge   => 'ESQUIVE',
 };
 
-String _resolveCardImagePath(GameCard card) {
-  if (card.imageFolder != null && card.imageName != null) {
-    return 'assets/images/cards/${card.imageFolder}/${card.imageName}';
+/// Imagen de la carta con prioridad: imageUrl (red, cacheada) → asset por
+/// imageFolder/imageName → default por categoría. Siempre cae al asset de la
+/// categoría si algo falla (offline, URL rota, asset faltante).
+class _CardImage extends StatelessWidget {
+  final GameCard card;
+  final double height;
+
+  const _CardImage({required this.card, required this.height});
+
+  Widget _fallback() => Image.asset(
+        _categoryImagePath(card.category),
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: height,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final url = card.imageUrl;
+    if (url != null && url.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: url,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: height,
+        placeholder: (_, __) => _fallback(),
+        errorWidget: (_, __, ___) => _fallback(),
+      );
+    }
+
+    if (card.imageFolder != null && card.imageName != null) {
+      return Image.asset(
+        'assets/images/cards/${card.imageFolder}/${card.imageName}',
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: height,
+        errorBuilder: (_, __, ___) => _fallback(),
+      );
+    }
+
+    return _fallback();
   }
-  return _categoryImagePath(card.category);
 }
 
 Color? _factionColor(String? factionId) => switch (factionId) {

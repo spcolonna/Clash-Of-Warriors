@@ -27,6 +27,7 @@ class GameCard {
   final String? factionId;     // null = neutral
   final String? imageFolder;   // subcarpeta dentro de assets/images/cards/
   final String? imageName;     // nombre del archivo, ej. shadow_kick.png
+  final String? imageUrl;      // imagen remota (Firebase Storage) — prioridad
 
   const GameCard({
     required this.id,
@@ -42,6 +43,7 @@ class GameCard {
     this.factionId,
     this.imageFolder,
     this.imageName,
+    this.imageUrl,
   });
 
   bool get isNeutral => heroId == null && factionId == null;

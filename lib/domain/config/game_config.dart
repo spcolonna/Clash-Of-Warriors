@@ -132,6 +132,13 @@ class GameConfig {
   // Ronda perfecta: ganar los 3 slots suma un bonus de daño extra.
   static const double perfectRoundBonus = 0.25;
 
+  // ── AFINIDAD DE FACCIÓN ───────────────────────────────
+  // Mazos temáticos: una carta de la misma facción que tu héroe pega más;
+  // una carta de facción rival (ver factionEnemies) pega menos. Las cartas
+  // neutrales no se ven afectadas.
+  static const double factionAffinityMultiplier = 1.2; // +20%
+  static const double factionRivalMultiplier = 0.8;    // −20%
+
   // ── SONIDOS ───────────────────────────────────────────
   static const String sfxPath = 'assets/sounds/';
   static const Map<String, String> sfxFiles = {

@@ -954,6 +954,7 @@ class _BottomSection extends StatelessWidget {
                 onDealAnimationComplete: onDealComplete,
                 remainingStamina: battle.player.remainingStamina,
                 onCardPlay: onCardPlay,
+                heroFaction: battle.player.hero.faction,
                 nextSlotIsOpening: battle.player.plannedSequence[0] == null &&
                     !battle.player.statusEffects.any((e) =>
                         e.type == StatusEffectType.slotBlocked &&
@@ -1836,6 +1837,15 @@ class _SlotLogRow extends StatelessWidget {
                       ? const Color(0xFF3498DB)
                       : const Color(0xFF8A8A9A),
                 ),
+              if (slot.affinityBy != null)
+                _LogChip(
+                  label: '⚡ afinidad',
+                  color: slot.affinityBy == 'player'
+                      ? const Color(0xFFF5B800)
+                      : const Color(0xFFE74C3C),
+                ),
+              if (slot.rivalBy != null)
+                const _LogChip(label: '💢 rival', color: Color(0xFF9B59B6)),
             ],
           ),
           const SizedBox(width: 8),

@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../domain/entities/game_card.dart';
+import '../../domain/entities/hero_entity.dart';
 import '../../infra/services/haptics_service.dart';
 import 'card_preview_dialog.dart';
 import 'game_card_widget.dart';
@@ -23,6 +24,9 @@ class PlayerHandWidget extends StatefulWidget {
   /// del preview avisa que la carta quedará sellada.
   final bool nextSlotIsOpening;
 
+  /// Facción del héroe del jugador — activa el look de afinidad en las cartas.
+  final Faction? heroFaction;
+
   const PlayerHandWidget({
     super.key,
     required this.cards,
@@ -32,6 +36,7 @@ class PlayerHandWidget extends StatefulWidget {
     this.remainingStamina,
     this.onCardPlay,
     this.nextSlotIsOpening = false,
+    this.heroFaction,
   });
 
   @override
@@ -144,6 +149,7 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
             card: cardData.card,
             width: cardWidth,
             isPassive: false,
+            contextHeroFaction: widget.heroFaction,
           );
           final cardWidget = affordable
               ? rawCard
@@ -193,6 +199,7 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
                   card: cardData.card,
                   width: cardWidth,
                   isPassive: false,
+                  contextHeroFaction: widget.heroFaction,
                 ),
               ),
             ),
