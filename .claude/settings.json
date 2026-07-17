@@ -6,7 +6,17 @@
       "Bash(git -C /Users/sebastianperez/Documents/Personal/ClashOfWarriors/admin-web log --oneline -1 -- src/pages/StoryArcsPage.tsx)",
       "Bash(git -C /Users/sebastianperez/Documents/Personal/ClashOfWarriors/admin-web status --short)",
       "Bash(python3 -)",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(firebase login:list)",
+      "Bash(firebase target *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://firebasestorage.googleapis.com/v0/b/clashofwarriors-309ed.firebasestorage.app/o\")",
+      "Bash(gcloud config *)",
+      "Bash(gsutil ls *)",
+      "Bash(gsutil cp *)",
+      "Bash(sips -s format png /private/tmp/claude-502/-Users-sebastianperez-Documents-Personal-ClashOfWarriors-arena-project/14b038ac-c599-4b44-b90a-ed671f83ea46/scratchpad/check.webp --out /private/tmp/claude-502/-Users-sebastianperez-Documents-Personal-ClashOfWarriors-arena-project/14b038ac-c599-4b44-b90a-ed671f83ea46/scratchpad/check.png)",
+      "Bash(file __TRACKED_VAR__/check.png)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s -o /dev/null -w 'HTTP %{http_code} · %{size_download} bytes · content-type: %{content_type}\\\\n' 'https://firebasestorage.googleapis.com/v0/b/clashofwarriors-309ed.firebasestorage.app/o/cards%2Fshaolin_disciple_jab.webp?alt=media&token=61dfb52e-041c-4031-bfcb-3f27418feda9')"
     ]
   }
 }

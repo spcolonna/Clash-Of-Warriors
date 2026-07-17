@@ -101,6 +101,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           //  el UI nunca consumió las traducciones, así que el selector era
           //  una promesa falsa.)
 
+          const SizedBox(height: 16),
+
+          // Recargar contenido: vuelve a pedir cartas/héroes/config a Firestore
+          // sin reiniciar la app. Útil al iterar arte/balance desde el admin.
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                ref.invalidate(gameConfigProvider);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Contenido actualizado desde el servidor'),
+                  duration: Duration(milliseconds: 1500),
+                  behavior: SnackBarBehavior.floating,
+                ));
+              },
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Recargar contenido del juego'),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.accent),
+                foregroundColor: AppColors.accent,
+              ),
+            ),
+          ),
+
           const SizedBox(height: 24),
 
           // Sign out

@@ -1,12 +1,14 @@
 // lib/delivery/widgets/shop/shop_card_item.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/entities/game_card.dart';
+import '../../state/providers.dart';
 import '../../state/shop_provider.dart';
 import '../card_preview_dialog.dart';
 import '../game_card_widget.dart';
 
-class ShopCardItem extends StatelessWidget {
+class ShopCardItem extends ConsumerWidget {
   final ShopCard card;
   final String? factionId;
   final bool isFactionUnlocked;
@@ -38,8 +40,11 @@ class ShopCardItem extends StatelessWidget {
   );
 
   @override
-  Widget build(BuildContext context) {
-    final gameCard = _toGameCard();
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Usar el GameCard real del catálogo (trae imageUrl, efectos, etc.);
+    // caer a la reconstrucción local solo si aún no está en el catálogo.
+    final gameCard =
+        ref.watch(cardCatalogProvider).findById(card.id) ?? _toGameCard();
 
     return GestureDetector(
       onTap: onTap,

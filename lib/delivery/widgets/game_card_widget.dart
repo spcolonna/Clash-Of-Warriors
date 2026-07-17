@@ -597,6 +597,12 @@ class _CardImage extends StatelessWidget {
         fit: BoxFit.cover,
         width: double.infinity,
         height: height,
+        // Tope de decodificación: aunque el archivo ya venga liviano
+        // (~100-180KB, comprimido en el admin), sin esto Flutter igual
+        // decodificaría el bitmap completo en memoria. Con varias cartas
+        // renderizadas a la vez (mano, grilla del mazo, tienda) esto evita
+        // gastar RAM/CPU de más en una imagen que se ve a lo sumo a 900px.
+        memCacheWidth: 900,
         placeholder: (_, __) => _fallback(),
         errorWidget: (_, __, ___) => _fallback(),
       );
