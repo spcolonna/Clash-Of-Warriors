@@ -4,9 +4,20 @@ import 'battle_state.dart' show BotDifficulty;
 
 class GameFeatures {
   final bool simpleModeEnabled;
-  const GameFeatures({this.simpleModeEnabled = false});
-  factory GameFeatures.fromMap(Map<String, dynamic> m) =>
-      GameFeatures(simpleModeEnabled: m['simpleModeEnabled'] as bool? ?? false);
+
+  /// Tienda premium (packs USD): oculta por defecto hasta tener IAP real.
+  /// Se habilita desde el admin en gameConfig/settings → features.
+  final bool premiumShopEnabled;
+
+  const GameFeatures({
+    this.simpleModeEnabled = false,
+    this.premiumShopEnabled = false,
+  });
+
+  factory GameFeatures.fromMap(Map<String, dynamic> m) => GameFeatures(
+        simpleModeEnabled: m['simpleModeEnabled'] as bool? ?? false,
+        premiumShopEnabled: m['premiumShopEnabled'] as bool? ?? false,
+      );
 }
 
 class ProgressRewardConfig {

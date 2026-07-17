@@ -1,132 +1,212 @@
+// lib/delivery/screens/ranking/ranking_screen.dart
+//
+// Ranking semanal: top 50 por puntos de batalla de la semana ISO actual.
+// Los puntos se envían al ganar batallas de arena (addBattlePoints).
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../state/providers.dart';
-import '../../theme/app_theme.dart';
-import '../../widgets/hero_avatar.dart';
 
-class RankingScreen extends ConsumerWidget {
+import '../../../infra/firebase/firebase_game_service.dart';
+import '../../state/providers.dart';
+
+class RankingScreen extends ConsumerStatefulWidget {
   const RankingScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final player = ref.watch(playerProvider);
-    if (player == null) return const SizedBox();
+  ConsumerState<RankingScreen> createState() => _RankingScreenState();
+}
 
-    // For now, generate some mock leaderboard entries including the player
-    final entries = _buildLeaderboard(player.name, player.elo, player.wins, player.streak);
+class _RankingScreenState extends ConsumerState<RankingScreen> {
+  late Future<List<Map<String, dynamic>>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = FirebaseGameService().fetchWeeklyTop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final myUid = ref.watch(playerProvider)?.uid;
+    const gold = Color(0xFFD4AF37);
 
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Column(
-            children: [
-              TextButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back, size: 18, color: Colors.white70),
-                label: const Text('Volver', style: TextStyle(color: Colors.white70)),
+      backgroundColor: const Color(0xFF0D0D0D),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        title: Column(
+          children: [
+            const Text(
+              'RANKING SEMANAL',
+              style: TextStyle(
+                color: gold,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.5,
               ),
-              const Icon(Icons.leaderboard, size: 36, color: AppColors.gold),
-              const SizedBox(height: 4),
-              const Text('RANKING', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.gold)),
-              const SizedBox(height: 16),
-
-              // Header
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Row(
-                  children: [
-                    SizedBox(width: 30, child: Text('#', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textSecondary))),
-                    Expanded(child: Text('Guerrero', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textSecondary))),
-                    SizedBox(width: 60, child: Text('ELO', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textSecondary))),
-                    SizedBox(width: 40, child: Text('W', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textSecondary))),
-                    SizedBox(width: 40, child: Text('Racha', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textSecondary))),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 6),
-
-              Expanded(
-                child: ListView.builder(
-                  itemCount: entries.length,
-                  itemBuilder: (_, i) {
-                    final e = entries[i];
-                    final isPlayer = e['name'] == player.name;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: isPlayer ? AppColors.primary.withOpacity(0.15) : AppColors.surface,
-                        borderRadius: BorderRadius.circular(10),
-                        border: isPlayer ? Border.all(color: AppColors.primary, width: 2) : null,
-                      ),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 30,
-                            child: Text(
-                              '${i + 1}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w900,
-                                color: i < 3 ? AppColors.gold : Colors.white,
-                              ),
-                            ),
-                          ),
-                          Expanded(child: Text(
-                            '${e['name']}',
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: isPlayer ? AppColors.primary : Colors.white),
-                            overflow: TextOverflow.ellipsis,
-                          )),
-                          SizedBox(width: 60, child: Text(
-                            '${e['elo']}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.accent),
-                          )),
-                          SizedBox(width: 40, child: Text(
-                            '${e['wins']}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF2E7D32)),
-                          )),
-                          SizedBox(width: 40, child: Text(
-                            '${e['streak']}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent),
-                          )),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+            ),
+            Text(
+              'Semana ${FirebaseGameService.currentWeekKey().split('-W').last} · se reinicia cada lunes',
+              style: const TextStyle(color: Colors.white38, fontSize: 10),
+            ),
+          ],
         ),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _future,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return const Center(
+              child: Text(
+                'No se pudo cargar el ranking.\nProbá de nuevo en un rato.',
+                style: TextStyle(color: Colors.white54),
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
+          final entries = snap.data ?? const [];
+          if (entries.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: Text(
+                  'Todavía nadie sumó puntos esta semana.\n¡Ganá una batalla y estrená el podio!',
+                  style: TextStyle(color: Colors.white54, height: 1.5),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+
+          final myIndex = entries.indexWhere((e) => e['uid'] == myUid);
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(() {
+                _future = FirebaseGameService().fetchWeeklyTop();
+              });
+            },
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              itemCount: entries.length + (myIndex >= 3 ? 1 : 0),
+              itemBuilder: (context, i) {
+                // Fila fija "tu posición" arriba si no estás en el podio
+                if (myIndex >= 3 && i == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _RankRow(
+                      rank: myIndex + 1,
+                      entry: entries[myIndex],
+                      isMe: true,
+                    ),
+                  );
+                }
+                final idx = myIndex >= 3 ? i - 1 : i;
+                final entry = entries[idx];
+                return _RankRow(
+                  rank: idx + 1,
+                  entry: entry,
+                  isMe: entry['uid'] == myUid,
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }
+}
 
-  List<Map<String, dynamic>> _buildLeaderboard(String playerName, int playerElo, int playerWins, int playerStreak) {
-    final bots = [
-      {'name': 'DragonFist_99', 'elo': 1450, 'wins': 42, 'streak': 8},
-      {'name': 'ShadowKick', 'elo': 1380, 'wins': 35, 'streak': 5},
-      {'name': 'IronPalm_X', 'elo': 1320, 'wins': 30, 'streak': 3},
-      {'name': 'TigerClaw', 'elo': 1280, 'wins': 28, 'streak': 4},
-      {'name': 'StormBlock', 'elo': 1240, 'wins': 25, 'streak': 2},
-      {'name': 'GrappleMaster', 'elo': 1200, 'wins': 22, 'streak': 1},
-      {'name': 'FuryPunch', 'elo': 1150, 'wins': 18, 'streak': 0},
-      {'name': 'SwiftStrike', 'elo': 1100, 'wins': 15, 'streak': 2},
-      {'name': 'SteelGuard', 'elo': 1050, 'wins': 12, 'streak': 0},
-    ];
-    final all = <Map<String, dynamic>>[
-      {'name': playerName, 'elo': playerElo, 'wins': playerWins, 'streak': playerStreak},
-      ...bots,
-    ];
-    all.sort((a, b) => (b['elo'] as int).compareTo(a['elo'] as int));
-    return all;
+class _RankRow extends StatelessWidget {
+  final int rank;
+  final Map<String, dynamic> entry;
+  final bool isMe;
+
+  const _RankRow({required this.rank, required this.entry, required this.isMe});
+
+  @override
+  Widget build(BuildContext context) {
+    const gold = Color(0xFFD4AF37);
+    final medal = switch (rank) {
+      1 => '🥇',
+      2 => '🥈',
+      3 => '🥉',
+      _ => null,
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isMe
+            ? gold.withValues(alpha: 0.12)
+            : const Color(0xFF1A1A2E).withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isMe ? gold : Colors.white10,
+          width: isMe ? 1.5 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 34,
+            child: medal != null
+                ? Text(medal, style: const TextStyle(fontSize: 18))
+                : Text(
+                    '#$rank',
+                    style: const TextStyle(
+                      color: Colors.white38,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+          ),
+          Expanded(
+            child: Text(
+              (entry['name'] as String?)?.trim().isNotEmpty == true
+                  ? entry['name'] as String
+                  : 'Guerrero',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isMe ? gold : Colors.white,
+                fontSize: 14,
+                fontWeight: isMe ? FontWeight.w900 : FontWeight.w600,
+              ),
+            ),
+          ),
+          if (isMe)
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Text(
+                'VOS',
+                style: TextStyle(
+                  color: gold,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+          Text(
+            '${entry['points'] ?? 0} pts',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

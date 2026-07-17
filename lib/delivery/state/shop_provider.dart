@@ -2,7 +2,6 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../infra/firebase/game_data_repository.dart';
-import 'providers.dart';
 
 // ── Modelos locales ────────────────────────────────────────────────────────
 

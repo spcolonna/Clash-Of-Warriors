@@ -116,6 +116,12 @@ class BattleNotifier extends Notifier<BattleState> {
     return deck;
   }
 
+  /// Aplica las estrellas de ascensión del jugador al héroe (+1 stat/★).
+  HeroEntity _withAscension(HeroEntity hero) {
+    final stars = ref.read(playerProvider)?.heroStarsFor(hero.id) ?? 1;
+    return stars > 1 ? hero.copyWith(stars: stars) : hero;
+  }
+
   /// Mazo temático del bot según su facción.
   List<GameCard> _buildBotDeck(HeroEntity botHero, GameMode mode) {
     final catalog = ref.read(cardCatalogProvider);
@@ -135,6 +141,7 @@ class BattleNotifier extends Notifier<BattleState> {
   }) {
     _botDifficulty = difficulty;
     _gameMode = gameMode;
+    playerHero = _withAscension(playerHero);
 
     // Mazo del jugador (su deckCardIds) y mazo temático del bot.
     final deck = List<GameCard>.from(_buildPlayerDeck(gameMode))..shuffle(Random());
@@ -189,27 +196,39 @@ class BattleNotifier extends Notifier<BattleState> {
     required HeroEntity botHero,
   }) {
     _botDifficulty = null;
+    playerHero = _withAscension(playerHero);
+    // El tutorial se juega en modo Normal (Puño > Patada > Defensa):
+    // 3 categorías para aprender la regla base antes de las 5 del Experto.
+    _gameMode = GameMode.normal;
     final config = ref.read(gameConfigProvider).value;
     final firestoreCards = config?.cards ?? [];
 
-    final deck = (firestoreCards.isNotEmpty
-            ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
-            : NeutralCardsData.buildStarterDeck())
+    List<GameCard> buildSimpleDeck() {
+      final full = firestoreCards.isNotEmpty
+          ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
+          : NeutralCardsData.buildStarterDeck();
+      return full
+          .where((c) => _simpleCategories.contains(c.category))
+          .toList()
         ..shuffle(Random());
+    }
+
+    final deck = buildSimpleDeck();
     final hand = deck.take(5).toList();
     final remainingDeck = deck.skip(5).toList();
 
-    final botDeck = (firestoreCards.isNotEmpty
-            ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
-            : NeutralCardsData.buildStarterDeck())
-        ..shuffle(Random());
+    final botDeck = buildSimpleDeck();
     final botHand = botDeck.take(5).toList();
     final botRemainingDeck = botDeck.skip(5).toList();
 
-    final weakenedBot = botHero.copyWith(maxHp: 5); // seba
+    // HP suficiente para 2-3 rondas: da tiempo a enseñar apertura,
+    // choques, cadenas y scout sin alargar la primera experiencia.
+    final weakenedBot =
+        botHero.copyWith(maxHp: TutorialBotAI.tutorialBotHp);
 
     state = BattleState(
       phase: BattlePhase.planning,
+      gameMode: GameMode.normal,
       player: CombatantState(
         hero: playerHero,
         currentHp: playerHero.maxHp,
@@ -241,6 +260,7 @@ class BattleNotifier extends Notifier<BattleState> {
   }) {
     _botDifficulty = difficulty;
     _gameMode = gameMode;
+    playerHero = _withAscension(playerHero);
 
     // El jugador usa su propio mazo; el bot uno temático de su facción.
     final deck = List<GameCard>.from(_buildPlayerDeck(gameMode))..shuffle(Random());
@@ -509,7 +529,8 @@ class BattleNotifier extends Notifier<BattleState> {
         .where((e) => e.roundsRemaining > 0)
         .toList();
 
-    // 2. Generar nuevos StatusEffects desde passives que ganaron slots
+    // 2. Generar nuevos StatusEffects desde passives y cartas de efecto
+    //    que ganaron slots (ambos lados).
     final newPlayerEffects = List<StatusEffect>.from(tickedPlayerEffects);
     final newOpponentEffects = List<StatusEffect>.from(tickedOpponentEffects);
 
@@ -532,6 +553,52 @@ class BattleNotifier extends Notifier<BattleState> {
               roundsRemaining: 1,
             ));
           }
+        }
+
+        // Cartas de efecto no-daño: se disparan al ganar su slot.
+        void applyCardEffect({
+          required GameCard? card,
+          required bool byPlayer,
+        }) {
+          final effect = card?.effect;
+          if (effect == null) return;
+          final value = card!.effectValue ?? 0;
+          switch (effect) {
+            case CardEffect.drainStamina:
+              (byPlayer ? newOpponentEffects : newPlayerEffects).add(
+                StatusEffect(
+                  type: StatusEffectType.staminaReduction,
+                  value: value,
+                  roundsRemaining: 1,
+                ),
+              );
+            case CardEffect.staminaBoost:
+              (byPlayer ? newPlayerEffects : newOpponentEffects).add(
+                StatusEffect(
+                  type: StatusEffectType.staminaBoost,
+                  value: value,
+                  roundsRemaining: 1,
+                ),
+              );
+            case CardEffect.heal:
+              if (byPlayer) {
+                player = player.copyWith(
+                  currentHp: (player.currentHp + value)
+                      .clamp(0, player.hero.maxHp),
+                );
+              } else {
+                opponent = opponent.copyWith(
+                  currentHp: (opponent.currentHp + value)
+                      .clamp(0, opponent.hero.maxHp),
+                );
+              }
+          }
+        }
+
+        if (slot.winner == 'player') {
+          applyCardEffect(card: slot.playerCard, byPlayer: true);
+        } else if (slot.winner == 'opponent') {
+          applyCardEffect(card: slot.opponentCard, byPlayer: false);
         }
       }
     }
@@ -589,14 +656,25 @@ class BattleNotifier extends Notifier<BattleState> {
     final opponentBaseStamina =
         GameConfig.staminaForRound(state.currentRound, opponent.hero.maxStamina);
 
-    // Aplicar reducción de stamina + carry-over bonus
-    final playerStaminaReduction = player.statusEffects
-        .where((e) => e.type == StatusEffectType.staminaReduction)
-        .fold(0, (sum, e) => sum + e.value);
+    // Aplicar reducción/boost de stamina + carry-over bonus (ambos lados:
+    // las cartas de efecto pueden drenar al bot o potenciar al jugador).
+    int staminaDelta(CombatantState c) {
+      final reduction = c.statusEffects
+          .where((e) => e.type == StatusEffectType.staminaReduction)
+          .fold(0, (sum, e) => sum + e.value);
+      final boost = c.statusEffects
+          .where((e) => e.type == StatusEffectType.staminaBoost)
+          .fold(0, (sum, e) => sum + e.value);
+      return boost - reduction;
+    }
+
     final carryBonus = playerUsedAllStamina ? 0 : 1;
     final effectivePlayerStamina =
-        (playerBaseStamina - playerStaminaReduction + carryBonus)
-            .clamp(1, playerBaseStamina + 1);
+        (playerBaseStamina + staminaDelta(player) + carryBonus)
+            .clamp(1, playerBaseStamina + 4);
+    final effectiveOpponentStamina =
+        (opponentBaseStamina + staminaDelta(opponent))
+            .clamp(1, opponentBaseStamina + 4);
 
     final newPlayerHp = (player.currentHp - playerDoT).clamp(0, player.hero.maxHp);
     final newOpponentHp = (opponent.currentHp - opponentDoT).clamp(0, opponent.hero.maxHp);
@@ -625,7 +703,7 @@ class BattleNotifier extends Notifier<BattleState> {
     // Pre-computar la secuencia del bot para la próxima ronda (habilita scout)
     final updatedOpponent = opponent.copyWith(
       currentHp: newOpponentHp,
-      currentStamina: opponentBaseStamina,
+      currentStamina: effectiveOpponentStamina,
       plannedSequence: List.filled(3, null),
     );
 
@@ -640,10 +718,10 @@ class BattleNotifier extends Notifier<BattleState> {
             _botDifficulty!,
             playerLastSequence: playerLastSequence,
             mode: _gameMode,
-            stamina: opponentBaseStamina,
+            stamina: effectiveOpponentStamina,
           )
         : TutorialBotAI.decideSequence(updatedOpponent.hand,
-            stamina: opponentBaseStamina);
+            stamina: effectiveOpponentStamina);
 
     state = state.copyWith(
       phase: playerWon != null ? BattlePhase.battleEnd : BattlePhase.planning,

@@ -97,32 +97,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
 
-          const SizedBox(height: 16),
-
-          // Language
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('🌐 Idioma', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    _LangChip('🇪🇸 Español', 'es', ref),
-                    _LangChip('🇬🇧 English', 'en', ref),
-                    _LangChip('🇧🇷 Português', 'pt', ref),
-                    _LangChip('🇯🇵 日本語', 'ja', ref),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          // (Selector de idioma retirado: el juego es solo-español por ahora;
+          //  el UI nunca consumió las traducciones, así que el selector era
+          //  una promesa falsa.)
 
           const SizedBox(height: 24),
 
@@ -145,24 +122,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _LangChip(String label, String code, WidgetRef ref) {
-    final current = ref.watch(localeProvider);
-    final isActive = current?.languageCode == code;
-    return ChoiceChip(
-      label: Text(label),
-      selected: isActive,
-      selectedColor: AppColors.primary,
-      backgroundColor: AppColors.surface,
-      labelStyle: TextStyle(
-        color: isActive ? Colors.white : AppColors.textSecondary,
-        fontWeight: FontWeight.w600,
-      ),
-      onSelected: (_) {
-        ref.read(localeProvider.notifier).state = Locale(code);
-      },
     );
   }
 }

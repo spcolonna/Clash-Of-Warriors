@@ -67,11 +67,11 @@ class ClashOfStylesApp extends ConsumerWidget {
       theme: AppTheme.dark,
       locale: locale,
       routerConfig: router,
+      // Decisión de producto: el UI está escrito en español; declarar otros
+      // idiomas sin traducciones reales era una promesa falsa. Si más adelante
+      // se quiere EN/PT, la migración empieza por home + batalla.
       supportedLocales: const [
         Locale('es'),
-        Locale('en'),
-        Locale('pt'),
-        Locale('ja'),
       ],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,

@@ -1,7 +1,8 @@
-import 'dart:math' show pi;
+import 'dart:math' show Random, pi;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/entities/battle_state.dart' show GameMode;
+import '../../../domain/entities/hero_entity.dart';
 import '../../../infra/local/heroes_data.dart';
 import '../../state/battle_provider.dart';
 import '../../state/providers.dart';
@@ -9,11 +10,40 @@ import '../heroes/character_select_screen.dart';
 import '../../widgets/tap_scale_button.dart';
 import 'package:go_router/go_router.dart';
 
-class PreBattleScreen extends ConsumerWidget {
+class PreBattleScreen extends ConsumerStatefulWidget {
   const PreBattleScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PreBattleScreen> createState() => _PreBattleScreenState();
+}
+
+class _PreBattleScreenState extends ConsumerState<PreBattleScreen> {
+  HeroEntity? _rival;
+  final _random = Random();
+
+  /// Rival aleatorio ponderado por dificultad: Fácil = commons,
+  /// Normal = commons+rares, Difícil = rares+epics. Nunca tu mismo héroe.
+  HeroEntity _rollRival(HeroEntity playerHero, BotDifficulty difficulty) {
+    final pool = switch (difficulty) {
+      BotDifficulty.easy => HeroesData.allHeroes
+          .where((h) => h.rarity == 'common')
+          .toList(),
+      BotDifficulty.normal => HeroesData.allHeroes
+          .where((h) => h.rarity == 'common' || h.rarity == 'rare')
+          .toList(),
+      BotDifficulty.hard => HeroesData.allHeroes
+          .where((h) => h.rarity == 'rare' || h.rarity == 'epic')
+          .toList(),
+    };
+    final candidates = pool
+        .where((h) => h.id != playerHero.id && h.id != _rival?.id)
+        .toList();
+    if (candidates.isEmpty) return pool.first;
+    return candidates[_random.nextInt(candidates.length)];
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Resolve hero: prefer selectedHeroForBattleProvider, fallback to active hero
     var playerHero = ref.watch(selectedHeroForBattleProvider);
     if (playerHero == null) {
@@ -30,7 +60,18 @@ class PreBattleScreen extends ConsumerWidget {
 
     final player = ref.watch(playerProvider);
     final isArena = player?.tutorialBattleComplete ?? false;
-    final botHero = HeroesData.tutorialBotFor(playerHero.faction.name);
+
+    // Al cambiar la dificultad, el rival se vuelve a sortear del pool nuevo.
+    ref.listen(selectedDifficultyProvider, (prev, next) {
+      if (prev != next && isArena) {
+        setState(() => _rival = _rollRival(playerHero!, next));
+      }
+    });
+
+    final difficulty = ref.watch(selectedDifficultyProvider);
+    final botHero = isArena
+        ? (_rival ??= _rollRival(playerHero, difficulty))
+        : HeroesData.tutorialBotFor(playerHero.faction.name);
     final fColor = factionColor(playerHero.faction);
     final bColor = factionColor(botHero.faction);
     return Scaffold(
@@ -105,20 +146,20 @@ class PreBattleScreen extends ConsumerWidget {
                           children: [
                             const SizedBox(height: 40), // Espacio donde cae el VS de la imagen
 
-                            // Badge de rivalidad histórica
+                            // Badge VS
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.amber.withOpacity(0.8), // Más opaco para resaltar sobre el fondo
+                                color: Colors.amber.withValues(alpha: 0.8),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: Colors.white, width: 1),
                               ),
                               child: Column(
                                 children: [
                                   const Text('VS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.black87, letterSpacing: 1)),
-                                  const Text(
-                                    'RIVALIDAD',
-                                    style: TextStyle(
+                                  Text(
+                                    isArena ? 'ARENA' : 'RIVALIDAD',
+                                    style: const TextStyle(
                                       color: Colors.black,
                                       fontSize: 9,
                                       fontWeight: FontWeight.bold,
@@ -128,6 +169,29 @@ class PreBattleScreen extends ConsumerWidget {
                                 ],
                               ),
                             ),
+                            // Re-rollear rival (solo arena)
+                            if (isArena) ...[
+                              const SizedBox(height: 10),
+                              GestureDetector(
+                                onTap: () => setState(() => _rival =
+                                    _rollRival(playerHero!, difficulty)),
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.55),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white38),
+                                  ),
+                                  child: const Icon(Icons.casino,
+                                      color: Colors.white70, size: 18),
+                                ),
+                              ),
+                              const Text(
+                                'rival',
+                                style: TextStyle(
+                                    color: Colors.white38, fontSize: 8),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -157,7 +221,11 @@ class PreBattleScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      '"${_rivalLore(playerHero.faction.name)}"',
+                      // Arena: el lore del rival sorteado. Tutorial: la
+                      // rivalidad histórica de tu facción.
+                      isArena
+                          ? '"${botHero.lore}"'
+                          : '"${_rivalLore(playerHero.faction.name)}"',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13,
@@ -202,7 +270,7 @@ class PreBattleScreen extends ConsumerWidget {
                               difficulty: BotDifficulty.easy,
                               selected: difficulty == BotDifficulty.easy,
                               color: Colors.green,
-                              onTap: () => ref.read(selectedDifficultyProvider.notifier).state = BotDifficulty.easy,
+                              onTap: () => ref.read(selectedDifficultyProvider.notifier).select(BotDifficulty.easy),
                             ),
                             const SizedBox(width: 8),
                             _DifficultyChip(
@@ -210,7 +278,7 @@ class PreBattleScreen extends ConsumerWidget {
                               difficulty: BotDifficulty.normal,
                               selected: difficulty == BotDifficulty.normal,
                               color: Colors.orange,
-                              onTap: () => ref.read(selectedDifficultyProvider.notifier).state = BotDifficulty.normal,
+                              onTap: () => ref.read(selectedDifficultyProvider.notifier).select(BotDifficulty.normal),
                             ),
                             const SizedBox(width: 8),
                             _DifficultyChip(
@@ -218,7 +286,7 @@ class PreBattleScreen extends ConsumerWidget {
                               difficulty: BotDifficulty.hard,
                               selected: difficulty == BotDifficulty.hard,
                               color: Colors.red,
-                              onTap: () => ref.read(selectedDifficultyProvider.notifier).state = BotDifficulty.hard,
+                              onTap: () => ref.read(selectedDifficultyProvider.notifier).select(BotDifficulty.hard),
                             ),
                           ],
                         ),
@@ -260,7 +328,7 @@ class PreBattleScreen extends ConsumerWidget {
                               subtitle: 'Puño · Patada · Defensa',
                               selected: mode == GameMode.normal,
                               color: Colors.teal,
-                              onTap: () => ref.read(selectedGameModeProvider.notifier).state = GameMode.normal,
+                              onTap: () => ref.read(selectedGameModeProvider.notifier).select(GameMode.normal),
                             ),
                             const SizedBox(width: 8),
                             _ModeChip(
@@ -268,11 +336,55 @@ class PreBattleScreen extends ConsumerWidget {
                               subtitle: 'Las 5 categorías',
                               selected: mode == GameMode.expert,
                               color: Colors.deepPurple,
-                              onTap: () => ref.read(selectedGameModeProvider.notifier).state = GameMode.expert,
+                              onTap: () => ref.read(selectedGameModeProvider.notifier).select(GameMode.expert),
                             ),
                           ],
                         ),
                       ],
+                    ),
+                  );
+                }),
+
+                // Aviso de mazo incompleto (se completa con básicas en batalla)
+                Consumer(builder: (context, ref, _) {
+                  final player = ref.watch(playerProvider);
+                  final isArena = player?.tutorialBattleComplete ?? false;
+                  final deckIds = player?.deckCardIds ?? const <String>[];
+                  final catalog = ref.watch(cardCatalogProvider);
+                  final validCount = catalog.resolveDeck(deckIds).length;
+                  if (!isArena || validCount >= 20) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5B800).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: const Color(0xFFF5B800).withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline,
+                              size: 16, color: Color(0xFFF5B800)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Tu mazo tiene $validCount/20 cartas: se completa '
+                              'con cartas básicas. Armalo en la pestaña Mazo.',
+                              style: const TextStyle(
+                                color: Color(0xFFF5B800),
+                                fontSize: 11,
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }),

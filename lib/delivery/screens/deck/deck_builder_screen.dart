@@ -8,7 +8,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../domain/config/game_config.dart' as cfg;
+import '../../theme/app_theme.dart' as theme;
 import '../../../infra/local/heroes_data.dart';
+import '../../../infra/services/haptics_service.dart';
+import '../../../infra/sound/sound_service.dart';
 import '../../../domain/entities/hero_entity.dart';
 import '../../../domain/entities/game_card.dart';
 import '../../state/providers.dart';
@@ -77,6 +81,16 @@ class _DeckBuilderScreenState extends ConsumerState<DeckBuilderScreen> {
                             .updateActiveHero(heroId),
                       ),
                     ),
+
+                    // ── ASCENSIÓN: medallas → estrellas del héroe activo ─
+                    if (player?.activeHeroId != null)
+                      SliverToBoxAdapter(
+                        child: _AscensionPanel(
+                          heroId: player!.activeHeroId!,
+                          stars: player.heroStarsFor(player.activeHeroId!),
+                          medals: player.medals,
+                        ),
+                      ),
 
                     // ── SECCIÓN CARTA PASIVA ───────────────────────────
                     SliverToBoxAdapter(
@@ -623,11 +637,107 @@ class _EmptyState extends StatelessWidget {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
-Color _factionColor(Faction faction) => switch (faction) {
-      Faction.shaolin => const Color(0xFFE65100),
-      Faction.ninja => const Color(0xFF1A1A2E),
-      Faction.judoka => const Color(0xFF1565C0),
-      Faction.boxer => const Color(0xFFC62828),
-      Faction.capoeira => const Color(0xFF2E7D32),
-    };
+// Fuente única de colores de facción: theme/app_theme.dart
+Color _factionColor(Faction faction) => theme.factionColor(faction);
 
+
+// ── Panel de ascensión: gastar medallas para subir estrellas ─────────────────
+
+class _AscensionPanel extends ConsumerWidget {
+  final String heroId;
+  final int stars;
+  final int medals;
+
+  const _AscensionPanel({
+    required this.heroId,
+    required this.stars,
+    required this.medals,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    const gold = Color(0xFFFFD700);
+    final cost = cfg.GameConfig.ascensionCostFrom(stars);
+    final maxed = cost == null;
+    final affordable = !maxed && medals >= cost;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A2E).withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: gold.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            // Estrellas actuales
+            Row(
+              children: List.generate(
+                cfg.GameConfig.heroMaxStars,
+                (i) => Icon(
+                  i < stars ? Icons.star : Icons.star_border,
+                  size: 18,
+                  color: i < stars ? gold : Colors.white24,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                maxed
+                    ? 'Ascensión máxima alcanzada'
+                    : 'Ascender: +1 a todos los stats',
+                style: const TextStyle(color: Colors.white70, fontSize: 11),
+              ),
+            ),
+            if (!maxed)
+              GestureDetector(
+                onTap: affordable
+                    ? () async {
+                        HapticsService().medium();
+                        final ok = await ref
+                            .read(playerProvider.notifier)
+                            .ascendHero(heroId);
+                        if (ok) {
+                          SoundService().play('level_up');
+                          HapticsService().success();
+                        }
+                      }
+                    : () => HapticsService().error(),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: affordable
+                        ? gold.withValues(alpha: 0.15)
+                        : Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(10),
+                    border:
+                        Border.all(color: affordable ? gold : Colors.white24),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.military_tech,
+                          size: 14, color: affordable ? gold : Colors.white30),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$cost',
+                        style: TextStyle(
+                          color: affordable ? gold : Colors.white30,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

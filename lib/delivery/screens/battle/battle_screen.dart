@@ -22,6 +22,7 @@ import '../../widgets/card_conjure_overlay.dart';
 import '../../widgets/card_preview_dialog.dart';
 import '../../widgets/round_banner.dart';
 import '../../widgets/slot_clash_animator.dart';
+import '../../widgets/tutorial_coach_banner.dart';
 import '../../widgets/stamina_globe.dart';
 import '../../widgets/tap_scale_button.dart';
 import '../help/how_to_play_screen.dart';
@@ -44,6 +45,35 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
   ({String title, String subtitle})? _banner;
   int _bannerSeq = 0; // fuerza rebuild del banner entre usos consecutivos
   late final AnimationController _shakeController;
+
+  // ── Tutorial guiado: pasos del coach ya descartados por el jugador ──
+  final Set<int> _dismissedCoachSteps = {};
+
+  static const _coachTexts = <int, String>{
+    0: 'Tocá una carta de tu mano y JUGALA: la primera va al slot de '
+        'APERTURA. Al colocarla, el rival revela la suya.',
+    1: '¡Ya ves la apertura del rival! Regla de oro: Puño gana a Patada, '
+        'Patada gana a Defensa y Defensa gana a Puño. Jugá cartas que '
+        'ganen sus choques.',
+    2: 'Consejo: si ganás un slot y en el siguiente jugás la carta que '
+        'encadena (Puño→Patada), pega +50%. Cuando estés listo, '
+        'tocá Confirmar.',
+    3: '¿Ves los ojos 👁 junto a los slots del rival? Tocá un slot oculto '
+        'para ESPIARLO con un scout. Son limitados: usalos bien.',
+  };
+
+  /// Paso del coach según el estado real de la batalla (solo tutorial).
+  int? _coachStep(BattleState b) {
+    if (!b.isTutorial || b.phase != BattlePhase.planning) return null;
+    if (b.currentRound == 1) {
+      final placed = b.player.plannedSequence.whereType<GameCard>().length;
+      if (placed == 0) return 0;
+      if (placed == 1) return 1;
+      return 2;
+    }
+    if (b.currentRound == 2) return 3;
+    return null;
+  }
 
   @override
   void initState() {
@@ -202,6 +232,30 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
                 },
               ),
             ),
+          // ── Coach del tutorial (solo primera batalla) ─────────────────────
+          Builder(builder: (context) {
+            final step = _coachStep(battle);
+            if (step == null || _dismissedCoachSteps.contains(step)) {
+              return const SizedBox.shrink();
+            }
+            return Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 70),
+                  child: TutorialCoachBanner(
+                    key: ValueKey('coach_$step'),
+                    text: _coachTexts[step]!,
+                    onDismiss: () =>
+                        setState(() => _dismissedCoachSteps.add(step)),
+                  ),
+                ),
+              ),
+            );
+          }),
           if (_showPassiveBanner)
             Positioned(
               top: 0,
@@ -294,22 +348,21 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
     List<GameCard> hand,
     BattleNotifier notifier,
   ) async {
-    await showModalBottomSheet<void>(
+    // Descartable y con auto-continuar: un tap guarda, ninguno sigue de largo.
+    final selected = await showModalBottomSheet<GameCard>(
       context: context,
       backgroundColor: const Color(0xFF1A1A2E),
-      isDismissible: false,
-      enableDrag: false,
+      isDismissible: true,
+      enableDrag: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _HoldCardSheet(
-        hand: hand,
-        onHold: (card) {
-          if (card != null) notifier.holdCard(card);
-          Navigator.of(context).pop();
-        },
-      ),
+      builder: (_) => _HoldCardSheet(hand: hand),
     );
+    if (selected != null) {
+      HapticsService().light();
+      notifier.holdCard(selected);
+    }
   }
 
   void _showRoundLog(BuildContext context, RoundResult last) {
@@ -954,7 +1007,7 @@ class _BottomSection extends StatelessWidget {
                 onDealAnimationComplete: onDealComplete,
                 remainingStamina: battle.player.remainingStamina,
                 onCardPlay: onCardPlay,
-                heroFaction: battle.player.hero.faction,
+                hero: battle.player.hero,
                 nextSlotIsOpening: battle.player.plannedSequence[0] == null &&
                     !battle.player.statusEffects.any((e) =>
                         e.type == StatusEffectType.slotBlocked &&
@@ -1954,21 +2007,42 @@ class _DmgChip extends StatelessWidget {
 
 class _HoldCardSheet extends StatefulWidget {
   final List<GameCard> hand;
-  final void Function(GameCard?) onHold;
 
-  const _HoldCardSheet({required this.hand, required this.onHold});
+  const _HoldCardSheet({required this.hand});
 
   @override
   State<_HoldCardSheet> createState() => _HoldCardSheetState();
 }
 
 class _HoldCardSheetState extends State<_HoldCardSheet> {
-  GameCard? _selected;
+  static const _autoContinueSeconds = 4;
+  Timer? _timer;
+  int _remaining = _autoContinueSeconds;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-continuar: si el jugador no elige, la ronda sigue sola.
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      setState(() => _remaining--);
+      if (_remaining <= 0) {
+        t.cancel();
+        if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 26),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1980,22 +2054,47 @@ class _HoldCardSheetState extends State<_HoldCardSheet> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 14),
-          const Text(
-            '¿Cuál carta guardás?',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Tocá una carta para guardarla',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Countdown de auto-continuar
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: Center(
+                  child: Text(
+                    '$_remaining',
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           const Text(
-            'La carta elegida pasa a tu próxima mano. Las demás se descartan.',
+            'Pasa a tu próxima mano. Tocá afuera (o esperá) para no guardar.',
             style: TextStyle(color: Colors.white54, fontSize: 11),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           SizedBox(
             height: 120,
             child: ListView.separated(
@@ -2005,72 +2104,13 @@ class _HoldCardSheetState extends State<_HoldCardSheet> {
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, i) {
                 final card = widget.hand[i];
-                final isSelected = _selected == card;
                 return GestureDetector(
-                  onTap: () => setState(() => _selected = card),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isSelected
-                            ? const Color(0xFFF5B800)
-                            : Colors.transparent,
-                        width: 2,
-                      ),
-                      boxShadow: isSelected
-                          ? [
-                              BoxShadow(
-                                color: const Color(0xFFF5B800).withValues(alpha: 0.4),
-                                blurRadius: 8,
-                              )
-                            ]
-                          : null,
-                    ),
-                    child: GameCardWidget(card: card, width: 72),
-                  ),
+                  // Un solo tap: guarda y sigue.
+                  onTap: () => Navigator.of(context).pop(card),
+                  child: GameCardWidget(card: card, width: 72),
                 );
               },
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  onPressed: () => widget.onHold(null),
-                  child: const Text(
-                    'No guardar',
-                    style: TextStyle(color: Colors.white38, fontSize: 13),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _selected != null
-                        ? const Color(0xFFF5B800)
-                        : const Color(0xFF2A2A3E),
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  onPressed: _selected != null
-                      ? () => widget.onHold(_selected)
-                      : null,
-                  child: Text(
-                    _selected != null ? 'Guardar' : 'Elegir carta',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: _selected != null ? Colors.black : Colors.white24,
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),

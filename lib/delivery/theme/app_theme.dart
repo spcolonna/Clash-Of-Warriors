@@ -1,5 +1,25 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/entities/hero_entity.dart';
+
+// ── Colores de facción (FUENTE ÚNICA) ────────────────────────────────────────
+// Toda la app debe usar estas dos funciones. No redefinir colores de facción
+// en pantallas: la identidad visual de cada facción es la misma en todos lados.
+
+Color factionColor(Faction faction) => switch (faction) {
+      Faction.shaolin => const Color(0xFFE5A93C), // dorado templo
+      Faction.ninja => const Color(0xFF7B68EE), // violeta sombra
+      Faction.judoka => const Color(0xFF4FC3F7), // celeste tatami
+      Faction.boxer => const Color(0xFFEF5350), // rojo barrio
+      Faction.capoeira => const Color(0xFF66BB6A), // verde ginga
+    };
+
+/// Variante por factionId (String de las cartas). null = neutral.
+Color? factionColorFromId(String? factionId) {
+  final f = factionFromId(factionId);
+  return f == null ? null : factionColor(f);
+}
+
 class AppColors {
   static const primary = Color(0xFFC62828);
   static const secondary = Color(0xFF6A1B9A);

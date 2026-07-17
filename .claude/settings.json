@@ -4,7 +4,9 @@
       "Bash(flutter test *)",
       "Bash(npm run *)",
       "Bash(git -C /Users/sebastianperez/Documents/Personal/ClashOfWarriors/admin-web log --oneline -1 -- src/pages/StoryArcsPage.tsx)",
-      "Bash(git -C /Users/sebastianperez/Documents/Personal/ClashOfWarriors/admin-web status --short)"
+      "Bash(git -C /Users/sebastianperez/Documents/Personal/ClashOfWarriors/admin-web status --short)",
+      "Bash(python3 -)",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

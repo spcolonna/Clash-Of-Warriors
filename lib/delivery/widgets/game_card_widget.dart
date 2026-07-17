@@ -13,25 +13,28 @@
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../domain/config/game_config.dart';
 import '../../domain/entities/game_card.dart';
 import '../../domain/entities/hero_entity.dart';
+import '../theme/app_theme.dart' show factionColorFromId;
 
 class GameCardWidget extends StatefulWidget {
   final GameCard card;
   final double width;
   final bool isPassive;
 
-  /// Facción del héroe en cuyo contexto se muestra la carta (mano de batalla).
-  /// Si se pasa, las cartas afines brillan (+20%) y las rivales se ven
-  /// atenuadas (−20%). null en tienda/deck builder → sin tratamiento.
-  final Faction? contextHeroFaction;
+  /// Héroe en cuyo contexto se muestra la carta (mano de batalla).
+  /// Si se pasa: las cartas afines brillan (+20%), las rivales se atenúan
+  /// (−20%) y la burbuja de daño muestra el DAÑO REAL (stat del héroe ×
+  /// escala × afinidad) en vez del daño base. null en tienda/deck builder.
+  final HeroEntity? contextHero;
 
   const GameCardWidget({
     super.key,
     required this.card,
     this.width = 100,
     this.isPassive = false,
-    this.contextHeroFaction,
+    this.contextHero,
   });
 
   @override
@@ -39,7 +42,11 @@ class GameCardWidget extends StatefulWidget {
 }
 
 class _GameCardWidgetState extends State<GameCardWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
+  // TickerProviderStateMixin (no Single-): el glow se crea/destruye cada vez
+  // que la carta pasa de pasiva a normal y viceversa (el State se recicla
+  // entre cartas de la mano sin keys), así que puede necesitar más de un
+  // ticker a lo largo de su vida.
   AnimationController? _glowController;
   Animation<double>? _glowAnim;
 
@@ -114,11 +121,42 @@ class _GameCardWidgetState extends State<GameCardWidget>
     );
   }
 
+  /// Daño mostrado en la burbuja: si hay héroe de contexto (mano de batalla),
+  /// el DAÑO REAL que va a pegar la carta (stat del héroe × escala global ×
+  /// afinidad de facción). Sin contexto (tienda/deck), el daño base.
+  int _displayDamage(GameCard card) {
+    final hero = widget.contextHero;
+    if (hero == null || card.baseDamage == null) return card.baseDamage ?? 0;
+
+    double dmg = hero.effectiveDamage(card) * GameConfig.damageScale;
+    switch (factionAffinityFor(hero.faction, card.factionId)) {
+      case FactionAffinity.affinity:
+        dmg *= GameConfig.factionAffinityMultiplier;
+      case FactionAffinity.rival:
+        dmg *= GameConfig.factionRivalMultiplier;
+      case FactionAffinity.none:
+        break;
+    }
+    return dmg.round();
+  }
+
+  /// Color de la burbuja de daño: dorado si es afín, violeta si es rival,
+  /// color de categoría si es neutral o no hay contexto.
+  Color _damageBubbleColor(GameCard card) {
+    final hero = widget.contextHero;
+    if (hero == null) return _categoryColor(card.category);
+    return switch (factionAffinityFor(hero.faction, card.factionId)) {
+      FactionAffinity.affinity => const Color(0xFFF5B800),
+      FactionAffinity.rival => const Color(0xFF9B59B6),
+      FactionAffinity.none => _categoryColor(card.category),
+    };
+  }
+
   /// Envuelve la carta con el tratamiento de afinidad de facción cuando se
   /// muestra en el contexto de un héroe (mano de batalla): glow + badge +20%
   /// si es afín, atenuada + badge −20% si es rival.
   Widget _withAffinity(Widget card) {
-    final faction = widget.contextHeroFaction;
+    final faction = widget.contextHero?.faction;
     if (faction == null || widget.card.factionId == null) return card;
 
     final affinity = factionAffinityFor(faction, widget.card.factionId);
@@ -300,8 +338,8 @@ class _GameCardWidgetState extends State<GameCardWidget>
                         height: bubbleSize,
                         child: card.baseDamage != null
                             ? _Bubble(
-                                value: '${card.baseDamage}',
-                                color: _categoryColor(card.category),
+                                value: '${_displayDamage(card)}',
+                                color: _damageBubbleColor(card),
                                 size: bubbleSize,
                               )
                             : const SizedBox.shrink(),
@@ -578,11 +616,5 @@ class _CardImage extends StatelessWidget {
   }
 }
 
-Color? _factionColor(String? factionId) => switch (factionId) {
-  'shaolin'  => const Color(0xFFFF6F00),
-  'ninja'    => const Color(0xFF37474F),
-  'judoka'   => const Color(0xFF1565C0),
-  'boxer'    => const Color(0xFFB71C1C),
-  'capoeira' => const Color(0xFF2E7D32),
-  _          => null,
-};
+// Color de facción: fuente única en theme/app_theme.dart
+Color? _factionColor(String? factionId) => factionColorFromId(factionId);

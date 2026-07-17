@@ -6,9 +6,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../domain/entities/battle_state.dart' show BattleState;
 import '../../../infra/local/heroes_data.dart';
 import '../../../infra/local/daily_rewards_data.dart';
+import '../../../infra/services/admob_service.dart';
 import '../../../infra/services/haptics_service.dart';
 import '../../../infra/sound/sound_service.dart';
 import '../../state/battle_provider.dart';
@@ -42,6 +45,10 @@ class EndBattleScreen extends ConsumerStatefulWidget {
 }
 
 class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
+  // Rewarded "duplicar XP" (solo derrota): usable una vez por batalla.
+  bool _xpDoubled = false;
+  bool _showingAd = false;
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +58,53 @@ class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
       HapticsService().success();
     } else {
       HapticsService().medium();
+    }
+  }
+
+  /// Monedas de consolación por derrota: proporcional al daño infligido.
+  int _consolationCoins(BattleState battle) {
+    final dealt = battle.roundHistory
+        .fold<double>(0, (s, r) => s + r.totalPlayerDamage);
+    return (dealt / 4).round().clamp(5, 40);
+  }
+
+  Future<void> _watchAdToDoubleXp(int xpReward) async {
+    if (_xpDoubled || _showingAd) return;
+    setState(() => _showingAd = true);
+    final completed = await AdMobService().showRewarded(
+      onRewarded: (_) {
+        // La recompensa acá es XP extra, no los tokens default del servicio.
+        ref.read(playerProvider.notifier).addAccountXp(xpReward);
+      },
+    );
+    if (!mounted) return;
+    setState(() {
+      _showingAd = false;
+      _xpDoubled = completed;
+    });
+    if (completed) {
+      SoundService().play('level_up');
+      HapticsService().success();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('El anuncio no está disponible ahora. Probá en un rato.'),
+        duration: Duration(milliseconds: 1600),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
+  /// Interstitial suave cada N batallas (fire-and-forget tras salir).
+  Future<void> _maybeShowInterstitial() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final count = (prefs.getInt('battleCount') ?? 0) + 1;
+      await prefs.setInt('battleCount', count);
+      if (AdMobService().shouldShowInterstitial(count)) {
+        await AdMobService().showInterstitial();
+      }
+    } catch (_) {
+      // Ads nunca deben romper el flujo del juego
     }
   }
 
@@ -170,16 +224,63 @@ class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
                 ),
                 const SizedBox(height: 12),
               ],
+              // Derrota: consolación proporcional al daño infligido —
+              // toda batalla deja algo.
+              if (!playerWon && !isTutorial) ...[
+                _Appear(
+                  delayMs: 350,
+                  child: _RewardRow(
+                    icon: Icons.monetization_on,
+                    label: 'Monedas',
+                    value: '+${_consolationCoins(battle)}',
+                    color: const Color(0xFF27AE60),
+                    badge: 'peleaste bien',
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               // XP siempre se otorga, gane o pierda — la progresión nunca es nula.
               _Appear(
-                delayMs: playerWon ? 710 : 350,
+                delayMs: playerWon ? 710 : 470,
                 child: _RewardRow(
                   icon: Icons.trending_up,
                   label: 'XP',
-                  value: '+$xpReward',
+                  value: _xpDoubled ? '+${xpReward * 2}' : '+$xpReward',
                   color: const Color(0xFF3498DB),
+                  badge: _xpDoubled ? 'x2 ✓' : null,
                 ),
               ),
+              // Derrota: duplicar XP viendo un anuncio (una vez)
+              if (!playerWon && !_xpDoubled) ...[
+                const SizedBox(height: 12),
+                _Appear(
+                  delayMs: 590,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      onPressed: _showingAd
+                          ? null
+                          : () => _watchAdToDoubleXp(xpReward),
+                      icon: const Icon(Icons.ondemand_video, size: 18),
+                      label: Text(
+                        _showingAd
+                            ? 'Cargando anuncio…'
+                            : 'Duplicá tu XP viendo un anuncio',
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF3498DB),
+                        side: const BorderSide(color: Color(0xFF3498DB)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 32),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -231,7 +332,8 @@ class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
                     }
                     final playerHero = ref.read(selectedHeroForBattleProvider);
                     if (playerHero == null) return;
-                    final botHero = HeroesData.tutorialBotFor(playerHero.faction.name);
+                    // Revancha contra el MISMO rival de la batalla anterior
+                    final botHero = battle.opponent.hero;
                     if (isTutorial) {
                       ref.read(battleProvider.notifier).initTutorialBattle(
                         playerHero: playerHero,
@@ -274,6 +376,11 @@ class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
                     if (isStoryBattle) {
                       // XP de cuenta + progreso de misiones (gane o pierda)
                       ref.read(playerProvider.notifier).addAccountXp(xpReward);
+                      if (!playerWon) {
+                        ref
+                            .read(playerProvider.notifier)
+                            .addSoftCoins(_consolationCoins(battle));
+                      }
                       ref.read(playerProvider.notifier).reportBattleResult(
                             won: playerWon,
                             slotsWon: slotsWonCount,
@@ -351,7 +458,13 @@ class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
                         notifier.addBattlePoints(pts);
                       }
                     }
+                    // Consolación por derrota (arena; el tutorial no aplica)
+                    if (!playerWon && !isTutorial) {
+                      notifier.addSoftCoins(_consolationCoins(battle));
+                    }
                     if (context.mounted) context.go('/home');
+                    // Interstitial cada N batallas, después de salir
+                    _maybeShowInterstitial();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF27AE60),

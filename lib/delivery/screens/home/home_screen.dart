@@ -15,6 +15,8 @@ import '../../state/providers.dart';
 import '../../widgets/tutorial_spotlight_overlay.dart';
 import '../help/how_to_play_screen.dart';
 import '../premium_shop/premium_shop_screen.dart';
+import '../ranking/ranking_screen.dart';
+import '../settings/settings_screen.dart';
 import '../shell/main_shell_scaffold.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -30,20 +32,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final t0 = DateTime.now().millisecondsSinceEpoch;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      debugPrint('[HOME] first frame: ${DateTime.now().millisecondsSinceEpoch - t0}ms');
-    });
-
     final player = ref.watch(playerProvider);
     final authState = ref.watch(authStateProvider);
 
     if (player == null) {
-      debugPrint('[HOME] player=null auth=${authState.runtimeType} user=${authState.value?.uid ?? "null"} attempted=$_loadAttempted');
       final user = authState.value;
       if (user != null && !_loadAttempted) {
         _loadAttempted = true;
-        debugPrint('[HOME] → scheduling loadPlayer');
         Future.microtask(
           () => ref.read(playerProvider.notifier).loadPlayer(user.uid),
         );
@@ -85,15 +80,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Barra de recursos + botón "Cómo jugar" (arriba derecha) ──
+                // ── Recursos + ajustes + cómo jugar (arriba) ─────────────
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                   child: Row(
                     children: [
-                      _ResourceBar(
-                        softCoins: player.softCoins,
-                        medals: player.medals,
-                        tokens: player.tokens,
+                      // Flexible+FittedBox: en pantallas angostas la barra de
+                      // recursos se achica en vez de desbordar el Row junto
+                      // a los chips de ayuda/ajustes.
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: _ResourceBar(
+                            softCoins: player.softCoins,
+                            medals: player.medals,
+                            tokens: player.tokens,
+                          ),
+                        ),
                       ),
                       const Spacer(),
                       _HowToPlayChip(
@@ -105,51 +109,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      _SettingsChip(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 28),
-                // ── Banner de bienvenida (desde el borde izquierdo) ───────
-                _WelcomeBanner(factionId: player.selectedFactionId),
-                const SizedBox(height: 16),
-                // ── Nivel de cuenta (XP) ──────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _LevelBar(player: player),
+                const SizedBox(height: 24),
+                // ── Banner de bienvenida (con nombre real) ────────────────
+                _WelcomeBanner(
+                  factionId: player.selectedFactionId,
+                  playerName: authState.value?.displayName,
                 ),
-                const SizedBox(height: 16),
-                // ── Barra de progreso de victorias ────────────────────────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _ProgressCycleBar(
-                    player: player,
-                    reward: currentReward,
-                    onClaim: () =>
-                        ref.read(playerProvider.notifier).claimProgressReward(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // ── Misiones diarias ──────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _MissionsButton(
-                    player: player,
-                    onTap: () => _showMissionsSheet(context),
-                  ),
-                ),
-                // ── Camino del nuevo jugador (se oculta al completarse) ────
-                if (!NewPlayerJourneyData.allClaimed(player)) ...[
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _JourneyButton(
-                      player: player,
-                      onTap: () => _showJourneySheet(context),
-                    ),
-                  ),
-                ],
-                const Spacer(),
-                // ── Botón principal con héroe sobresaliendo ───────────────
+                const SizedBox(height: 20),
+                // ── CTA principal: jugar (lo primero tocable) ─────────────
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: _ArenaButton(
@@ -162,8 +140,74 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     },
                   ),
                 ),
-                const SizedBox(height: 14),
-                // ── Tienda Premium (compacta) ─────────────────────────────
+                const SizedBox(height: 16),
+                // ── Nivel de cuenta (XP) ──────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _LevelBar(player: player),
+                ),
+                const SizedBox(height: 12),
+                // ── Progresión colapsada en chips (badge = hay que cobrar) ─
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _HomeChip(
+                          icon: Icons.emoji_events,
+                          label: 'Progreso',
+                          color: const Color(0xFFD4AF37),
+                          hasBadge: player.battlePoints >=
+                              currentReward.requiredPoints,
+                          onTap: () => _showProgressSheet(context),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _HomeChip(
+                          icon: Icons.assignment_turned_in,
+                          label: 'Misiones',
+                          color: const Color(0xFF9B59B6),
+                          hasBadge: player.dailyMissions
+                              .any((m) => m.isComplete && !m.claimed),
+                          onTap: () => _showMissionsSheet(context),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _HomeChip(
+                          icon: Icons.leaderboard,
+                          label: 'Ranking',
+                          color: const Color(0xFF3498DB),
+                          hasBadge: false,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const RankingScreen(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (!NewPlayerJourneyData.allClaimed(player)) ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _HomeChip(
+                            icon: Icons.flag,
+                            label: 'Primeros pasos',
+                            color: const Color(0xFF1ABC9C),
+                            hasBadge: NewPlayerJourneyData.milestones.any(
+                              (m) =>
+                                  m.isComplete(player) &&
+                                  !player.claimedMilestones.contains(m.id),
+                            ),
+                            onTap: () => _showJourneySheet(context),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                // ── Héroes premium / packs ────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: _ShopButton(
@@ -216,6 +260,174 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       builder: (_) => const _JourneySheet(),
     );
   }
+
+  void _showProgressSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const _ProgressSheet(),
+    );
+  }
+}
+
+// ── Sheet del ciclo de progreso (envuelve la barra existente) ───────────────
+
+class _ProgressSheet extends ConsumerWidget {
+  const _ProgressSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final player = ref.watch(playerProvider);
+    final gameConfig =
+        ref.watch(gameConfigProvider).value ?? GameConfig.defaults;
+    if (player == null) return const SizedBox.shrink();
+    final reward = gameConfig.rewardAt(player.lastClaimedCycleIndex);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Progreso de victorias',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Ganá batallas para acumular puntos y cobrar recompensas.',
+            style: TextStyle(color: Colors.white54, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          _ProgressCycleBar(
+            player: player,
+            reward: reward,
+            onClaim: () =>
+                ref.read(playerProvider.notifier).claimProgressReward(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Chip compacto de progresión (badge = hay algo que cobrar) ───────────────
+
+class _HomeChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool hasBadge;
+  final VoidCallback onTap;
+
+  const _HomeChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.hasBadge,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: hasBadge ? color : color.withValues(alpha: 0.3),
+              width: hasBadge ? 1.5 : 1,
+            ),
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: color, size: 15),
+                  const SizedBox(width: 5),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (hasBadge)
+                Positioned(
+                  top: -6,
+                  right: -4,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5B800),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.black, width: 1.5),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Chip de ajustes (engranaje) ──────────────────────────────────────────────
+
+class _SettingsChip extends StatelessWidget {
+  final VoidCallback onTap;
+  const _SettingsChip({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(7),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A2E).withValues(alpha: 0.80),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: const Icon(Icons.settings, size: 15, color: Colors.white54),
+      ),
+    );
+  }
 }
 
 // ── Banner de bienvenida ────────────────────────────────────────────────────
@@ -224,8 +436,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 class _WelcomeBanner extends StatelessWidget {
   final String? factionId;
+  final String? playerName;
 
-  const _WelcomeBanner({this.factionId});
+  const _WelcomeBanner({this.factionId, this.playerName});
 
   @override
   Widget build(BuildContext context) {
@@ -282,7 +495,8 @@ class _WelcomeBanner extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           // Texto
-          Column(
+          Flexible(
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -294,9 +508,12 @@ class _WelcomeBanner extends StatelessWidget {
                   letterSpacing: 0.3,
                 ),
               ),
-              const Text(
-                'Guerrero!',
-                style: TextStyle(
+              Text(
+                // Nombre real del jugador; "Guerrero" solo como fallback
+                '${(playerName?.trim().isNotEmpty ?? false) ? playerName!.trim().split(' ').first : 'Guerrero'}!',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -316,6 +533,7 @@ class _WelcomeBanner extends StatelessWidget {
                 ),
               ],
             ],
+            ),
           ),
         ],
       ),
@@ -688,7 +906,7 @@ class _ShopButton extends StatelessWidget {
             SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Tienda Premium',
+                'Packs',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 14,
@@ -906,82 +1124,6 @@ String missionLabel(DailyMission m) => switch (m.type) {
       DailyMissionType.playHard    => 'Jugá ${m.target} en Difícil',
     };
 
-class _MissionsButton extends StatelessWidget {
-  final PlayerProfile player;
-  final VoidCallback onTap;
-  const _MissionsButton({required this.player, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    const purple = Color(0xFF9B59B6);
-    final missions = player.dailyMissions;
-    final completed = missions.where((m) => m.isComplete).length;
-    final claimable = missions.any((m) => m.isComplete && !m.claimed);
-
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.45),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: claimable ? purple : purple.withValues(alpha: 0.35),
-              width: claimable ? 1.5 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.assignment_turned_in, color: purple, size: 20),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Misiones diarias',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              if (claimable)
-                Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5B800),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    '¡Cobrar!',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              Text(
-                '$completed/${missions.length}',
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Colors.white38, size: 18),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _MissionsSheet extends ConsumerWidget {
   const _MissionsSheet();
 
@@ -1147,84 +1289,6 @@ class _MissionRow extends StatelessWidget {
 }
 
 // ── Camino del nuevo jugador: UI ─────────────────────────────────────────────
-
-class _JourneyButton extends StatelessWidget {
-  final PlayerProfile player;
-  final VoidCallback onTap;
-  const _JourneyButton({required this.player, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    const teal = Color(0xFF1ABC9C);
-    final milestones = NewPlayerJourneyData.milestones;
-    final claimed = milestones.where((m) => player.claimedMilestones.contains(m.id)).length;
-    final claimable = milestones.any(
-      (m) => m.isComplete(player) && !player.claimedMilestones.contains(m.id),
-    );
-
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.45),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: claimable ? teal : teal.withValues(alpha: 0.35),
-              width: claimable ? 1.5 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.flag, color: teal, size: 20),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Primeros pasos',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              if (claimable)
-                Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5B800),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    '¡Cobrar!',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              Text(
-                '$claimed/${milestones.length}',
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Colors.white38, size: 18),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _JourneySheet extends ConsumerWidget {
   const _JourneySheet();

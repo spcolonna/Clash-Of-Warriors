@@ -50,6 +50,9 @@ class PlayerProfile {
   // Hitos del "camino del nuevo jugador" ya cobrados (por id).
   final List<String> claimedMilestones;
 
+  // Ascensión de héroes: heroId → estrellas (1-5). Se sube gastando medallas.
+  final Map<String, int> heroStars;
+
   /// XP necesaria para subir un nivel de cuenta.
   static const int xpPerLevel = 100;
 
@@ -79,9 +82,13 @@ class PlayerProfile {
     this.dailyMissions = const [],
     this.missionsDate,
     this.claimedMilestones = const [],
+    this.heroStars = const {},
   });
 
   // ── Helpers de nivel de cuenta ─────────────────────────────────────────────
+
+  /// Estrellas actuales de un héroe (mínimo 1).
+  int heroStarsFor(String heroId) => heroStars[heroId] ?? 1;
 
   /// Nivel actual (empieza en 1).
   int get accountLevel => (accountXp ~/ xpPerLevel) + 1;
@@ -144,6 +151,7 @@ class PlayerProfile {
     List<DailyMission>? dailyMissions,
     String? missionsDate,
     List<String>? claimedMilestones,
+    Map<String, int>? heroStars,
   }) =>
       PlayerProfile(
         uid: uid,
@@ -171,6 +179,7 @@ class PlayerProfile {
         dailyMissions: dailyMissions ?? this.dailyMissions,
         missionsDate: missionsDate ?? this.missionsDate,
         claimedMilestones: claimedMilestones ?? this.claimedMilestones,
+        heroStars: heroStars ?? this.heroStars,
       );
 
   Map<String, dynamic> toFirestore() => {
@@ -198,6 +207,7 @@ class PlayerProfile {
     'dailyMissions': dailyMissions.map((m) => m.toMap()).toList(),
     'missionsDate': missionsDate,
     'claimedMilestones': claimedMilestones,
+    'heroStars': heroStars,
   };
 
   factory PlayerProfile.fromFirestore(String uid, Map<String, dynamic> data) =>
@@ -233,6 +243,9 @@ class PlayerProfile {
             .toList(),
         missionsDate: data['missionsDate'] as String?,
         claimedMilestones: List<String>.from(data['claimedMilestones'] ?? []),
+        heroStars: Map<String, int>.from(
+            (data['heroStars'] as Map<String, dynamic>? ?? {})
+                .map((k, v) => MapEntry(k, (v as num).toInt()))),
       );
 }
 

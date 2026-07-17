@@ -187,11 +187,97 @@ class FirebaseGameService {
     required String uid,
     required String heroId,
     required int tokenAmount,
+    List<String> cardIds = const [],
   }) async {
-    await _users.doc(uid).update({
-      'tokens': FieldValue.increment(tokenAmount),
-      'unlockedHeroIds': FieldValue.arrayUnion([heroId]),
+    await _db.runTransaction((tx) async {
+      final ref = _users.doc(uid);
+      final snap = await tx.get(ref);
+      final data = snap.data() as Map<String, dynamic>;
+
+      // Sumar las cartas del bundle a ownedCards (incrementa cantidades)
+      final ownedRaw = data['ownedCards'] as List<dynamic>? ?? [];
+      final owned = List<Map<String, dynamic>>.from(
+        ownedRaw.map((e) => Map<String, dynamic>.from(e as Map)),
+      );
+      for (final cardId in cardIds) {
+        final idx = owned.indexWhere((c) => c['cardId'] == cardId);
+        if (idx >= 0) {
+          owned[idx]['quantity'] = (owned[idx]['quantity'] as int) + 1;
+        } else {
+          owned.add({'cardId': cardId, 'quantity': 1});
+        }
+      }
+
+      tx.update(ref, {
+        'tokens': FieldValue.increment(tokenAmount),
+        'unlockedHeroIds': FieldValue.arrayUnion([heroId]),
+        'ownedCards': owned,
+      });
     });
+  }
+
+  /// Ascensión de héroe: descuenta medallas y sube la estrella, atómico.
+  Future<void> ascendHero({
+    required String uid,
+    required String heroId,
+    required int newStars,
+    required int medalCost,
+  }) async {
+    await _db.runTransaction((tx) async {
+      final ref = _users.doc(uid);
+      final snap = await tx.get(ref);
+      final data = snap.data() as Map<String, dynamic>;
+      final medals = data['medals'] as int? ?? 0;
+      if (medals < medalCost) throw Exception('Medallas insuficientes');
+      tx.update(ref, {
+        'medals': medals - medalCost,
+        'heroStars.$heroId': newStars,
+      });
+    });
+  }
+
+  // ── LEADERBOARD SEMANAL ──────────────────────────────────────────────────
+
+  /// Clave de la semana actual en formato ISO ('2026-W28').
+  static String currentWeekKey() {
+    final now = DateTime.now().toUtc();
+    // Algoritmo ISO 8601: la semana pertenece al año de su jueves.
+    final thursday = now.add(Duration(days: 4 - (now.weekday)));
+    final firstDayOfYear = DateTime.utc(thursday.year, 1, 1);
+    final week = ((thursday.difference(firstDayOfYear).inDays) / 7).floor() + 1;
+    return '${thursday.year}-W${week.toString().padLeft(2, '0')}';
+  }
+
+  /// Suma puntos al score semanal del jugador (crea la entrada si no existe).
+  Future<void> submitWeeklyPoints({
+    required String uid,
+    required String displayName,
+    required int points,
+  }) async {
+    final ref = _db
+        .collection('leaderboard')
+        .doc(currentWeekKey())
+        .collection('entries')
+        .doc(uid);
+    await ref.set({
+      'name': displayName,
+      'points': FieldValue.increment(points),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Top N de la semana actual, ordenado por puntos.
+  Future<List<Map<String, dynamic>>> fetchWeeklyTop({int limit = 50}) async {
+    final snap = await _db
+        .collection('leaderboard')
+        .doc(currentWeekKey())
+        .collection('entries')
+        .orderBy('points', descending: true)
+        .limit(limit)
+        .get();
+    return snap.docs
+        .map((d) => {'uid': d.id, ...d.data()})
+        .toList();
   }
 
   // ── SEED ───────────────────────────────────────────────────────────────

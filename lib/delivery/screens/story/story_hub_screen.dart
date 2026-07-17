@@ -11,6 +11,7 @@ import '../../../infra/local/story_arcs_data.dart';
 import '../../../infra/services/haptics_service.dart';
 import '../../../infra/sound/sound_service.dart';
 import '../../state/providers.dart';
+import '../../theme/app_theme.dart' show factionColor;
 import '../../state/story_provider.dart';
 import '../../widgets/comic/comic_cover.dart';
 import '../shell/main_shell_scaffold.dart';
@@ -20,13 +21,7 @@ class StoryHubScreen extends ConsumerWidget {
 
   static const _heroIds = ['puo_liu', 'kage', 'ryoto', 'kai', 'mila'];
 
-  static const _factionColors = {
-    Faction.shaolin:  Color(0xFFE5A93C),
-    Faction.ninja:    Color(0xFF7B68EE),
-    Faction.judoka:   Color(0xFF4FC3F7),
-    Faction.boxer:    Color(0xFFEF5350),
-    Faction.capoeira: Color(0xFF66BB6A),
-  };
+
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -69,7 +64,7 @@ class StoryHubScreen extends ConsumerWidget {
                   if (hero == null) return const SizedBox.shrink();
 
                   final isUnlocked = player?.unlockedHeroIds.contains(heroId) ?? false;
-                  final color = _factionColors[hero.faction] ?? const Color(0xFFE5A93C);
+                  final color = factionColor(hero.faction);
 
                   return _HeroSeriesShelf(
                     hero: hero,

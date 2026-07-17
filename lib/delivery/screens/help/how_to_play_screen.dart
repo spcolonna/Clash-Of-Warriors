@@ -141,10 +141,10 @@ class HowToPlayContent extends StatelessWidget {
         ),
         _Section(
           title: 'Rondas y mazo',
-          body: 'Arrancás con 7 cartas en mano de un mazo de 20. Al final de '
-              'cada round, las cartas usadas van al descarte y robás hasta '
-              'tener 7 otra vez. Si el mazo se vacía, el descarte se mezcla y '
-              'vuelve a ser mazo.',
+          body: 'Arrancás con 5 cartas en mano de un mazo de 20. Al final de '
+              'cada round podés guardar una carta; el resto se descarta y '
+              'robás hasta tener 5 otra vez. Si el mazo se vacía, el descarte '
+              'se mezcla y vuelve a ser mazo.',
         ),
       ],
     );

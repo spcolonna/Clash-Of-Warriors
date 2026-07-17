@@ -213,8 +213,17 @@ class NeutralCardsData {
       imageFolder: d['imageFolder'] as String?,
       imageName:   d['imageName']   as String?,
       imageUrl:    d['imageUrl']    as String?,
+      effect:      _parseEffect(d['effect'] as String?),
+      effectValue: d['effectValue'] as int?,
     );
   }
+
+  static CardEffect? _parseEffect(String? s) => switch (s) {
+    'drainStamina' => CardEffect.drainStamina,
+    'heal'         => CardEffect.heal,
+    'staminaBoost' => CardEffect.staminaBoost,
+    _              => null,
+  };
 
   static CardCategory _parseCategory(String s) => switch (s) {
     'kick'    => CardCategory.kick,

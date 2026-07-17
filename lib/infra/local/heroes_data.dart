@@ -146,6 +146,81 @@ class FactionStarterCards {
   };
 }
 
+// ── Cartas de efecto por facción ─────────────────────────────────────────────
+// Efectos no-daño que se disparan al GANAR el slot. Crean arquetipos:
+// shaolin sostiene (heal), ninja/judoka controlan (drain), boxer/capoeira
+// aceleran (boost). También forman parte de los mazos temáticos de los bots.
+class FactionEffectCards {
+  static const shaolinHeal = GameCard(
+    id: 'shaolin_meditation',
+    name: 'Meditación del Templo',
+    lore: 'Si el golpe no llega, la calma sí. GANA EL SLOT: recuperás 10 HP.',
+    category: CardCategory.defense,
+    rarity: CardRarity.rare,
+    staminaCost: 2,
+    baseDamage: 10,
+    factionId: 'shaolin',
+    effect: CardEffect.heal,
+    effectValue: 10,
+  );
+
+  static const ninjaDrain = GameCard(
+    id: 'ninja_pressure_strike',
+    name: 'Golpe de Presión',
+    lore: 'El Clan no busca destruir el cuerpo: busca vaciarlo. GANA EL SLOT: el rival pierde 2 de stamina.',
+    category: CardCategory.kick,
+    rarity: CardRarity.rare,
+    staminaCost: 2,
+    baseDamage: 16,
+    factionId: 'ninja',
+    effect: CardEffect.drainStamina,
+    effectValue: 2,
+  );
+
+  static const judokaDrain = GameCard(
+    id: 'judoka_grinding_lock',
+    name: 'Llave de Desgaste',
+    lore: 'En el tatami no gana el más fuerte: gana el que le queda aire. GANA EL SLOT: el rival pierde 2 de stamina.',
+    category: CardCategory.grapple,
+    rarity: CardRarity.rare,
+    staminaCost: 2,
+    baseDamage: 15,
+    factionId: 'judoka',
+    effect: CardEffect.drainStamina,
+    effectValue: 2,
+  );
+
+  static const boxerBoost = GameCard(
+    id: 'boxer_second_wind',
+    name: 'Segundo Aire',
+    lore: 'El Barrio Sur no sabe rendirse. GANA EL SLOT: +2 de stamina la próxima ronda.',
+    category: CardCategory.punch,
+    rarity: CardRarity.rare,
+    staminaCost: 2,
+    baseDamage: 16,
+    factionId: 'boxer',
+    effect: CardEffect.staminaBoost,
+    effectValue: 2,
+  );
+
+  static const capoeiraBoost = GameCard(
+    id: 'capoeira_ginga_flow',
+    name: 'Ginga Fluida',
+    lore: 'La ginga nunca se detiene: cada esquive alimenta el siguiente. GANA EL SLOT: +2 de stamina la próxima ronda.',
+    category: CardCategory.dodge,
+    rarity: CardRarity.rare,
+    staminaCost: 2,
+    baseDamage: 12,
+    factionId: 'capoeira',
+    effect: CardEffect.staminaBoost,
+    effectValue: 2,
+  );
+
+  static const List<GameCard> all = [
+    shaolinHeal, ninjaDrain, judokaDrain, boxerBoost, capoeiraBoost,
+  ];
+}
+
 // ── Pasivas de raridades superiores ──────────────────────────────────────────
 // Misma mecánica que las common pero con daño escalado.
 class _RarityPassives {

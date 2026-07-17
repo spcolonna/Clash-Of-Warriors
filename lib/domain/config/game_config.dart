@@ -132,6 +132,20 @@ class GameConfig {
   // Ronda perfecta: ganar los 3 slots suma un bonus de daño extra.
   static const double perfectRoundBonus = 0.25;
 
+  // ── ASCENSIÓN DE HÉROES ───────────────────────────────
+  // Gastar medallas para subir estrellas (★2..★5). Cada estrella suma +1 a
+  // todos los stats del héroe (ver HeroEntity._statBonusPerStar).
+  static const int heroMaxStars = 5;
+  static const List<int> heroAscensionCosts = [100, 250, 500, 1000];
+
+  /// Costo en medallas para pasar de [currentStars] a la siguiente estrella.
+  /// Retorna null si ya está al máximo.
+  static int? ascensionCostFrom(int currentStars) {
+    final idx = currentStars - 1; // ★1→idx0 (costo de ★2), ...
+    if (idx < 0 || idx >= heroAscensionCosts.length) return null;
+    return heroAscensionCosts[idx];
+  }
+
   // ── AFINIDAD DE FACCIÓN ───────────────────────────────
   // Mazos temáticos: una carta de la misma facción que tu héroe pega más;
   // una carta de facción rival (ver factionEnemies) pega menos. Las cartas

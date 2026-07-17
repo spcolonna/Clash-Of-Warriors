@@ -13,6 +13,14 @@ enum ConditionalBonus {
   lowHp,             // +40% daño si el jugador está por debajo del 40% de HP
 }
 
+/// Efecto no-daño de una carta. Se dispara si la carta GANA su slot,
+/// y se materializa al cerrar el round (mismo mecanismo que las pasivas).
+enum CardEffect {
+  drainStamina, // el rival pierde [effectValue] stamina la próxima ronda
+  heal,         // te curás [effectValue] HP
+  staminaBoost, // ganás +[effectValue] stamina la próxima ronda
+}
+
 class GameCard {
   final String id;
   final String name;
@@ -28,6 +36,8 @@ class GameCard {
   final String? imageFolder;   // subcarpeta dentro de assets/images/cards/
   final String? imageName;     // nombre del archivo, ej. shadow_kick.png
   final String? imageUrl;      // imagen remota (Firebase Storage) — prioridad
+  final CardEffect? effect;    // efecto no-daño si gana el slot
+  final int? effectValue;      // magnitud del efecto
 
   const GameCard({
     required this.id,
@@ -44,6 +54,8 @@ class GameCard {
     this.imageFolder,
     this.imageName,
     this.imageUrl,
+    this.effect,
+    this.effectValue,
   });
 
   bool get isNeutral => heroId == null && factionId == null;

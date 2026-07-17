@@ -2,7 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../domain/config/game_config.dart' as cfg;
 import '../../../infra/config/premium_shop_config.dart';
+import '../../../infra/services/admob_service.dart';
+import '../../../infra/services/haptics_service.dart';
+import '../../../infra/sound/sound_service.dart';
 import '../../state/providers.dart';
 
 class PremiumShopScreen extends ConsumerWidget {
@@ -11,28 +16,47 @@ class PremiumShopScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = ref.watch(playerProvider)?.tokens ?? 0;
+    // Las secciones con "compras" en USD son simuladas: quedan ocultas
+    // detrás del flag hasta integrar IAP real (features.premiumShopEnabled).
+    final iapEnabled = ref
+            .watch(gameConfigProvider)
+            .value
+            ?.features
+            .premiumShopEnabled ??
+        false;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
       body: CustomScrollView(
         slivers: [
           _PremiumShopAppBar(tokens: tokens),
+          if (iapEnabled) ...[
+            SliverToBoxAdapter(
+              child: _SectionHeader(
+                icon: Icons.emoji_events,
+                title: 'Packs Legendarios',
+                subtitle: 'Héroe + cartas + tokens al mejor precio',
+              ),
+            ),
+            const SliverToBoxAdapter(child: _BundlesSection()),
+            SliverToBoxAdapter(
+              child: _SectionHeader(
+                icon: Icons.diamond,
+                title: 'Tokens',
+                subtitle: 'Recarga tu economía de juego',
+              ),
+            ),
+            const SliverToBoxAdapter(child: _TokenPacksSection()),
+          ],
           SliverToBoxAdapter(
             child: _SectionHeader(
-              icon: Icons.emoji_events,
-              title: 'Packs Legendarios',
-              subtitle: 'Héroe + cartas + tokens al mejor precio',
+              icon: Icons.ondemand_video,
+              title: 'Tokens gratis',
+              subtitle:
+                  'Mirá un anuncio y ganá ${cfg.GameConfig.rewardedAdTokens} tokens',
             ),
           ),
-          const SliverToBoxAdapter(child: _BundlesSection()),
-          SliverToBoxAdapter(
-            child: _SectionHeader(
-              icon: Icons.diamond,
-              title: 'Tokens',
-              subtitle: 'Recarga tu economía de juego',
-            ),
-          ),
-          const SliverToBoxAdapter(child: _TokenPacksSection()),
+          const SliverToBoxAdapter(child: _FreeTokensSection()),
           SliverToBoxAdapter(
             child: _SectionHeader(
               icon: Icons.sports_mma,
@@ -200,6 +224,7 @@ class _BundlesSection extends ConsumerWidget {
     await ref.read(playerProvider.notifier).grantBundle(
       heroId: bundle.heroId,
       tokenAmount: bundle.tokenAmount,
+      cardIds: bundle.cardIds,
     );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(_successSnackBar(
@@ -868,10 +893,12 @@ SnackBar _errorSnackBar(String message) => SnackBar(
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
+// Precios alcanzables jugando: con ~2 tokens/victoria + misiones + rewarded
+// ads, un rare sale en días, no en cientos de batallas.
 int _tokenCostForRarity(HeroRarity rarity) => switch (rarity) {
-  HeroRarity.rare       => 500,
-  HeroRarity.epic       => 1000,
-  HeroRarity.legendary  => 1500,
+  HeroRarity.rare       => 150,
+  HeroRarity.epic       => 300,
+  HeroRarity.legendary  => 500,
 };
 
 
@@ -880,3 +907,120 @@ String _formatPrice(double price) =>
 
 String _formatTokens(int tokens) =>
     tokens >= 1000 ? '${(tokens / 1000).toStringAsFixed(tokens % 1000 == 0 ? 0 : 1)}K' : '$tokens';
+
+// ─── TOKENS GRATIS (REWARDED AD) ────────────────────────────────────────────
+
+class _FreeTokensSection extends ConsumerStatefulWidget {
+  const _FreeTokensSection();
+
+  @override
+  ConsumerState<_FreeTokensSection> createState() => _FreeTokensSectionState();
+}
+
+class _FreeTokensSectionState extends ConsumerState<_FreeTokensSection> {
+  static const _cooldown = Duration(minutes: 10);
+  static const _prefsKey = 'lastRewardedTokensAt';
+
+  DateTime? _lastWatched;
+  bool _showingAd = false;
+
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((prefs) {
+      final ms = prefs.getInt(_prefsKey);
+      if (ms != null && mounted) {
+        setState(
+            () => _lastWatched = DateTime.fromMillisecondsSinceEpoch(ms));
+      }
+    });
+  }
+
+  Duration get _remaining {
+    if (_lastWatched == null) return Duration.zero;
+    final elapsed = DateTime.now().difference(_lastWatched!);
+    return elapsed >= _cooldown ? Duration.zero : _cooldown - elapsed;
+  }
+
+  Future<void> _watch() async {
+    if (_showingAd || _remaining > Duration.zero) return;
+    setState(() => _showingAd = true);
+    final completed = await AdMobService().showRewarded(
+      onRewarded: (tokens) {
+        ref.read(playerProvider.notifier).addTokens(tokens);
+      },
+    );
+    if (!mounted) return;
+    setState(() => _showingAd = false);
+    if (completed) {
+      SoundService().play('coin');
+      HapticsService().success();
+      final now = DateTime.now();
+      setState(() => _lastWatched = now);
+      SharedPreferences.getInstance().then(
+          (prefs) => prefs.setInt(_prefsKey, now.millisecondsSinceEpoch));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('El anuncio no está disponible ahora. Probá en un rato.'),
+        duration: Duration(milliseconds: 1600),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = _remaining;
+    final onCooldown = remaining > Duration.zero;
+    const purple = Color(0xFFB39DDB);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onCooldown || _showingAd ? null : _watch,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A2E),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: onCooldown
+                    ? Colors.white12
+                    : purple.withValues(alpha: 0.6),
+                width: onCooldown ? 1 : 1.5,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.ondemand_video,
+                    color: onCooldown ? Colors.white24 : purple, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _showingAd
+                        ? 'Cargando anuncio…'
+                        : onCooldown
+                            ? 'Disponible en ${remaining.inMinutes + 1} min'
+                            : '+${cfg.GameConfig.rewardedAdTokens} tokens gratis',
+                    style: TextStyle(
+                      color: onCooldown ? Colors.white38 : Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                if (!onCooldown && !_showingAd)
+                  const Icon(Icons.play_circle_fill, color: purple, size: 26),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

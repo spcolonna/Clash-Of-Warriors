@@ -24,8 +24,9 @@ class PlayerHandWidget extends StatefulWidget {
   /// del preview avisa que la carta quedará sellada.
   final bool nextSlotIsOpening;
 
-  /// Facción del héroe del jugador — activa el look de afinidad en las cartas.
-  final Faction? heroFaction;
+  /// Héroe del jugador — activa el look de afinidad y el daño real en las
+  /// cartas de la mano.
+  final HeroEntity? hero;
 
   const PlayerHandWidget({
     super.key,
@@ -36,7 +37,7 @@ class PlayerHandWidget extends StatefulWidget {
     this.remainingStamina,
     this.onCardPlay,
     this.nextSlotIsOpening = false,
-    this.heroFaction,
+    this.hero,
   });
 
   @override
@@ -46,7 +47,6 @@ class PlayerHandWidget extends StatefulWidget {
 class _PlayerHandWidgetState extends State<PlayerHandWidget>
     with TickerProviderStateMixin {
   final List<AnimationController> _dealControllers = [];
-  bool _dealt = false;
 
   @override
   void initState() {
@@ -74,7 +74,6 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
       await Future.delayed(const Duration(milliseconds: 120));
     }
     if (mounted) {
-      setState(() => _dealt = true);
       widget.onDealAnimationComplete?.call();
     }
   }
@@ -149,7 +148,7 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
             card: cardData.card,
             width: cardWidth,
             isPassive: false,
-            contextHeroFaction: widget.heroFaction,
+            contextHero: widget.hero,
           );
           final cardWidget = affordable
               ? rawCard
@@ -199,7 +198,7 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
                   card: cardData.card,
                   width: cardWidth,
                   isPassive: false,
-                  contextHeroFaction: widget.heroFaction,
+                  contextHero: widget.hero,
                 ),
               ),
             ),

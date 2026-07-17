@@ -1,7 +1,6 @@
 import 'package:clash_of_styles/delivery/state/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/hero_entity.dart';
-import '../../domain/entities/player_profile.dart';
 import '../../infra/local/heroes_data.dart';
 
 class OnboardingState {

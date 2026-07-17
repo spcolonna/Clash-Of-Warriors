@@ -85,6 +85,7 @@ class StatusEffect {
 enum StatusEffectType {
   continuousDamage,
   staminaReduction,
+  staminaBoost,
   slotBlocked,
 }
 

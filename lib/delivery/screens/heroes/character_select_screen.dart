@@ -7,7 +7,11 @@ import 'package:go_router/go_router.dart';
 import '../../../domain/entities/hero_entity.dart';
 import '../../../infra/local/heroes_data.dart';
 import '../../state/providers.dart';
+import '../../theme/app_theme.dart' show factionColor;
 import 'mini_chip.dart';
+
+// Re-export: muchas pantallas importan factionColor desde acá.
+export '../../theme/app_theme.dart' show factionColor;
 
 class CharacterSelectScreen extends ConsumerStatefulWidget {
   const CharacterSelectScreen({super.key});
@@ -443,14 +447,8 @@ class _StatRow extends StatelessWidget {
 }
 
 // ─── Helpers de facción ──────────────────────────────────────────────────────
-
-Color factionColor(Faction faction) => switch (faction) {
-      Faction.shaolin  => const Color(0xFFD4A017),
-      Faction.ninja    => const Color(0xFF4A4A6A),
-      Faction.judoka   => const Color(0xFF1A5276),
-      Faction.boxer    => const Color(0xFFC0392B),
-      Faction.capoeira => const Color(0xFF27AE60),
-    };
+// factionColor vive en theme/app_theme.dart (fuente única). Se re-exporta
+// desde acá para no romper los imports existentes de las demás pantallas.
 
 String factionEmoji(Faction faction) => switch (faction) {
       Faction.shaolin  => '🏯',

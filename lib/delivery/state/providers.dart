@@ -3,6 +3,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/entities/hero.dart';
 import '../../domain/entities/hero_entity.dart';
 import '../../domain/entities/player_profile.dart';
@@ -16,6 +17,7 @@ import '../../infra/services/admob_service.dart';
 import '../../infra/services/game_seed_service.dart';
 import '../../infra/sound/sound_service.dart';
 import '../../domain/entities/battle_state.dart' show BotDifficulty, GameMode;
+import '../../domain/config/game_config.dart' as cfg;
 import '../../domain/entities/game_config.dart';
 import '../../infra/firebase/game_config_service.dart';
 import '../../infra/local/heroes_data.dart';
@@ -281,20 +283,63 @@ class PlayerNotifier extends StateNotifier<PlayerProfile?> {
   Future<void> grantBundle({
     required String heroId,
     required int tokenAmount,
+    List<String> cardIds = const [],
   }) async {
     if (state == null) return;
     final alreadyOwned = state!.unlockedHeroIds.contains(heroId);
+
+    // Sumar cartas del bundle al estado local (incrementando cantidades)
+    final owned = List<OwnedCard>.from(state!.ownedCards);
+    for (final cardId in cardIds) {
+      final idx = owned.indexWhere((c) => c.cardId == cardId);
+      if (idx >= 0) {
+        owned[idx] =
+            OwnedCard(cardId: cardId, quantity: owned[idx].quantity + 1);
+      } else {
+        owned.add(OwnedCard(cardId: cardId, quantity: 1));
+      }
+    }
+
     state = state!.copyWith(
       tokens: state!.tokens + tokenAmount,
       unlockedHeroIds: alreadyOwned
           ? state!.unlockedHeroIds
           : [...state!.unlockedHeroIds, heroId],
+      ownedCards: owned,
     );
     await _svc.grantBundle(
       uid: state!.uid,
       heroId: heroId,
       tokenAmount: tokenAmount,
+      cardIds: cardIds,
     );
+  }
+
+  /// Ascensión de héroe: gasta medallas y sube una estrella (★2..★5).
+  /// Retorna false si no alcanzan las medallas o ya está al máximo.
+  Future<bool> ascendHero(String heroId) async {
+    if (state == null) return false;
+    final current = state!.heroStarsFor(heroId);
+    final cost = cfg.GameConfig.ascensionCostFrom(current);
+    if (cost == null || state!.medals < cost) return false;
+
+    final newStars = current + 1;
+    state = state!.copyWith(
+      medals: state!.medals - cost,
+      heroStars: {...state!.heroStars, heroId: newStars},
+    );
+    try {
+      await _svc.ascendHero(
+        uid: state!.uid,
+        heroId: heroId,
+        newStars: newStars,
+        medalCost: cost,
+      );
+      return true;
+    } catch (e) {
+      print('[PlayerNotifier] ascendHero: $e');
+      return false;
+    }
   }
 
   Future<bool> convertTokensToSoftCoins({
@@ -315,6 +360,15 @@ class PlayerNotifier extends StateNotifier<PlayerProfile?> {
     if (state == null) return;
     state = state!.copyWith(battlePoints: state!.battlePoints + amount);
     _svc.addBattlePoints(state!.uid, amount);
+    // Leaderboard semanal: cada victoria de arena suma al ranking.
+    final name = FirebaseAuth.instance.currentUser?.displayName ?? 'Guerrero';
+    _svc
+        .submitWeeklyPoints(
+          uid: state!.uid,
+          displayName: name,
+          points: amount,
+        )
+        .catchError((_) {}); // el ranking nunca bloquea el flujo
   }
 
   // ── Retención: login diario + XP de cuenta ──────────────────────────────────
@@ -663,15 +717,65 @@ class GameConfigNotifier extends AsyncNotifier<GameConfig> {
 
 final selectedHeroProvider = StateProvider<GameHero?>((ref) => null);
 
-// ── Dificultad de arena (se resetea a normal en cada pre-batalla) ──────────
+// ── Dificultad y modo de arena (persistidos entre sesiones) ────────────────
 
 final selectedDifficultyProvider =
-    StateProvider<BotDifficulty>((ref) => BotDifficulty.normal);
+    NotifierProvider<SelectedDifficultyNotifier, BotDifficulty>(
+  SelectedDifficultyNotifier.new,
+);
 
-// ── Modo de juego seleccionado (Normal / Experto) ──────────────────────────
+class SelectedDifficultyNotifier extends Notifier<BotDifficulty> {
+  static const _prefsKey = 'selectedDifficulty';
+
+  @override
+  BotDifficulty build() {
+    SharedPreferences.getInstance().then((prefs) {
+      final name = prefs.getString(_prefsKey);
+      if (name != null) {
+        state = BotDifficulty.values.firstWhere(
+          (d) => d.name == name,
+          orElse: () => BotDifficulty.normal,
+        );
+      }
+    });
+    return BotDifficulty.normal;
+  }
+
+  void select(BotDifficulty d) {
+    state = d;
+    SharedPreferences.getInstance()
+        .then((prefs) => prefs.setString(_prefsKey, d.name));
+  }
+}
 
 final selectedGameModeProvider =
-    StateProvider<GameMode>((ref) => GameMode.expert);
+    NotifierProvider<SelectedGameModeNotifier, GameMode>(
+  SelectedGameModeNotifier.new,
+);
+
+class SelectedGameModeNotifier extends Notifier<GameMode> {
+  static const _prefsKey = 'selectedGameMode';
+
+  @override
+  GameMode build() {
+    SharedPreferences.getInstance().then((prefs) {
+      final name = prefs.getString(_prefsKey);
+      if (name != null) {
+        state = GameMode.values.firstWhere(
+          (m) => m.name == name,
+          orElse: () => GameMode.expert,
+        );
+      }
+    });
+    return GameMode.expert;
+  }
+
+  void select(GameMode m) {
+    state = m;
+    SharedPreferences.getInstance()
+        .then((prefs) => prefs.setString(_prefsKey, m.name));
+  }
+}
 
 // ── Contexto de batalla de historia ───────────────────────────────────────
 // null cuando no hay historia activa; se setea antes de ir a /battle en modo historia

@@ -24,11 +24,14 @@ class CardCatalog {
   factory CardCatalog.build(List<Map<String, dynamic>> remoteCards) {
     final byId = <String, GameCard>{};
 
-    // 1. Base local: neutrales + cartas de facción.
+    // 1. Base local: neutrales + cartas de facción (starter y de efecto).
     for (final c in NeutralCardsData.allUniqueCards) {
       byId[c.id] = c;
     }
     for (final c in FactionStarterCards.all) {
+      byId[c.id] = c;
+    }
+    for (final c in FactionEffectCards.all) {
       byId[c.id] = c;
     }
 
