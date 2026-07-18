@@ -47,6 +47,11 @@ class _DeckBuilderScreenState extends ConsumerState<DeckBuilderScreen> {
   Widget build(BuildContext context) {
     final deckState = ref.watch(deckBuilderProvider);
     final player = ref.watch(playerProvider);
+    // Sin este watch, esta pantalla (viva todo el tiempo dentro del
+    // IndexedStack del shell) nunca se reconstruye cuando el catálogo de
+    // cartas cambia (ej. "Recargar contenido" en Ajustes), y _findCard()
+    // sigue devolviendo el snapshot viejo hasta que otro provider fuerce un rebuild.
+    ref.watch(cardCatalogProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

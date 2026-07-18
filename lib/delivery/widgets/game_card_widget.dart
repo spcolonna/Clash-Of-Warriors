@@ -103,6 +103,13 @@ class _GameCardWidgetState extends State<GameCardWidget>
     final bubbleSize = headerH * 0.55;
 
     if (!_isPassive) {
+      // Cartas con arte propio (imageUrl subido desde el admin): layout
+      // "full-art" estilo Legends of Runeterra — la ilustración vertical
+      // 2:3 ocupa toda la carta y nombre/coste/daño/lore van superpuestos.
+      // Las genéricas (sin arte) mantienen el layout clásico de secciones.
+      if (card.imageUrl != null && card.imageUrl!.isNotEmpty) {
+        return _withAffinity(_buildFullArtCard(card, width, h));
+      }
       return _withAffinity(_buildCard(
         card: card, width: width, h: h,
         headerH: headerH, imageH: imageH, badgeH: badgeH,
@@ -117,6 +124,236 @@ class _GameCardWidgetState extends State<GameCardWidget>
         headerH: headerH, imageH: imageH, badgeH: badgeH,
         loreH: loreH, gapH: gapH, bubbleSize: bubbleSize,
         glowAlpha: _glowAnim!.value,
+      ),
+    );
+  }
+
+  // ── Layout "full-art" (estilo Legends of Runeterra) ─────────────────────
+  // La ilustración vertical llena la carta entera; coste, daño, nombre,
+  // categoría y lore van superpuestos sobre un degradado inferior.
+
+  static Color _rarityBorderColor(CardRarity rarity) => switch (rarity) {
+        CardRarity.rare => const Color(0xFF4FC3F7),
+        CardRarity.epic => const Color(0xFFCE93D8),
+        CardRarity.legendary => const Color(0xFFFFD700),
+        _ => const Color(0xFF90A4AE), // common / neutral: plata
+      };
+
+  /// Gradiente "metálico" del marco: claros y oscuros del color de rareza
+  /// alternados en diagonal, como el bisel de metal de las cartas TCG.
+  static LinearGradient _metalFrameGradient(Color base) {
+    Color tone(double towardsWhite) => towardsWhite >= 0
+        ? Color.lerp(base, Colors.white, towardsWhite)!
+        : Color.lerp(base, Colors.black, -towardsWhite)!;
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
+      colors: [
+        tone(0.65), // brillo superior
+        tone(0.1),
+        tone(-0.45), // sombra central
+        tone(0.15),
+        tone(0.55), // brillo inferior
+      ],
+    );
+  }
+
+  Widget _buildFullArtCard(GameCard card, double width, double h) {
+    final rarityColor = _rarityBorderColor(card.rarity);
+    final isLegendary = card.rarity == CardRarity.legendary;
+    final gem = width * 0.21;
+    // En tamaños chicos (mano de retención, tiles) el lore es ilegible:
+    // solo se muestra a partir de ~105px, igual que hace LoR con el texto.
+    final showLore = width >= 105 && card.lore.isNotEmpty;
+    // Marco proporcional: metal afuera + línea de tinta que separa del arte.
+    final frameW = (width * 0.028).clamp(2.5, 6.0);
+    final inkW = (width * 0.008).clamp(1.0, 2.0);
+
+    return Container(
+      width: width,
+      height: h,
+      // Capa 1: marco metálico (gradiente de la rareza)
+      padding: EdgeInsets.all(frameW),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: _metalFrameGradient(rarityColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 6,
+            offset: const Offset(1, 3),
+          ),
+          if (isLegendary)
+            BoxShadow(
+              color: rarityColor.withValues(alpha: 0.5),
+              blurRadius: 12,
+              spreadRadius: 1,
+            ),
+        ],
+      ),
+      // Capa 2: línea interior de tinta (separa el metal del arte)
+      child: Container(
+        padding: EdgeInsets.all(inkW),
+        decoration: BoxDecoration(
+          color: const Color(0xFF14100C),
+          borderRadius: BorderRadius.circular(9),
+        ),
+        // Capa 3: el arte con todo superpuesto
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(7),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+          // Ilustración full-bleed (cache + fallback ya resueltos)
+          _CardImage(card: card, height: h),
+
+          // Degradado inferior para legibilidad del texto
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0.0, 0.45, 0.72, 1.0],
+                  colors: [
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.55),
+                    Colors.black.withValues(alpha: 0.88),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Gema de coste (stamina) — arriba a la izquierda
+          Positioned(
+            top: 4,
+            left: 4,
+            child: _FullArtGem(
+              value: '${card.staminaCost}',
+              color: const Color(0xFFF5B800),
+              size: gem,
+            ),
+          ),
+
+          // Badge de facción — arriba a la derecha
+          if (card.factionId != null)
+            Positioned(
+              top: 6,
+              right: 6,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _factionColor(card.factionId) ?? Colors.black54,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.black54),
+                ),
+                child: Text(
+                  card.factionId!.toUpperCase(),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: (width * 0.055).clamp(6.0, 9.0),
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
+
+          // Bloque inferior: categoría + nombre + lore
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Padding(
+              // Aire a la derecha para no chocar con la gema de daño
+              padding: EdgeInsets.fromLTRB(
+                  width * 0.06, 0, width * 0.06 + gem * 0.9, width * 0.06),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Categoría como mini-chip
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _categoryIcon(card.category),
+                          size: (width * 0.085).clamp(8.0, 13.0),
+                          color: _categoryColor(card.category),
+                        ),
+                        SizedBox(width: width * 0.02),
+                        Text(
+                          _categoryLabel(card.category),
+                          style: TextStyle(
+                            color: _categoryColor(card.category),
+                            fontSize: (width * 0.062).clamp(6.0, 10.0),
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: width * 0.015),
+                  // Nombre
+                  Text(
+                    card.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: (width * 0.09).clamp(9.0, 18.0),
+                      fontWeight: FontWeight.w900,
+                      height: 1.05,
+                      shadows: const [
+                        Shadow(color: Colors.black, blurRadius: 4),
+                        Shadow(color: Colors.black87, offset: Offset(0, 1)),
+                      ],
+                    ),
+                  ),
+                  if (showLore) ...[
+                    SizedBox(height: width * 0.025),
+                    Text(
+                      card.lore,
+                      maxLines: width >= 200 ? 4 : 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: (width * 0.062).clamp(7.0, 13.0),
+                        fontStyle: FontStyle.italic,
+                        height: 1.25,
+                        shadows: const [
+                          Shadow(color: Colors.black, blurRadius: 3),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+
+          // Gema de daño (poder) — abajo a la derecha, con el daño real
+          if (card.baseDamage != null)
+            Positioned(
+              bottom: 4,
+              right: 4,
+              child: _FullArtGem(
+                value: '${_displayDamage(card)}',
+                color: _damageBubbleColor(card),
+                size: gem,
+              ),
+            ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -493,6 +730,64 @@ class _GameCardWidgetState extends State<GameCardWidget>
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Gema circular del layout full-art (coste arriba, daño abajo): como las
+/// gemas de maná/poder de Legends of Runeterra — círculo saturado con borde
+/// oscuro y número grande legible sobre el arte.
+class _FullArtGem extends StatelessWidget {
+  final String value;
+  final Color color;
+  final double size;
+
+  const _FullArtGem({
+    required this.value,
+    required this.color,
+    required this.size,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.lerp(color, Colors.white, 0.25)!,
+            color,
+            Color.lerp(color, Colors.black, 0.35)!,
+          ],
+        ),
+        border: Border.all(
+          color: Colors.black.withValues(alpha: 0.75),
+          width: (size * 0.09).clamp(1.5, 3.0),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.5),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          value,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: size * 0.5,
+            fontWeight: FontWeight.w900,
+            height: 1,
+            shadows: const [Shadow(color: Colors.black87, blurRadius: 2)],
+          ),
+        ),
+      ),
     );
   }
 }

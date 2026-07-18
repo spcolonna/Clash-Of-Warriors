@@ -7,6 +7,7 @@
 // Cada cambio persiste en Firebase via playerProvider.updateDeck.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../infra/local/neutral_cards_data.dart';
 import 'providers.dart';
 
 class DeckEntry {
@@ -47,7 +48,19 @@ class DeckBuilderNotifier
   final Ref _ref;
   static const int maxDeckSize = 20;
 
-  DeckBuilderNotifier(this._ref) : super(const AsyncValue.loading());
+  DeckBuilderNotifier(this._ref) : super(const AsyncValue.loading()) {
+    // Recargar cada vez que cambien las cartas del jugador (compras en la
+    // tienda, recompensas, etc.) — necesario porque IndexedStack mantiene
+    // esta pantalla viva y su initState solo corre una vez.
+    _ref.listen(playerProvider, (previous, next) {
+      if (next == null) return;
+      if (previous?.ownedCards == next.ownedCards &&
+          previous?.deckCardIds == next.deckCardIds) {
+        return;
+      }
+      loadFromPlayer();
+    });
+  }
 
   Future<void> loadFromPlayer() async {
     final player = _ref.read(playerProvider);
@@ -67,8 +80,25 @@ class DeckBuilderNotifier
           .map((e) => DeckEntry(cardId: e.key, quantity: e.value))
           .toList();
 
-      // Collection: cartas de ownedCards cuyas quantity superan lo que está en deck
+      // Las cartas neutrales/genéricas del mazo starter nunca se guardan en
+      // ownedCards (son un pool siempre disponible, no algo que se "compra").
+      // Si no las contamos acá, sacarlas del mazo las hace desaparecer del
+      // todo — no están en ownedCards ni en el mazo.
+      final neutralTotals = <String, int>{};
+      for (final id in NeutralCardsData.starterDeckCardIds()) {
+        neutralTotals[id] = (neutralTotals[id] ?? 0) + 1;
+      }
+
       final collection = <DeckEntry>[];
+      for (final entry in neutralTotals.entries) {
+        final inDeck = deckByCardId[entry.key] ?? 0;
+        final remaining = entry.value - inDeck;
+        if (remaining > 0) {
+          collection.add(DeckEntry(cardId: entry.key, quantity: remaining));
+        }
+      }
+
+      // Collection: cartas de ownedCards cuyas quantity superan lo que está en deck
       for (final owned in player.ownedCards) {
         final inDeck = deckByCardId[owned.cardId] ?? 0;
         final remaining = owned.quantity - inDeck;

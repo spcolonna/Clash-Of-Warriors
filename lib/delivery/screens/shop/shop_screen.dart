@@ -49,6 +49,13 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         !player.starterCardPurchased &&
         player.selectedFactionId != null;
 
+    // Una facción está desbloqueada para comprar si alguno de los héroes que
+    // ya tiene el jugador pertenece a ella (no solo la facción activa).
+    final unlockedFactionIds = player.unlockedHeroIds
+        .map((id) => HeroesData.findByIdSafe(id)?.faction.name)
+        .whereType<String>()
+        .toSet();
+
     return Stack(
       children: [
         Scaffold(
@@ -78,7 +85,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                         }
                         final faction = factions[index - 1];
                         final isUnlocked =
-                            player.selectedFactionId == faction.id;
+                            unlockedFactionIds.contains(faction.id);
 
                         return _FactionRow(
                           faction: faction,
