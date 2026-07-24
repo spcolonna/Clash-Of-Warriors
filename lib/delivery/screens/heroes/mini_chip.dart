@@ -11,23 +11,23 @@ class MiniChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.textSecondary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        color: AppColors.textSecondary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(9),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(icon, style: const TextStyle(fontSize: 9)),
-          const SizedBox(width: 2),
+          Text(icon, style: const TextStyle(fontSize: 12)),
+          const SizedBox(width: 4),
           Flexible(
             child: Text(
               value,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: AppColors.textSecondary,
-                fontSize: 9,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
             ),

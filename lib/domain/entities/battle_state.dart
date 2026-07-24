@@ -87,6 +87,8 @@ enum StatusEffectType {
   staminaReduction,
   staminaBoost,
   slotBlocked,
+  defenseDenied,  // el combatante no puede jugar Defensa esta ronda
+  weakened,       // el combatante hace −[value]% daño esta ronda
 }
 
 class SlotResult {
@@ -105,6 +107,9 @@ class SlotResult {
   final String? affinityBy;
   // 'player' | 'opponent' | null — quién pegó nerfeado por facción rival
   final String? rivalBy;
+  // 'player' | 'opponent' | null — quién "leyó" al rival (counteró una carta
+  // repetida) y pegó con daño ×readMultiplier.
+  final String? readBy;
   final String narrative;
 
   const SlotResult({
@@ -119,6 +124,7 @@ class SlotResult {
     this.mitigatedBy,
     this.affinityBy,
     this.rivalBy,
+    this.readBy,
     required this.narrative,
   });
 }
@@ -133,6 +139,16 @@ class RoundResult {
   // Ronda perfecta: ganó los 3 slots → daño extra aplicado al final del round.
   final int playerPerfectBonus;
   final int opponentPerfectBonus;
+  // Combos posicionales detectados sobre la secuencia de 3 (null si ninguno).
+  final String? playerComboName;
+  final String? opponentComboName;
+  // Daño extra de combo (One-Two / Agarrar y Golpear), aplicado al cerrar el
+  // round igual que el bonus de ronda perfecta.
+  final int playerComboDamage;
+  final int opponentComboDamage;
+  // Cura de combo (Tortuga) aplicada al cerrar el round.
+  final int playerComboHeal;
+  final int opponentComboHeal;
 
   const RoundResult({
     required this.roundNumber,
@@ -143,6 +159,12 @@ class RoundResult {
     required this.opponentHpAfter,
     this.playerPerfectBonus = 0,
     this.opponentPerfectBonus = 0,
+    this.playerComboName,
+    this.opponentComboName,
+    this.playerComboDamage = 0,
+    this.opponentComboDamage = 0,
+    this.playerComboHeal = 0,
+    this.opponentComboHeal = 0,
   });
 }
 
@@ -165,6 +187,9 @@ class BattleState {
   // Slots del oponente revelados esta ronda (se limpia al iniciar cada ronda).
   final Map<int, GameCard> revealedOpponentSlots;
 
+  // Evento de ring activo esta ronda (id de RingEvents), null si ninguno.
+  final String? activeRingEvent;
+
   const BattleState({
     required this.phase,
     required this.player,
@@ -179,6 +204,7 @@ class BattleState {
     this.passiveJustUnlocked = false,
     this.scoutTokensRemaining = 3,
     this.revealedOpponentSlots = const {},
+    this.activeRingEvent,
   });
 
   bool get isBattleOver => playerWon != null;
@@ -197,6 +223,9 @@ class BattleState {
     bool? passiveJustUnlocked,
     int? scoutTokensRemaining,
     Map<int, GameCard>? revealedOpponentSlots,
+    // Sentinela: permite poner activeRingEvent en null explícitamente (rondas
+    // sin evento) sin que el `?? this` lo preserve por error.
+    Object? activeRingEvent = _noChange,
   }) =>
       BattleState(
         phase: phase ?? this.phase,
@@ -212,5 +241,10 @@ class BattleState {
         passiveJustUnlocked: passiveJustUnlocked ?? this.passiveJustUnlocked,
         scoutTokensRemaining: scoutTokensRemaining ?? this.scoutTokensRemaining,
         revealedOpponentSlots: revealedOpponentSlots ?? this.revealedOpponentSlots,
+        activeRingEvent: identical(activeRingEvent, _noChange)
+            ? this.activeRingEvent
+            : activeRingEvent as String?,
       );
+
+  static const Object _noChange = Object();
 }

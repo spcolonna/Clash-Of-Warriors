@@ -14,10 +14,11 @@ import '../../../infra/local/heroes_data.dart';
 import '../../state/providers.dart';
 import '../../state/shop_provider.dart';
 import '../../widgets/shop/shop_card_item.dart';
-import '../../widgets/shop/confirm_purchase_dialog.dart';
 import '../../widgets/shop/faction_row_header.dart';
+import '../../widgets/animated_resource_chip.dart';
 import '../../widgets/tutorial_spotlight_overlay.dart';
 import '../heroes/character_select_screen.dart'; // factionColor
+import '../premium_shop/premium_shop_screen.dart';
 
 class ShopScreen extends ConsumerStatefulWidget {
   const ShopScreen({super.key});
@@ -75,15 +76,16 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                     ),
                     data: (factions) => ListView.builder(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      itemCount: factions.length + 1,
+                      itemCount: factions.length + 2,
                       itemBuilder: (context, index) {
-                        if (index == 0) {
+                        if (index == 0) return const _PremiumShopBanner();
+                        if (index == 1) {
                           return _HeroesSection(
                             player: player,
                             onHeroPurchase: (hero) => _onHeroPurchase(hero),
                           );
                         }
-                        final faction = factions[index - 1];
+                        final faction = factions[index - 2];
                         final isUnlocked =
                             unlockedFactionIds.contains(faction.id);
 
@@ -98,7 +100,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                               (showStarterTutorial && isUnlocked)
                                   ? _starterCardKey
                                   : null,
-                          onCardTap: (card) => _onCardTap(card, player.softCoins),
+                          onCardTap: (card) => _onCardBuy(card),
                         );
                       },
                     ),
@@ -121,21 +123,17 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     );
   }
 
-  void _onCardTap(ShopCard card, int playerCoins) async {
-    final confirmed = await ConfirmPurchaseDialog.show(
-      context: context,
-      card: card,
-      playerCoins: playerCoins,
-    );
-
-    if (confirmed != true) return;
-
+  // El botón "Comprar" del preview de la carta ya deja ver precio y saldo
+  // suficiente antes de habilitarse, así que la compra se ejecuta directo
+  // (mismo patrón que "Jugar" en batalla): sin popup de confirmación extra.
+  // Devuelve el éxito para que el dialog dispare su animación de compra.
+  Future<bool> _onCardBuy(ShopCard card) async {
     final success = await ref.read(playerProvider.notifier).purchaseStarterCard(
           cardId: card.id,
           cost: card.cost,
         );
 
-    if (!mounted) return;
+    if (!mounted) return success;
 
     if (success) {
       // Si era la starter card del tutorial, completar el onboarding
@@ -152,6 +150,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         const SnackBar(content: Text('No tenés suficientes monedas')),
       );
     }
+    return success;
   }
 
   void _onHeroPurchase(HeroEntity hero) async {
@@ -256,13 +255,13 @@ class _ShopHeader extends ConsumerWidget {
                 'Tienda',
                 style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
               ),
-              _CurrencyChip(icon: Icons.monetization_on, value: softCoins, color: const Color(0xFFF5B800)),
+              AnimatedResourceChip(icon: Icons.monetization_on, value: softCoins, color: const Color(0xFFF5B800)),
             ],
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              _CurrencyChip(icon: Icons.diamond, value: tokens, color: const Color(0xFFB39DDB)),
+              AnimatedResourceChip(icon: Icons.diamond, value: tokens, color: const Color(0xFFB39DDB)),
               const SizedBox(width: 10),
               GestureDetector(
                 onTap: () => _showTokenConvertSheet(context, ref, tokens),
@@ -298,31 +297,6 @@ class _ShopHeader extends ConsumerWidget {
   }
 }
 
-class _CurrencyChip extends StatelessWidget {
-  final IconData icon;
-  final int value;
-  final Color color;
-  const _CurrencyChip({required this.icon, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          Text('$value', style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-}
 
 class _TokenConvertSheet extends StatelessWidget {
   final int currentTokens;
@@ -460,6 +434,84 @@ class _ConvertOption extends StatelessWidget {
   }
 }
 
+// ─── BANNER TIENDA PREMIUM ───────────────────────────────────────────────────
+
+class _PremiumShopBanner extends StatelessWidget {
+  const _PremiumShopBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).push(
+          PageRouteBuilder(
+            pageBuilder: (_, __, ___) => const PremiumShopScreen(),
+            transitionsBuilder: (_, anim, __, child) =>
+                FadeTransition(opacity: anim, child: child),
+            transitionDuration: const Duration(milliseconds: 200),
+          ),
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [Color(0xFF2D1B4E), Color(0xFF1A1A2E)],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.45)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF7B68EE).withValues(alpha: 0.25),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.card_giftcard,
+                    color: Color(0xFFFFD700), size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tienda Premium',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Packs, héroes y tokens gratis',
+                      style: TextStyle(color: Color(0xFF9A9AB0), fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios,
+                  color: Color(0xFFFFD700), size: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ─── HEROES SECTION ──────────────────────────────────────────────────────────
 
 class _HeroesSection extends StatelessWidget {
@@ -470,6 +522,12 @@ class _HeroesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Solo héroes pendientes de adquirir; los desbloqueados ya no se venden.
+    final lockedHeroes = HeroesData.starterHeroes
+        .where((h) => !player.unlockedHeroIds.contains(h.id))
+        .toList();
+    if (lockedHeroes.isEmpty) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -485,16 +543,14 @@ class _HeroesSection extends StatelessWidget {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: HeroesData.starterHeroes.length,
+            itemCount: lockedHeroes.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, i) {
-              final hero = HeroesData.starterHeroes[i];
-              final isActive = hero.id == player.activeHeroId;
-              final isUnlocked = player.unlockedHeroIds.contains(hero.id);
+              final hero = lockedHeroes[i];
               return _HeroShopCard(
                 hero: hero,
-                isActive: isActive,
-                isUnlocked: isUnlocked,
+                isActive: false,
+                isUnlocked: false,
                 playerCoins: player.softCoins,
                 onPurchase: () => onHeroPurchase(hero),
               );
@@ -683,13 +739,13 @@ class _HeroShopCard extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _FactionRow extends StatelessWidget {
+class _FactionRow extends StatefulWidget {
   final FactionShop faction;
   final bool isUnlocked;
   final int playerCoins;
   final Set<String> ownedCardIds;
   final GlobalKey? starterCardKey;
-  final void Function(ShopCard) onCardTap;
+  final Future<bool> Function(ShopCard) onCardTap;
 
   const _FactionRow({
     required this.faction,
@@ -701,6 +757,16 @@ class _FactionRow extends StatelessWidget {
   });
 
   @override
+  State<_FactionRow> createState() => _FactionRowState();
+}
+
+class _FactionRowState extends State<_FactionRow> {
+  // Cartas recién compradas: ownedCardIds ya las excluye, pero las
+  // mantenemos un instante más para animar la salida en vez de que
+  // desaparezcan de golpe del carrusel.
+  final Set<String> _fadingOutIds = {};
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -708,17 +774,18 @@ class _FactionRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           FactionRowHeader(
-            factionId: faction.id,
-            factionName: faction.name,
-            isUnlocked: isUnlocked,
+            factionId: widget.faction.id,
+            factionName: widget.faction.name,
+            isUnlocked: widget.isUnlocked,
           ),
           const SizedBox(height: 12),
           SizedBox(
             height: 200,
             child: Builder(builder: (context) {
-              // Solo mostramos cartas no compradas; las ya adquiridas desaparecen.
-              final visibleCards = faction.cards
-                  .where((c) => !ownedCardIds.contains(c.id))
+              final visibleCards = widget.faction.cards
+                  .where((c) =>
+                      !widget.ownedCardIds.contains(c.id) ||
+                      _fadingOutIds.contains(c.id))
                   .toList();
 
               if (visibleCards.isEmpty) {
@@ -741,23 +808,50 @@ class _FactionRow extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(width: 10),
                 itemBuilder: (context, i) {
                   final card = visibleCards[i];
-                  final canAfford = playerCoins >= card.cost;
+                  final canAfford = widget.playerCoins >= card.cost;
+                  final fadingOut = _fadingOutIds.contains(card.id);
 
                   // Si hay tutorial activo, la carta starter lleva la key
-                  final key = (starterCardKey != null && card.isTutorialCard)
-                      ? starterCardKey
+                  final key = (widget.starterCardKey != null && card.isTutorialCard)
+                      ? widget.starterCardKey
                       : null;
 
-                  return ShopCardItem(
-                    key: key,
-                    card: card,
-                    factionId: faction.id,
-                    isFactionUnlocked: isUnlocked,
-                    isOwned: false,
-                    canAfford: canAfford,
-                    onTap: isUnlocked && canAfford
-                        ? () => onCardTap(card)
-                        : null,
+                  // AnimatedContainer colapsa el ANCHO además de la opacidad/
+                  // escala: si solo animáramos opacidad, la celda seguiría
+                  // reservando su lugar en el carrusel y dejaría un hueco en
+                  // blanco durante la animación de salida.
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeIn,
+                    width: fadingOut ? 0 : ShopCardItem.width,
+                    clipBehavior: Clip.hardEdge,
+                    decoration: const BoxDecoration(),
+                    child: OverflowBox(
+                      minWidth: ShopCardItem.width,
+                      maxWidth: ShopCardItem.width,
+                      alignment: Alignment.centerLeft,
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeIn,
+                        opacity: fadingOut ? 0.0 : 1.0,
+                        child: AnimatedScale(
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeIn,
+                          scale: fadingOut ? 0.7 : 1.0,
+                          child: ShopCardItem(
+                            key: key,
+                            card: card,
+                            factionId: widget.faction.id,
+                            isFactionUnlocked: widget.isUnlocked,
+                            isOwned: false,
+                            canAfford: canAfford,
+                            onBuy: () => widget.onCardTap(card),
+                            onPurchased: () =>
+                                setState(() => _fadingOutIds.add(card.id)),
+                          ),
+                        ),
+                      ),
+                    ),
                   );
                 },
               );

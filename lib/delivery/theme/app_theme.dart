@@ -30,7 +30,9 @@ class AppColors {
   static const card = Color(0xFF0F3460);
   static const surface = Color(0xFF222244);
   static const textPrimary = Color(0xFFB0B0B0);
-  static const textSecondary = Color(0xFF0F3460);
+  // Antes coincidía por error con `card` (0xFF0F3460): el texto quedaba
+  // literalmente del mismo color que su fondo (invisible en MiniChip, etc).
+  static const textSecondary = Color(0xFF8A8A9A);
   static const hp100 = Color(0xFF2E7D32);
   static const hp50 = Color(0xFFE65100);
   static const hp25 = Color(0xFFC62828);

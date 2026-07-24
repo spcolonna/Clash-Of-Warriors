@@ -25,6 +25,7 @@ import '../../infra/local/progress_rewards_data.dart';
 import '../../infra/local/daily_rewards_data.dart';
 import '../../infra/local/daily_missions_data.dart';
 import '../../domain/entities/daily_mission.dart';
+import '../../infra/config/premium_shop_config.dart';
 import '../../infra/local/new_player_journey_data.dart';
 import '../../infra/local/story_arcs_data.dart';
 import '../../domain/entities/story_arc.dart';
@@ -646,6 +647,21 @@ final cardCatalogProvider = Provider<CardCatalog>((ref) {
   return CardCatalog.build(cards);
 });
 
+/// Catálogo de la tienda premium: Firestore (premium_shop/*) con fallback al
+/// hardcodeado local, filtrado por isEnabled. Depende de gameConfigProvider
+/// para que "Recargar contenido del juego" también lo refresque.
+final premiumShopProvider = FutureProvider<PremiumShopData>((ref) async {
+  ref.watch(gameConfigProvider);
+  try {
+    final remote =
+        await ref.read(gameConfigServiceProvider).fetchPremiumShop();
+    return PremiumShopData.fromRemote(remote);
+  } catch (e) {
+    debugPrint('[PremiumShop] Error al cargar remoto: $e — usando local');
+    return PremiumShopData.localOnly();
+  }
+});
+
 class GameConfigNotifier extends AsyncNotifier<GameConfig> {
   @override
   Future<GameConfig> build() async {
@@ -685,6 +701,10 @@ class GameConfigNotifier extends AsyncNotifier<GameConfig> {
       final rawFeatures = settings['features'] as Map<String, dynamic>? ?? {};
       final features = GameFeatures.fromMap(rawFeatures);
 
+      final rawBattleRewards =
+          settings['battleRewards'] as Map<String, dynamic>? ?? {};
+      final battleRewards = BattleRewardsConfig.fromMap(rawBattleRewards);
+
       // Aplicar stats de Firestore a HeroesData (fuente primaria del juego)
       if (heroes.isNotEmpty) {
         HeroesData.applyOverrides(heroes);
@@ -705,6 +725,7 @@ class GameConfigNotifier extends AsyncNotifier<GameConfig> {
         pointsPerWin: pointsMap,
         pointsPerWinSimple: pointsSimpleMap,
         features: features,
+        battleRewards: battleRewards,
       );
     } catch (e) {
       debugPrint('[GameConfig] Error al cargar: $e — usando defaults');

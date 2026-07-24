@@ -19,6 +19,9 @@ enum CardEffect {
   drainStamina, // el rival pierde [effectValue] stamina la próxima ronda
   heal,         // te curás [effectValue] HP
   staminaBoost, // ganás +[effectValue] stamina la próxima ronda
+  denyDefense,  // el rival no puede jugar Defensa la próxima ronda
+  weaken,       // el rival hace −[effectValue]% daño la próxima ronda
+  pierce,       // efecto inmediato: ignora la mitigación de Defensa del rival
 }
 
 class GameCard {

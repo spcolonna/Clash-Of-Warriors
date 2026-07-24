@@ -20,6 +20,59 @@ class GameFeatures {
       );
 }
 
+/// Recompensas de batalla, ajustables desde el admin (gameConfig/settings →
+/// battleRewards). Ancla de valor de la economía gratuita:
+///   1 anuncio (~30s, cooldown 10 min) = 20 tokens = 100 monedas
+///   (conversión base 100 tokens → 500 coins)
+///   Victoria arena ≈ 1 anuncio · carta common ≈ 1.5-2.5 · rare ≈ 4 ·
+///   epic ≈ 7.5 · legendary ≈ 12 · héroe starter ≈ 5 anuncios.
+class BattleRewardsConfig {
+  final int tutorialMedals;
+  final int tutorialCoins;
+  final int tutorialTokens;
+  final int arenaMedals;
+  final int arenaCoins;
+  final int arenaTokensEasy;
+  final int arenaTokensNormal;
+  final int arenaTokensHard;
+
+  const BattleRewardsConfig({
+    this.tutorialMedals = 25,
+    this.tutorialCoins = 150,
+    this.tutorialTokens = 5,
+    this.arenaMedals = 15,
+    this.arenaCoins = 100,
+    this.arenaTokensEasy = 1,
+    this.arenaTokensNormal = 2,
+    this.arenaTokensHard = 3,
+  });
+
+  factory BattleRewardsConfig.fromMap(Map<String, dynamic> m) =>
+      BattleRewardsConfig(
+        tutorialMedals: m['tutorialMedals'] as int? ?? 25,
+        tutorialCoins: m['tutorialCoins'] as int? ?? 150,
+        tutorialTokens: m['tutorialTokens'] as int? ?? 5,
+        arenaMedals: m['arenaMedals'] as int? ?? 15,
+        arenaCoins: m['arenaCoins'] as int? ?? 100,
+        arenaTokensEasy: m['arenaTokensEasy'] as int? ?? 1,
+        arenaTokensNormal: m['arenaTokensNormal'] as int? ?? 2,
+        arenaTokensHard: m['arenaTokensHard'] as int? ?? 3,
+      );
+
+  int medalsFor(bool isTutorial) => isTutorial ? tutorialMedals : arenaMedals;
+  int coinsFor(bool isTutorial) => isTutorial ? tutorialCoins : arenaCoins;
+
+  int tokensFor(bool isTutorial, BotDifficulty? difficulty) {
+    if (isTutorial) return tutorialTokens;
+    return switch (difficulty) {
+      BotDifficulty.easy => arenaTokensEasy,
+      BotDifficulty.normal => arenaTokensNormal,
+      BotDifficulty.hard => arenaTokensHard,
+      null => arenaTokensNormal,
+    };
+  }
+}
+
 class ProgressRewardConfig {
   final int requiredPoints;
   final String type; // 'coins' | 'tokens' | 'card'
@@ -65,6 +118,7 @@ class GameConfig {
   final Map<BotDifficulty, int> pointsPerWin;
   final Map<BotDifficulty, int> pointsPerWinSimple;
   final GameFeatures features;
+  final BattleRewardsConfig battleRewards;
 
   const GameConfig({
     required this.cards,
@@ -74,6 +128,7 @@ class GameConfig {
     required this.pointsPerWin,
     this.pointsPerWinSimple = _defaultPointsSimple,
     this.features = const GameFeatures(),
+    this.battleRewards = const BattleRewardsConfig(),
   });
 
   bool isCardEnabled(String id) => cards.any((c) => c['id'] == id);

@@ -43,6 +43,22 @@ class _DeckBuilderScreenState extends ConsumerState<DeckBuilderScreen> {
   GameCard? _findCard(String id) =>
       ref.read(cardCatalogProvider).findById(id);
 
+  Future<void> _addToDeck(String cardId) async {
+    final added =
+        await ref.read(deckBuilderProvider.notifier).addToDeck(cardId);
+    if (!mounted) return;
+    if (!added) {
+      HapticsService().error();
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text('Tu mazo ya tiene 20 cartas. Sacá una para agregar esta.'),
+          duration: Duration(milliseconds: 1800),
+          behavior: SnackBarBehavior.floating,
+        ));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final deckState = ref.watch(deckBuilderProvider);
@@ -189,9 +205,7 @@ class _DeckBuilderScreenState extends ConsumerState<DeckBuilderScreen> {
                                     card: card,
                                     quantity: entry.quantity,
                                     inDeck: false,
-                                    onAction: () => ref
-                                        .read(deckBuilderProvider.notifier)
-                                        .addToDeck(entry.cardId),
+                                    onAction: () => _addToDeck(entry.cardId),
                                   );
                                 },
                                 childCount: state.collection.length,

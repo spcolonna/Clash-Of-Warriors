@@ -302,7 +302,7 @@ class _HeroCard extends StatelessWidget {
           // Stats + lore
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -310,44 +310,45 @@ class _HeroCard extends StatelessWidget {
                     hero.name,
                     style: const TextStyle(
                       color: AppColors.textPrimary,
-                      fontSize: 20,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
                       height: 1.1,
                     ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     hero.title,
                     style: const TextStyle(
                       color: AppColors.textSecondary,
-                      fontSize: 12,
+                      fontSize: 13,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 18),
                   Row(
                     children: [
                       Expanded(
                         child: Column(
                           children: [
                             _StatRow(label: 'Puño',   value: hero.stats.punch,   color: color),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 10),
                             _StatRow(label: 'Patada', value: hero.stats.kick,    color: color),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 10),
                             _StatRow(label: 'Agarre', value: hero.stats.grapple, color: color),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           children: [
                             _StatRow(label: 'Defensa', value: hero.stats.defense, color: color),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 10),
                             _StatRow(label: 'Esquive', value: hero.stats.dodge,   color: color),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 10),
                             Row(
                               children: [
                                 Flexible(child: MiniChip(icon: '❤️', value: '${hero.maxHp}')),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: 6),
                                 Flexible(child: MiniChip(icon: '⚡', value: '${hero.maxStamina}')),
                               ],
                             ),
@@ -358,18 +359,23 @@ class _HeroCard extends StatelessWidget {
                   ),
                   Divider(
                     color: AppColors.textSecondary.withValues(alpha: 0.15),
-                    height: 14,
+                    height: 26,
                   ),
-                  Text(
-                    hero.lore,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
-                      fontStyle: FontStyle.italic,
-                      height: 1.4,
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.center,
+                      child: Text(
+                        hero.lore,
+                        style: const TextStyle(
+                          color: Color(0xFFC7C7D6),
+                          fontSize: 14,
+                          fontStyle: FontStyle.italic,
+                          height: 1.55,
+                        ),
+                        maxLines: 5,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -399,24 +405,24 @@ class _StatRow extends StatelessWidget {
     return Row(
       children: [
         SizedBox(
-          width: 58,
+          width: 62,
           child: Text(
             label,
             style: const TextStyle(
               color: AppColors.textSecondary,
-              fontSize: 11,
+              fontSize: 13,
             ),
           ),
         ),
         Expanded(
           child: SizedBox(
-            height: 6,
+            height: 9,
             child: Stack(
               children: [
                 Container(
                   decoration: BoxDecoration(
                     color: AppColors.textSecondary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(3),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
                 FractionallySizedBox(
@@ -424,7 +430,7 @@ class _StatRow extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       color: color,
-                      borderRadius: BorderRadius.circular(3),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                   ),
                 ),
@@ -432,13 +438,17 @@ class _StatRow extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 6),
-        Text(
-          '$value',
-          style: TextStyle(
-            color: color,
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 22,
+          child: Text(
+            '$value',
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ],

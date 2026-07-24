@@ -33,6 +33,7 @@ class PremiumBundle {
   final String? badgeText;      // e.g. "MÁS POPULAR", "ÉPICO"
   final int heroGradientStart;  // Color hex para gradiente de la card
   final int heroGradientEnd;
+  final bool isEnabled;         // Toggle desde el admin (premium_shop/bundles)
 
   const PremiumBundle({
     required this.id,
@@ -49,6 +50,7 @@ class PremiumBundle {
     this.badgeText,
     required this.heroGradientStart,
     required this.heroGradientEnd,
+    this.isEnabled = true,
   });
 
   Map<String, dynamic> toMap() => {
@@ -66,6 +68,7 @@ class PremiumBundle {
         'badgeText': badgeText,
         'heroGradientStart': heroGradientStart,
         'heroGradientEnd': heroGradientEnd,
+        'isEnabled': isEnabled,
       };
 
   factory PremiumBundle.fromMap(Map<String, dynamic> map) => PremiumBundle(
@@ -83,6 +86,7 @@ class PremiumBundle {
         badgeText: map['badgeText'] as String?,
         heroGradientStart: map['heroGradientStart'] as int,
         heroGradientEnd: map['heroGradientEnd'] as int,
+        isEnabled: map['isEnabled'] as bool? ?? true,
       );
 }
 
@@ -96,6 +100,7 @@ class TokenPack {
   final double priceUsd;
   final String icon;       // Emoji del pack
   final String? badgeText; // e.g. "MEJOR VALOR", "POPULAR"
+  final bool isEnabled;    // Toggle desde el admin (premium_shop/token_packs)
 
   const TokenPack({
     required this.id,
@@ -106,6 +111,7 @@ class TokenPack {
     required this.priceUsd,
     required this.icon,
     this.badgeText,
+    this.isEnabled = true,
   });
 
   int get totalTokens => tokenAmount + bonusTokens;
@@ -119,6 +125,7 @@ class TokenPack {
         'priceUsd': priceUsd,
         'icon': icon,
         'badgeText': badgeText,
+        'isEnabled': isEnabled,
       };
 
   factory TokenPack.fromMap(Map<String, dynamic> map) => TokenPack(
@@ -130,6 +137,7 @@ class TokenPack {
         priceUsd: (map['priceUsd'] as num).toDouble(),
         icon: map['icon'] as String,
         badgeText: map['badgeText'] as String?,
+        isEnabled: map['isEnabled'] as bool? ?? true,
       );
 }
 
@@ -146,6 +154,7 @@ class HeroOffer {
   final bool isFeatured;
   final int gradientStart; // Color hex para gradiente de la card
   final int gradientEnd;
+  final bool isEnabled;    // Toggle desde el admin (premium_shop/hero_offers)
 
   const HeroOffer({
     required this.id,
@@ -159,6 +168,7 @@ class HeroOffer {
     this.isFeatured = false,
     required this.gradientStart,
     required this.gradientEnd,
+    this.isEnabled = true,
   });
 
   Map<String, dynamic> toMap() => {
@@ -173,6 +183,7 @@ class HeroOffer {
         'isFeatured': isFeatured,
         'gradientStart': gradientStart,
         'gradientEnd': gradientEnd,
+        'isEnabled': isEnabled,
       };
 
   factory HeroOffer.fromMap(Map<String, dynamic> map) => HeroOffer(
@@ -190,6 +201,7 @@ class HeroOffer {
         isFeatured: map['isFeatured'] as bool? ?? false,
         gradientStart: map['gradientStart'] as int,
         gradientEnd: map['gradientEnd'] as int,
+        isEnabled: map['isEnabled'] as bool? ?? true,
       );
 }
 
@@ -218,25 +230,82 @@ enum HeroRarity {
 // de forma remota, permitiendo actualizaciones sin publicar nueva versión.
 // ═══════════════════════════════════════════════════════════════════════════
 class PremiumShopConfig {
-  // ── BUNDLES LEGENDARIOS ──────────────────────────────────────────────────
-  // Cada bundle incluye un héroe legendario + cartas para el mazo + tokens.
-  // Ordenados por precio ascendente; isHighlighted = true para el destacado.
+  // ── BUNDLES ──────────────────────────────────────────────────────────────
+  // Bundles reales: héroe rare de cada facción + cartas de esa facción +
+  // tokens. Los bundles de héroes que aún no existen en el juego quedan
+  // isEnabled: false hasta que se habiliten desde el admin.
   static const List<PremiumBundle> bundles = [
     PremiumBundle(
-      id: 'bundle_ninja_elite',
-      storeProductId: 'com.clashofwarriors.bundle.ninja_elite',
-      name: 'Pack Élite Ninja',
-      description: 'El asesino de las sombras, listo para dominar el mazo',
-      heroId: 'ninja',
-      heroName: 'Ninja',
-      cardIds: ['ninja_kick_01', 'ninja_palm_01', 'ninja_dodge_01'],
+      id: 'bundle_shaolin_rare',
+      storeProductId: 'com.clashofwarriors.bundle.shaolin_rare',
+      name: 'Pack del Discípulo',
+      description: 'Puo Liu ascendido + 3 cartas Shaolin + 600 tokens',
+      heroId: 'puo_liu_rare',
+      heroName: 'Puo Liu · El Discípulo',
+      cardIds: ['shaolin_tiger_claw', 'shaolin_meditation', 'shaolin_crane_wing'],
       cardCount: 3,
       tokenAmount: 600,
       priceUsd: 4.99,
       isHighlighted: true,
       badgeText: 'MÁS POPULAR',
-      heroGradientStart: 0xFF1A1A2E,
-      heroGradientEnd: 0xFF0D0D0D,
+      heroGradientStart: 0xFFD4A017,
+      heroGradientEnd: 0xFF3E2A00,
+    ),
+    PremiumBundle(
+      id: 'bundle_ninja_rare',
+      storeProductId: 'com.clashofwarriors.bundle.ninja_rare',
+      name: 'Pack del Desertor',
+      description: 'Kage ascendido + 3 cartas Ninja + 600 tokens',
+      heroId: 'kage_rare',
+      heroName: 'Kage · El Desertor',
+      cardIds: ['ninja_shadow_kick', 'ninja_pressure_strike', 'ninja_smoke_step'],
+      cardCount: 3,
+      tokenAmount: 600,
+      priceUsd: 4.99,
+      heroGradientStart: 0xFF7B68EE,
+      heroGradientEnd: 0xFF1A1A2E,
+    ),
+    PremiumBundle(
+      id: 'bundle_judoka_rare',
+      storeProductId: 'com.clashofwarriors.bundle.judoka_rare',
+      name: 'Pack del Reivindicado',
+      description: 'Ryoto ascendido + 3 cartas + 600 tokens',
+      heroId: 'ryoto_rare',
+      heroName: 'Ryoto · El Reivindicado',
+      cardIds: ['judoka_shoulder_throw', 'judoka_pin_control', 'judoka_immobilize'],
+      cardCount: 3,
+      tokenAmount: 600,
+      priceUsd: 4.99,
+      heroGradientStart: 0xFF1A5276,
+      heroGradientEnd: 0xFF081826,
+    ),
+    PremiumBundle(
+      id: 'bundle_boxer_rare',
+      storeProductId: 'com.clashofwarriors.bundle.boxer_rare',
+      name: 'Pack del Peleador',
+      description: 'Kai ascendido + 3 cartas + 600 tokens',
+      heroId: 'kai_rare',
+      heroName: 'Kai · El Peleador',
+      cardIds: ['boxer_barrio_cross', 'boxer_second_wind', 'neutral_punch_strong'],
+      cardCount: 3,
+      tokenAmount: 600,
+      priceUsd: 4.99,
+      heroGradientStart: 0xFFC0392B,
+      heroGradientEnd: 0xFF2A0703,
+    ),
+    PremiumBundle(
+      id: 'bundle_capoeira_rare',
+      storeProductId: 'com.clashofwarriors.bundle.capoeira_rare',
+      name: 'Pack de la Buscadora',
+      description: 'Mila ascendida + 3 cartas + 600 tokens',
+      heroId: 'mila_rare',
+      heroName: 'Mila · La Buscadora',
+      cardIds: ['capoeira_meia_lua', 'capoeira_ginga_flow', 'neutral_dodge_step'],
+      cardCount: 3,
+      tokenAmount: 600,
+      priceUsd: 4.99,
+      heroGradientStart: 0xFF27AE60,
+      heroGradientEnd: 0xFF062415,
     ),
     PremiumBundle(
       id: 'bundle_spartan_glory',
@@ -258,6 +327,7 @@ class PremiumShopConfig {
       badgeText: null,
       heroGradientStart: 0xFF4A148C,
       heroGradientEnd: 0xFF1A0533,
+      isEnabled: false, // héroe aún no existe en el juego
     ),
     PremiumBundle(
       id: 'bundle_viking_wrath',
@@ -280,6 +350,7 @@ class PremiumShopConfig {
       badgeText: 'ÉPICO',
       heroGradientStart: 0xFF0D47A1,
       heroGradientEnd: 0xFF01031A,
+      isEnabled: false, // héroe aún no existe en el juego
     ),
     PremiumBundle(
       id: 'bundle_samurai_honor',
@@ -303,6 +374,7 @@ class PremiumShopConfig {
       badgeText: 'PREMIUM',
       heroGradientStart: 0xFF880E4F,
       heroGradientEnd: 0xFF1A0010,
+      isEnabled: false, // héroe aún no existe en el juego
     ),
   ];
 
@@ -352,8 +424,29 @@ class PremiumShopConfig {
   ];
 
   // ── HÉROES INDIVIDUALES ──────────────────────────────────────────────────
-  // Ordenados por rareza descendente (legendarios primero), luego por precio.
+  // Variantes de rareza de los 5 héroes reales (HeroesData.rarityHeroes),
+  // ordenadas por rareza descendente. Las ofertas de héroes que aún no
+  // existen quedan isEnabled: false (se activan desde el admin).
   static const List<HeroOffer> heroOffers = [
+    // ── Legendarios ──
+    HeroOffer(id: 'offer_puo_liu_legendary', storeProductId: 'com.clashofwarriors.hero.puo_liu_legendary', heroId: 'puo_liu_legendary', name: 'Puo Liu · Maestro del Dragón', description: 'La técnica que el Maestro Lin esperaba ver en vida', rarity: HeroRarity.legendary, priceUsd: 2.99, isFeatured: true, gradientStart: 0xFFD4A017, gradientEnd: 0xFF3E2A00),
+    HeroOffer(id: 'offer_kage_legendary', storeProductId: 'com.clashofwarriors.hero.kage_legendary', heroId: 'kage_legendary', name: 'Kage · La Sombra', description: 'Solo un nombre. Toda La Ciudadela lo conoce', rarity: HeroRarity.legendary, priceUsd: 2.99, gradientStart: 0xFF7B68EE, gradientEnd: 0xFF1A1A2E),
+    HeroOffer(id: 'offer_ryoto_legendary', storeProductId: 'com.clashofwarriors.hero.ryoto_legendary', heroId: 'ryoto_legendary', name: 'Ryoto · Sensei', description: 'El sensei que nunca debió dejar de serlo', rarity: HeroRarity.legendary, priceUsd: 2.99, gradientStart: 0xFF1A5276, gradientEnd: 0xFF081826),
+    HeroOffer(id: 'offer_kai_legendary', storeProductId: 'com.clashofwarriors.hero.kai_legendary', heroId: 'kai_legendary', name: 'Kai · La Leyenda del Sur', description: 'Un sueño que ganó el torneo', rarity: HeroRarity.legendary, priceUsd: 2.99, gradientStart: 0xFFC0392B, gradientEnd: 0xFF2A0703),
+    HeroOffer(id: 'offer_mila_legendary', storeProductId: 'com.clashofwarriors.hero.mila_legendary', heroId: 'mila_legendary', name: 'Mila · La Libre', description: 'En la Capoeira no hay derrota, solo pausas', rarity: HeroRarity.legendary, priceUsd: 2.99, gradientStart: 0xFF27AE60, gradientEnd: 0xFF062415),
+    // ── Épicos ──
+    HeroOffer(id: 'offer_puo_liu_epic', storeProductId: 'com.clashofwarriors.hero.puo_liu_epic', heroId: 'puo_liu_epic', name: 'Puo Liu · El Guardián', description: 'Guardián del legado Shaolin', rarity: HeroRarity.epic, priceUsd: 1.99, gradientStart: 0xFFD4A017, gradientEnd: 0xFF3E2A00),
+    HeroOffer(id: 'offer_kage_epic', storeProductId: 'com.clashofwarriors.hero.kage_epic', heroId: 'kage_epic', name: 'Kage · La Sombra Libre', description: 'Ya no tiene clan: tiene una razón propia', rarity: HeroRarity.epic, priceUsd: 1.99, gradientStart: 0xFF7B68EE, gradientEnd: 0xFF1A1A2E),
+    HeroOffer(id: 'offer_ryoto_epic', storeProductId: 'com.clashofwarriors.hero.ryoto_epic', heroId: 'ryoto_epic', name: 'Ryoto · El Incorruptible', description: 'No ha perdido desde entonces. No va a empezar ahora', rarity: HeroRarity.epic, priceUsd: 1.99, gradientStart: 0xFF1A5276, gradientEnd: 0xFF081826),
+    HeroOffer(id: 'offer_kai_epic', storeProductId: 'com.clashofwarriors.hero.kai_epic', heroId: 'kai_epic', name: 'Kai · El Campeón', description: 'Ganó el torneo sin trampas ni sobornos', rarity: HeroRarity.epic, priceUsd: 1.99, gradientStart: 0xFFC0392B, gradientEnd: 0xFF2A0703),
+    HeroOffer(id: 'offer_mila_epic', storeProductId: 'com.clashofwarriors.hero.mila_epic', heroId: 'mila_epic', name: 'Mila · La Danzante Libre', description: 'Verla danzar ya es estar en combate', rarity: HeroRarity.epic, priceUsd: 1.99, gradientStart: 0xFF27AE60, gradientEnd: 0xFF062415),
+    // ── Raros ──
+    HeroOffer(id: 'offer_puo_liu_rare', storeProductId: 'com.clashofwarriors.hero.puo_liu_rare', heroId: 'puo_liu_rare', name: 'Puo Liu · El Discípulo', description: 'Ya no tiemblan sus manos', rarity: HeroRarity.rare, priceUsd: 0.99, gradientStart: 0xFFD4A017, gradientEnd: 0xFF3E2A00),
+    HeroOffer(id: 'offer_kage_rare', storeProductId: 'com.clashofwarriors.hero.kage_rare', heroId: 'kage_rare', name: 'Kage · El Desertor', description: 'Abandonó el Clan. Sobrevivió', rarity: HeroRarity.rare, priceUsd: 0.99, gradientStart: 0xFF7B68EE, gradientEnd: 0xFF1A1A2E),
+    HeroOffer(id: 'offer_ryoto_rare', storeProductId: 'com.clashofwarriors.hero.ryoto_rare', heroId: 'ryoto_rare', name: 'Ryoto · El Reivindicado', description: 'El dojo tiene su nombre de vuelta', rarity: HeroRarity.rare, priceUsd: 0.99, gradientStart: 0xFF1A5276, gradientEnd: 0xFF081826),
+    HeroOffer(id: 'offer_kai_rare', storeProductId: 'com.clashofwarriors.hero.kai_rare', heroId: 'kai_rare', name: 'Kai · El Peleador', description: 'El gimnasio sigue en pie', rarity: HeroRarity.rare, priceUsd: 0.99, gradientStart: 0xFFC0392B, gradientEnd: 0xFF2A0703),
+    HeroOffer(id: 'offer_mila_rare', storeProductId: 'com.clashofwarriors.hero.mila_rare', heroId: 'mila_rare', name: 'Mila · La Buscadora', description: 'La Ciudadela entera es su tatami', rarity: HeroRarity.rare, priceUsd: 0.99, gradientStart: 0xFF27AE60, gradientEnd: 0xFF062415),
+    // ── Héroes futuros (aún no existen en el juego) ──
     HeroOffer(
       id: 'hero_ninja_offer',
       storeProductId: 'com.clashofwarriors.hero.ninja',
@@ -365,6 +458,7 @@ class PremiumShopConfig {
       isFeatured: true,
       gradientStart: 0xFF1A1A2E,
       gradientEnd: 0xFF0D0D0D,
+      isEnabled: false, // héroe aún no existe en el juego
     ),
     HeroOffer(
       id: 'hero_samurai_offer',
@@ -377,6 +471,7 @@ class PremiumShopConfig {
       isNew: true,
       gradientStart: 0xFF880E4F,
       gradientEnd: 0xFF3E0020,
+      isEnabled: false, // héroe aún no existe en el juego
     ),
     HeroOffer(
       id: 'hero_viking_offer',
@@ -388,6 +483,7 @@ class PremiumShopConfig {
       priceUsd: 1.99,
       gradientStart: 0xFF0D47A1,
       gradientEnd: 0xFF01031A,
+      isEnabled: false, // héroe aún no existe en el juego
     ),
     HeroOffer(
       id: 'hero_spartan_offer',
@@ -399,6 +495,7 @@ class PremiumShopConfig {
       priceUsd: 1.99,
       gradientStart: 0xFF4A148C,
       gradientEnd: 0xFF1A0533,
+      isEnabled: false, // héroe aún no existe en el juego
     ),
     HeroOffer(
       id: 'hero_gladiator_offer',
@@ -410,6 +507,7 @@ class PremiumShopConfig {
       priceUsd: 0.99,
       gradientStart: 0xFFBF360C,
       gradientEnd: 0xFF3E0C00,
+      isEnabled: false, // héroe aún no existe en el juego
     ),
     HeroOffer(
       id: 'hero_muaythai_offer',
@@ -421,6 +519,7 @@ class PremiumShopConfig {
       priceUsd: 0.99,
       gradientStart: 0xFF1B5E20,
       gradientEnd: 0xFF052009,
+      isEnabled: false, // héroe aún no existe en el juego
     ),
     HeroOffer(
       id: 'hero_monk_offer',
@@ -432,6 +531,7 @@ class PremiumShopConfig {
       priceUsd: 0.99,
       gradientStart: 0xFFE65100,
       gradientEnd: 0xFF3E1700,
+      isEnabled: false, // héroe aún no existe en el juego
     ),
     HeroOffer(
       id: 'hero_templar_offer',
@@ -443,6 +543,55 @@ class PremiumShopConfig {
       priceUsd: 1.99,
       gradientStart: 0xFF37474F,
       gradientEnd: 0xFF0D1214,
+      isEnabled: false, // héroe aún no existe en el juego
     ),
   ];
+}
+
+/// Catálogo completo de la tienda premium, remoto (Firestore) con fallback
+/// al hardcodeado de arriba. Cada lista viene YA filtrada por isEnabled.
+class PremiumShopData {
+  final List<PremiumBundle> bundles;
+  final List<TokenPack> tokenPacks;
+  final List<HeroOffer> heroOffers;
+
+  const PremiumShopData({
+    required this.bundles,
+    required this.tokenPacks,
+    required this.heroOffers,
+  });
+
+  /// Combina lo remoto con el fallback local: si una lista remota viene
+  /// vacía (colección sin sembrar), usa la local. Filtra deshabilitados.
+  factory PremiumShopData.fromRemote(
+      Map<String, List<Map<String, dynamic>>> remote) {
+    List<T> pick<T>(
+      List<Map<String, dynamic>> raw,
+      T Function(Map<String, dynamic>) parse,
+      List<T> local,
+      bool Function(T) enabled,
+    ) {
+      final list = raw.isEmpty ? local : raw.map(parse).toList();
+      return list.where(enabled).toList();
+    }
+
+    return PremiumShopData(
+      bundles: pick(remote['bundles'] ?? const [], PremiumBundle.fromMap,
+          PremiumShopConfig.bundles, (b) => b.isEnabled),
+      tokenPacks: pick(remote['tokenPacks'] ?? const [], TokenPack.fromMap,
+          PremiumShopConfig.tokenPacks, (p) => p.isEnabled),
+      heroOffers: pick(remote['heroOffers'] ?? const [], HeroOffer.fromMap,
+          PremiumShopConfig.heroOffers, (o) => o.isEnabled),
+    );
+  }
+
+  /// Solo el catálogo local habilitado (sin red).
+  factory PremiumShopData.localOnly() => PremiumShopData(
+        bundles:
+            PremiumShopConfig.bundles.where((b) => b.isEnabled).toList(),
+        tokenPacks:
+            PremiumShopConfig.tokenPacks.where((p) => p.isEnabled).toList(),
+        heroOffers:
+            PremiumShopConfig.heroOffers.where((o) => o.isEnabled).toList(),
+      );
 }

@@ -746,8 +746,9 @@ class _ModeChip extends StatelessWidget {
                 subtitle,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: selected ? color.withValues(alpha: 0.9) : Colors.white38,
+                  color: selected ? Colors.white : Colors.white70,
                   fontSize: 10,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
             ],

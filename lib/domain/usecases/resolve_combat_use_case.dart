@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../config/game_config.dart';
+import '../config/ring_events.dart';
 import '../entities/battle_state.dart';
 import '../entities/game_card.dart';
 import '../entities/hero_entity.dart';
@@ -57,6 +58,22 @@ class CombatEngine {
     return chainMap[lastCard.category] == card.category;
   }
 
+  /// "Lectura": el perdedor de este slot ([loserSide]) repitió la misma
+  /// categoría que en el slot inmediatamente anterior, y el ganador la
+  /// counteró → el ganador cobra daño ×readMultiplier. Castiga repetir.
+  static bool _readMet(
+    String loserSide,
+    CardCategory loserCategory,
+    List<SlotResult> previousSlotResults,
+  ) {
+    if (previousSlotResults.isEmpty) return false;
+    final last = previousSlotResults.last;
+    final lastLoserCard =
+        loserSide == 'player' ? last.playerCard : last.opponentCard;
+    if (lastLoserCard == null) return false;
+    return lastLoserCard.category == loserCategory;
+  }
+
   /// Evalúa si el bonus condicional de una carta se cumple en este slot.
   static bool _isConditionalMet({
     required ConditionalBonus? bonus,
@@ -87,6 +104,9 @@ class CombatEngine {
   };
 
   /// Resuelve un slot individual y retorna el resultado.
+  /// [playerWeakenPct]/[opponentWeakenPct] (0..100): reducen el daño de ese
+  /// lado (efecto `weaken`). El efecto `pierce` en la carta ganadora ignora
+  /// la mitigación de Defensa del rival.
   static SlotResult resolveSlot({
     required int slotIndex,
     required GameCard? playerCard,
@@ -98,6 +118,9 @@ class CombatEngine {
     int playerCurrentHp = 0,
     int opponentCurrentHp = 0,
     int playerMaxHp = 1,
+    int playerWeakenPct = 0,
+    int opponentWeakenPct = 0,
+    RingEventRule? ringRule,
   }) {
     // Ambos vacíos — nada ocurre
     if (playerCard == null && opponentCard == null) {
@@ -115,7 +138,8 @@ class CombatEngine {
     // Slot vacío del jugador — el oponente conecta (con cadena si aplica)
     if (playerCard == null) {
       final chainMet = _chainMet('opponent', opponentCard!, previousSlotResults);
-      final dmg = _calcDamage(opponentCard, opponentHero, chainMet: chainMet);
+      final dmg = _calcDamage(opponentCard, opponentHero,
+          chainMet: chainMet, weakenPct: opponentWeakenPct, ringRule: ringRule);
       final (affinityBy, rivalBy) =
           _affinityFlags('opponent', opponentCard, opponentHero);
       return SlotResult(
@@ -144,7 +168,8 @@ class CombatEngine {
       );
       final chainMet = _chainMet('player', playerCard, previousSlotResults);
       final dmg = _calcDamage(playerCard, playerHero,
-          conditionalMet: conditionalMet, chainMet: chainMet);
+          conditionalMet: conditionalMet, chainMet: chainMet,
+          weakenPct: playerWeakenPct, ringRule: ringRule);
       final (affinityBy, rivalBy) =
           _affinityFlags('player', playerCard, playerHero);
       return SlotResult(
@@ -177,10 +202,17 @@ class CombatEngine {
       );
       final chainMet = _chainMet('player', playerCard, previousSlotResults);
       var dmg = _calcDamage(playerCard, playerHero,
-          conditionalMet: conditionalMet, chainMet: chainMet);
-      // Defensa que pierde igual bloquea parte del golpe
-      final mitigated = opponentCard.category == CardCategory.defense;
-      if (mitigated) dmg *= GameConfig.defenseMitigation;
+          conditionalMet: conditionalMet, chainMet: chainMet,
+          weakenPct: playerWeakenPct, ringRule: ringRule);
+      // Defensa que pierde igual bloquea parte del golpe, salvo que la carta
+      // ganadora tenga el efecto `pierce` (ignora la mitigación).
+      final mitigated = opponentCard.category == CardCategory.defense &&
+          playerCard.effect != CardEffect.pierce;
+      if (mitigated) dmg *= _mitigationFactor(ringRule);
+      // Lectura: el rival repitió categoría y lo counteraste → ×readMultiplier
+      final read =
+          _readMet('opponent', opponentCard.category, previousSlotResults);
+      if (read) dmg *= GameConfig.readMultiplier;
       final (affinityBy, rivalBy) =
           _affinityFlags('player', playerCard, playerHero);
       return SlotResult(
@@ -195,15 +227,21 @@ class CombatEngine {
         mitigatedBy: mitigated ? 'opponent' : null,
         affinityBy: affinityBy,
         rivalBy: rivalBy,
+        readBy: read ? 'player' : null,
         narrative: mitigated
             ? '${opponentCard.name} amortigua el golpe de ${playerCard.name}.'
             : '${playerCard.name} supera a ${opponentCard.name}.',
       );
     } else if (opponentWins) {
       final chainMet = _chainMet('opponent', opponentCard, previousSlotResults);
-      var dmg = _calcDamage(opponentCard, opponentHero, chainMet: chainMet);
-      final mitigated = playerCard.category == CardCategory.defense;
-      if (mitigated) dmg *= GameConfig.defenseMitigation;
+      var dmg = _calcDamage(opponentCard, opponentHero,
+          chainMet: chainMet, weakenPct: opponentWeakenPct, ringRule: ringRule);
+      final mitigated = playerCard.category == CardCategory.defense &&
+          opponentCard.effect != CardEffect.pierce;
+      if (mitigated) dmg *= _mitigationFactor(ringRule);
+      final read =
+          _readMet('player', playerCard.category, previousSlotResults);
+      if (read) dmg *= GameConfig.readMultiplier;
       final (affinityBy, rivalBy) =
           _affinityFlags('opponent', opponentCard, opponentHero);
       return SlotResult(
@@ -217,14 +255,17 @@ class CombatEngine {
         mitigatedBy: mitigated ? 'player' : null,
         affinityBy: affinityBy,
         rivalBy: rivalBy,
+        readBy: read ? 'opponent' : null,
         narrative: mitigated
             ? '${playerCard.name} amortigua el golpe de ${opponentCard.name}.'
             : '${opponentCard.name} supera a ${playerCard.name}.',
       );
     } else {
       // Empate — mismo tipo
-      final playerDmg = _calcDamage(playerCard, playerHero, tieFactor: 0.5);
-      final opponentDmg = _calcDamage(opponentCard, opponentHero, tieFactor: 0.5);
+      final playerDmg = _calcDamage(playerCard, playerHero,
+          tieFactor: 0.5, weakenPct: playerWeakenPct, ringRule: ringRule);
+      final opponentDmg = _calcDamage(opponentCard, opponentHero,
+          tieFactor: 0.5, weakenPct: opponentWeakenPct, ringRule: ringRule);
       return SlotResult(
         slotIndex: slotIndex,
         playerCard: playerCard,
@@ -237,18 +278,35 @@ class CombatEngine {
     }
   }
 
+  /// Factor de mitigación de Defensa, más débil bajo "Lluvia de Botellas".
+  static double _mitigationFactor(RingEventRule? ringRule) =>
+      ringRule == RingEventRule.weakDefenses
+          ? GameConfig.weakDefenseMitigation
+          : GameConfig.defenseMitigation;
+
   static double _calcDamage(
     GameCard card,
     HeroEntity hero, {
     double tieFactor = 1.0,
     bool conditionalMet = false,
     bool chainMet = false,
+    int weakenPct = 0,
+    RingEventRule? ringRule,
   }) {
     if (card.baseDamage == null) return 0;
 
     final stat = hero.stats.statFor(card.category);
     double dmg =
         card.baseDamage! * (stat / 10.0) * tieFactor * GameConfig.damageScale;
+
+    // Debilitado (efecto weaken del rival): −weakenPct% de daño.
+    if (weakenPct > 0) dmg *= (1 - weakenPct / 100).clamp(0.0, 1.0);
+
+    // "Público Enfervorizado": los Puños pegan más fuerte.
+    if (ringRule == RingEventRule.punchPriority &&
+        card.category == CardCategory.punch) {
+      dmg *= GameConfig.ringPunchBonus;
+    }
 
     // Sinergia héroe-carta (+10%)
     if (card.heroId == hero.id) dmg *= 1.1;
@@ -297,14 +355,53 @@ class CombatEngine {
     List<int> playerBlockedSlots = const [],
     List<int> opponentBlockedSlots = const [],
     GameMode mode = GameMode.expert,
+    RingEventRule? ringRule,
+    Random? rng,
   }) {
+    final random = rng ?? Random();
     final slotResults = <SlotResult>[];
     double totalPlayerDamage = 0;
     double totalOpponentDamage = 0;
 
+    // Efecto weaken activo (−% daño) de cada lado, sumando StatusEffects.
+    int weaken(CombatantState c) => c.statusEffects
+        .where((e) => e.type == StatusEffectType.weakened)
+        .fold(0, (sum, e) => sum + e.value);
+    final playerWeakenPct = weaken(player);
+    final opponentWeakenPct = weaken(opponent);
+
+    // Efecto denyDefense: si el combatante lo tiene, sus cartas de Defensa
+    // de este round se anulan (actúa como slot vacío en esos slots).
+    final playerDefenseDenied = player.statusEffects
+        .any((e) => e.type == StatusEffectType.defenseDenied);
+    final opponentDefenseDenied = opponent.statusEffects
+        .any((e) => e.type == StatusEffectType.defenseDenied);
+
+    // Evento de ring que anula cartas por chance (afecta a ambos lados).
+    bool ringFails(GameCard? c) {
+      if (c == null) return false;
+      if (ringRule == RingEventRule.kicksMayFail &&
+          c.category == CardCategory.kick) {
+        return random.nextDouble() < GameConfig.ringKickFailChance;
+      }
+      if (ringRule == RingEventRule.dodgesMayFail &&
+          c.category == CardCategory.dodge) {
+        return random.nextDouble() < GameConfig.ringDodgeFailChance;
+      }
+      return false;
+    }
+
     for (int i = 0; i < 3; i++) {
-      final playerCard = playerBlockedSlots.contains(i) ? null : player.plannedSequence[i];
-      final opponentCard = opponentBlockedSlots.contains(i) ? null : opponent.plannedSequence[i];
+      var playerCard = playerBlockedSlots.contains(i) ? null : player.plannedSequence[i];
+      var opponentCard = opponentBlockedSlots.contains(i) ? null : opponent.plannedSequence[i];
+      if (playerDefenseDenied && playerCard?.category == CardCategory.defense) {
+        playerCard = null;
+      }
+      if (opponentDefenseDenied && opponentCard?.category == CardCategory.defense) {
+        opponentCard = null;
+      }
+      if (ringFails(playerCard)) playerCard = null;
+      if (ringFails(opponentCard)) opponentCard = null;
       final result = resolveSlot(
         slotIndex: i,
         playerCard: playerCard,
@@ -316,6 +413,9 @@ class CombatEngine {
         playerCurrentHp: player.currentHp,
         opponentCurrentHp: opponent.currentHp,
         playerMaxHp: player.hero.maxHp,
+        playerWeakenPct: playerWeakenPct,
+        opponentWeakenPct: opponentWeakenPct,
+        ringRule: ringRule,
       );
       slotResults.add(result);
       totalPlayerDamage += result.playerDamageDealt;
@@ -336,14 +436,24 @@ class CombatEngine {
         ? (totalOpponentDamage * GameConfig.perfectRoundBonus).ceil()
         : 0;
 
+    // Combos posicionales sobre la secuencia de 3 (se aplican al cerrar el
+    // round, igual que el bonus de ronda perfecta).
+    final playerCombo = _detectCombo('player', slotResults, player.hero.maxHp);
+    final opponentCombo =
+        _detectCombo('opponent', slotResults, opponent.hero.maxHp);
+
     final playerHpAfter = (player.currentHp -
             totalOpponentDamage -
-            opponentPerfectBonus)
+            opponentPerfectBonus -
+            opponentCombo.damage +
+            playerCombo.heal)
         .ceil()
         .clamp(0, player.hero.maxHp);
     final opponentHpAfter = (opponent.currentHp -
             totalPlayerDamage -
-            playerPerfectBonus)
+            playerPerfectBonus -
+            playerCombo.damage +
+            opponentCombo.heal)
         .ceil()
         .clamp(0, opponent.hero.maxHp);
 
@@ -356,7 +466,60 @@ class CombatEngine {
       opponentHpAfter: opponentHpAfter,
       playerPerfectBonus: playerPerfectBonus,
       opponentPerfectBonus: opponentPerfectBonus,
+      playerComboName: playerCombo.name,
+      opponentComboName: opponentCombo.name,
+      playerComboDamage: playerCombo.damage,
+      opponentComboDamage: opponentCombo.damage,
+      playerComboHeal: playerCombo.heal,
+      opponentComboHeal: opponentCombo.heal,
     );
+  }
+
+  /// Detecta el combo posicional del lado [side] sobre los 3 slots resueltos.
+  /// Devuelve (name, damage extra, heal). Solo un combo por lado (prioridad:
+  /// Tortuga defensiva > One-Two > Agarrar y Golpear).
+  static ({String? name, int damage, int heal}) _detectCombo(
+    String side,
+    List<SlotResult> slots,
+    int maxHp,
+  ) {
+    GameCard? card(int i) =>
+        side == 'player' ? slots[i].playerCard : slots[i].opponentCard;
+    double dmgAt(int i) =>
+        side == 'player' ? slots[i].playerDamageDealt : slots[i].opponentDamageDealt;
+    bool wonAt(int i) => slots[i].winner == side;
+
+    final c0 = card(0), c1 = card(1), c2 = card(2);
+
+    // Tortuga: las 3 cartas son Defensa → cura % del HP máx.
+    if (c0?.category == CardCategory.defense &&
+        c1?.category == CardCategory.defense &&
+        c2?.category == CardCategory.defense) {
+      final heal = (maxHp * GameConfig.comboTortugaHealPct).ceil();
+      return (name: 'Tortuga', damage: 0, heal: heal);
+    }
+
+    // One-Two: Puño en slot 0 y slot 1 → +% al daño del segundo Puño.
+    if (c0?.category == CardCategory.punch &&
+        c1?.category == CardCategory.punch) {
+      final bonus = (dmgAt(1) * GameConfig.comboOneTwoBonus).ceil();
+      if (bonus > 0) return (name: 'One-Two', damage: bonus, heal: 0);
+    }
+
+    // Agarrar y Golpear: Agarre ganado seguido de Puño → el Puño castiga más
+    // fuerte (aprox. de "ignora la mitigación": +% a su daño).
+    for (int i = 0; i < 2; i++) {
+      if (card(i)?.category == CardCategory.grapple &&
+          wonAt(i) &&
+          card(i + 1)?.category == CardCategory.punch) {
+        final bonus = (dmgAt(i + 1) * GameConfig.comboOneTwoBonus).ceil();
+        if (bonus > 0) {
+          return (name: 'Agarrar y Golpear', damage: bonus, heal: 0);
+        }
+      }
+    }
+
+    return (name: null, damage: 0, heal: 0);
   }
 }
 
@@ -404,6 +567,16 @@ class TutorialBotAI {
         sequence[slotIndex] = def;
         availableStamina -= def.staminaCost;
       }
+    }
+
+    // La apertura (slot 0) nunca debe quedar vacía: el coach del tutorial le
+    // dice al jugador "ya ves la apertura del rival" apuntando a este slot, y
+    // con poca stamina en la ronda 1 los bucles de arriba pueden no ubicar
+    // ninguna carta ahí. Forzar la más barata que entre en la stamina total.
+    if (sequence[0] == null) {
+      final affordable = hand.where((c) => c.staminaCost <= stamina).toList()
+        ..sort((a, b) => a.staminaCost.compareTo(b.staminaCost));
+      if (affordable.isNotEmpty) sequence[0] = affordable.first;
     }
 
     // Slot 3 siempre vacío (el bot "descansa")

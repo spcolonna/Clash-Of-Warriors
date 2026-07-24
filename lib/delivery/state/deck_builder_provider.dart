@@ -117,19 +117,22 @@ class DeckBuilderNotifier
     }
   }
 
-  Future<void> addToDeck(String cardId) async {
+  /// Retorna false si el mazo ya está en [maxDeckSize] o la carta no está
+  /// en la colección — el caller usa esto para avisarle al jugador que
+  /// tiene que sacar una carta antes de poder agregar otra.
+  Future<bool> addToDeck(String cardId) async {
     final current = state.valueOrNull;
-    if (current == null) return;
+    if (current == null) return false;
 
     final totalInDeck =
     current.deck.fold<int>(0, (s, e) => s + e.quantity);
-    if (totalInDeck >= maxDeckSize) return;
+    if (totalInDeck >= maxDeckSize) return false;
 
     final fromCollection = current.collection.firstWhere(
           (c) => c.cardId == cardId,
       orElse: () => const DeckEntry(cardId: '', quantity: 0),
     );
-    if (fromCollection.cardId.isEmpty) return;
+    if (fromCollection.cardId.isEmpty) return false;
 
     final newCollection = current.collection
         .map((c) => c.cardId == cardId ? c.withQuantity(c.quantity - 1) : c)
@@ -150,6 +153,7 @@ class DeckBuilderNotifier
     );
 
     await _persistDeck(newDeck);
+    return true;
   }
 
   Future<void> removeFromDeck(String cardId) async {

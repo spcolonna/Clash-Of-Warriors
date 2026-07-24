@@ -222,6 +222,9 @@ class NeutralCardsData {
     'drainStamina' => CardEffect.drainStamina,
     'heal'         => CardEffect.heal,
     'staminaBoost' => CardEffect.staminaBoost,
+    'denyDefense'  => CardEffect.denyDefense,
+    'weaken'       => CardEffect.weaken,
+    'pierce'       => CardEffect.pierce,
     _              => null,
   };
 

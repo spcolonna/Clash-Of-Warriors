@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../domain/entities/game_card.dart';
+import '../../widgets/tutorial/rps_demo.dart';
 
 /// Pantalla completa — accesible desde Home
 class HowToPlayScreen extends StatelessWidget {
@@ -87,16 +88,23 @@ class HowToPlayContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
-        _Section(
+      children: [
+        const _Section(
           title: 'Objetivo',
           body: 'Derrotá a tu rival reduciendo su HP a 0. Cada round armás una '
-              'secuencia de 5 cartas que se enfrentan simultáneamente contra '
-              'las del rival.',
+              'secuencia de 3 cartas (los slots) que se enfrentan slot a slot '
+              'contra las del rival.',
         ),
         _Section(
-          title: 'Tipos de cartas',
-          body: 'Hay 5 tipos de cartas. Cada una le gana a dos y pierde contra dos:',
+          title: 'Regla de oro (mirá cómo se resuelve)',
+          body: 'Cada carta le gana a otras y pierde contra otras. Miralo en '
+              'acción — tocá para ver el siguiente choque:',
+        ),
+        RpsDemo(),
+        _Section(
+          title: 'Los 5 tipos completos',
+          body: 'En modo Experto hay 5 tipos. Cada una le gana a dos y pierde '
+              'contra dos:',
         ),
         _MatchupTable(),
         _Section(
@@ -104,7 +112,23 @@ class HowToPlayContent extends StatelessWidget {
           body: 'daño_base × (stat_del_heroe / 10)\n\n'
               'Ejemplo: tu héroe tiene Puño 7, y usás un Golpe Básico '
               '(daño base 8) → daño real = 8 × (7/10) = 5.6 ≈ 6 de daño.\n\n'
-              'Si la carta coincide con tu facción, sumás +10% extra.',
+              'Afinidad de facción: si la carta es de TU facción pega +20%; si '
+              'es de una facción rival, −20%. Además, la carta propia de tu '
+              'héroe suma otro +10%.',
+        ),
+        _Section(
+          title: 'Carta pasiva',
+          body: 'Cada héroe tiene una carta pasiva única. Cuando tu HP baja al '
+              '40%, esa carta aparece sola en tu mano: es tu golpe de '
+              'remontada. Se juega una vez por batalla.',
+        ),
+        _Section(
+          title: 'Bonus y efectos de carta',
+          body: 'Algunas cartas pegan más si se cumple una condición (ganaste '
+              'el slot anterior, tu HP está bajo, etc.). Otras, al ganar su '
+              'slot, aplican un efecto: drenan stamina al rival, te curan, lo '
+              'debilitan o le impiden defender la próxima ronda. El ícono de la '
+              'carta te avisa qué hace.',
         ),
         _Section(
           title: 'Stamina',

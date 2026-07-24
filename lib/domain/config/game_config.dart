@@ -15,14 +15,8 @@ class GameConfig {
   static const int drawDamage = 1;
 
   // ── TOKENS / ECONOMÍA ─────────────────────────────────
-  static const int tokenRewardEasy = 5;
-  static const int tokenRewardNormal = 10;
-  static const int tokenRewardHard = 20;
-  static const int tokenRewardLoss = 2;
-  static const int tokenReward3v3Multiplier = 3;
-  static const int tokenRewardStoryMultiplier = 2;
-  static const int tokenRewardStoryComplete = 4; // x diff reward
-
+  // Las recompensas de batalla viven en BattleRewardsConfig
+  // (lib/domain/entities/game_config.dart), ajustables desde el admin.
   static const int heroUnlockCost = 200;
   static const int cardCost = 50;
 
@@ -131,6 +125,33 @@ class GameConfig {
 
   // Ronda perfecta: ganar los 3 slots suma un bonus de daño extra.
   static const double perfectRoundBonus = 0.25;
+
+  // ── COMBOS POSICIONALES ───────────────────────────────────────────────
+  // Secuencias específicas de las 3 cartas del round otorgan bonus.
+  // One-Two: Puño en slot0 + Puño en slot1 → +% al segundo Puño.
+  static const double comboOneTwoBonus = 0.4;
+  // Tortuga: 3× Defensa → cura un % del HP máx al cerrar el round.
+  static const double comboTortugaHealPct = 0.10;
+  // Agarrar y Golpear: Agarre (ganado) → Puño → el Puño ignora la mitigación
+  // de defensa del rival (se maneja como flag en la resolución).
+
+  // ── CASTIGO A LA REPETICIÓN (LECTURA) ─────────────────────────────────
+  // Si un lado repite la misma categoría y el rival juega el counter, el
+  // counter pega con este multiplicador ("lectura").
+  static const double readMultiplier = 2.0;
+
+  // ── EVENTOS DE RING ───────────────────────────────────────────────────
+  // Cada cuántas rondas se dispara un evento ambiental (dura esa ronda).
+  static const int ringEventEveryNRounds = 3;
+  static const bool ringEventsEnabled = true;
+  // Probabilidad de que patadas/esquives fallen bajo su evento.
+  static const double ringKickFailChance = 0.20;
+  static const double ringDodgeFailChance = 0.25;
+  // "Lluvia de Botellas": las defensas mitigan menos (factor más alto = menos
+  // reducción; normal es defenseMitigation = 0.5).
+  static const double weakDefenseMitigation = 0.75;
+  // "Público Enfervorizado": los Puños pegan más fuerte.
+  static const double ringPunchBonus = 1.25;
 
   // ── ASCENSIÓN DE HÉROES ───────────────────────────────
   // Gastar medallas para subir estrellas (★2..★5). Cada estrella suma +1 a

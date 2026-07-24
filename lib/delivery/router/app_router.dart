@@ -45,7 +45,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (player.selectedFactionId == null) {
-        if (location == '/' || location == '/character-select') return null;
+        if (location == '/character-select') return null;
         return '/character-select';
       }
 

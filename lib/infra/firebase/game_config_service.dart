@@ -34,4 +34,29 @@ class GameConfigService {
     final doc = await _db.collection('gameConfig').doc('settings').get();
     return doc.exists ? doc.data() ?? {} : {};
   }
+
+  /// Catálogo de la tienda premium: docs premium_shop/{bundles|token_packs|
+  /// hero_offers}, cada uno con un campo `items` (array de maps).
+  /// Retorna mapas vacíos si los docs no existen (el caller usa el fallback
+  /// local hardcodeado).
+  Future<Map<String, List<Map<String, dynamic>>>> fetchPremiumShop() async {
+    Future<List<Map<String, dynamic>>> items(String docId) async {
+      final doc = await _db.collection('premium_shop').doc(docId).get();
+      final raw = doc.data()?['items'] as List<dynamic>? ?? const [];
+      return raw
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    }
+
+    final results = await Future.wait([
+      items('bundles'),
+      items('token_packs'),
+      items('hero_offers'),
+    ]);
+    return {
+      'bundles': results[0],
+      'tokenPacks': results[1],
+      'heroOffers': results[2],
+    };
+  }
 }

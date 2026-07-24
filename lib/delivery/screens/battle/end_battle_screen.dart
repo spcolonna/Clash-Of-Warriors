@@ -9,6 +9,10 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../domain/entities/battle_state.dart' show BattleState;
+import '../../../domain/entities/game_config.dart' show BattleRewardsConfig;
+import '../../../domain/config/rank_ladder.dart';
+import '../../widgets/rank_badge.dart';
+import '../../widgets/level_up_dialog.dart';
 import '../../../infra/local/heroes_data.dart';
 import '../../../infra/local/daily_rewards_data.dart';
 import '../../../infra/services/admob_service.dart';
@@ -20,25 +24,6 @@ import '../../state/story_provider.dart';
 
 class EndBattleScreen extends ConsumerStatefulWidget {
   const EndBattleScreen({super.key});
-
-  static const int tutorialMedalReward = 25;
-  static const int tutorialCoinReward = 150;
-  static const int arenaMedalReward = 15;
-  static const int arenaCoinReward = 100;
-  static const int tutorialTokenReward = 5;
-  static const int arenaTokenRewardEasy = 1;
-  static const int arenaTokenRewardNormal = 2;
-  static const int arenaTokenRewardHard = 3;
-
-  int _tokenReward(bool isTutorial, BotDifficulty? difficulty) {
-    if (isTutorial) return tutorialTokenReward;
-    return switch (difficulty) {
-      BotDifficulty.easy   => arenaTokenRewardEasy,
-      BotDifficulty.normal => arenaTokenRewardNormal,
-      BotDifficulty.hard   => arenaTokenRewardHard,
-      null                 => arenaTokenRewardNormal,
-    };
-  }
 
   @override
   ConsumerState<EndBattleScreen> createState() => _EndBattleScreenState();
@@ -115,13 +100,11 @@ class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
     final isTutorial = battle.isTutorial;
     final isStoryBattle = battle.isStoryBattle;
 
-    final medals = isTutorial
-        ? EndBattleScreen.tutorialMedalReward
-        : EndBattleScreen.arenaMedalReward;
-    final baseCoins = isTutorial
-        ? EndBattleScreen.tutorialCoinReward
-        : EndBattleScreen.arenaCoinReward;
-    final tokens = widget._tokenReward(isTutorial, battle.botDifficulty);
+    final rewards = ref.watch(gameConfigProvider).value?.battleRewards ??
+        const BattleRewardsConfig();
+    final medals = rewards.medalsFor(isTutorial);
+    final baseCoins = rewards.coinsFor(isTutorial);
+    final tokens = rewards.tokensFor(isTutorial, battle.botDifficulty);
 
     // ── Retención: primera victoria del día (x2) + XP de toda batalla ──────────
     final player = ref.watch(playerProvider);
@@ -423,8 +406,10 @@ class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
                     final notifier = ref.read(playerProvider.notifier);
                     final loadedPlayer = ref.read(playerProvider);
 
-                    // XP de cuenta + progreso de misiones (gane o pierda)
-                    notifier.addAccountXp(xpReward);
+                    // XP de cuenta + progreso de misiones (gane o pierda).
+                    // Capturar niveles subidos para celebrar (hoy se ignoraba).
+                    final levelsGained = notifier.addAccountXp(xpReward);
+                    final newLevel = ref.read(playerProvider)?.accountLevel ?? 1;
                     notifier.reportBattleResult(
                       won: playerWon,
                       slotsWon: slotsWonCount,
@@ -455,12 +440,32 @@ class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
                         final pts = battle.gameMode == GameMode.normal
                             ? config?.pointsForSimple(difficulty) ?? 2
                             : config?.pointsFor(difficulty) ?? 3;
+                        // Ascenso de rango: comparar el rango antes/después de
+                        // sumar los puntos y celebrar si subió.
+                        final pointsBefore = loadedPlayer.battlePoints;
                         notifier.addBattlePoints(pts);
+                        final rankBefore = RankLadder.rankFor(pointsBefore);
+                        final rankAfter = RankLadder.rankFor(pointsBefore + pts);
+                        if (rankAfter.tier > rankBefore.tier && context.mounted) {
+                          SoundService().play('level_up');
+                          HapticsService().success();
+                          await RankUpDialog.show(context, rankAfter);
+                        }
                       }
                     }
                     // Consolación por derrota (arena; el tutorial no aplica)
                     if (!playerWon && !isTutorial) {
                       notifier.addSoftCoins(_consolationCoins(battle));
+                    }
+                    // Level-up de cuenta: celebrar si subiste de nivel.
+                    if (levelsGained > 0 && context.mounted) {
+                      SoundService().play('level_up');
+                      HapticsService().success();
+                      await LevelUpDialog.show(
+                        context,
+                        newLevel: newLevel,
+                        coinsReward: levelsGained * DailyRewardsData.coinsPerLevelUp,
+                      );
                     }
                     if (context.mounted) context.go('/home');
                     // Interstitial cada N batallas, después de salir

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../domain/config/game_config.dart';
+import '../../../domain/config/ring_events.dart';
 import '../../../domain/entities/battle_state.dart';
 import '../../../domain/entities/game_card.dart';
 import '../../../domain/entities/hero_entity.dart';
@@ -61,6 +62,40 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
     3: '¿Ves los ojos 👁 junto a los slots del rival? Tocá un slot oculto '
         'para ESPIARLO con un scout. Son limitados: usalos bien.',
   };
+
+  // Beats del coach que se disparan cuando OCURRE la mecánica (una sola vez).
+  final Set<String> _seenBeats = {};
+
+  /// Muestra un beat del coach al resolverse un slot (tutorial): la primera
+  /// vez que ganás un choque y la primera vez que tu Defensa mitiga.
+  Future<void> _maybeCoachOnResolve(SlotResult r) async {
+    // Ganaste tu primer choque con ambas cartas en juego.
+    if (!_seenBeats.contains('firstWin') &&
+        r.winner == 'player' &&
+        r.playerCard != null &&
+        r.opponentCard != null) {
+      _seenBeats.add('firstWin');
+      _showBanner('¡GANASTE EL CHOQUE!',
+          '${_catName(r.playerCard!.category)} venció a ${_catName(r.opponentCard!.category)}. Esa es la regla de oro.');
+      await Future.delayed(const Duration(milliseconds: 1500));
+      return;
+    }
+    // Tu Defensa perdió el choque pero bloqueó la mitad del daño.
+    if (!_seenBeats.contains('mitigate') && r.mitigatedBy == 'player') {
+      _seenBeats.add('mitigate');
+      _showBanner('DEFENSA = SEGURO',
+          'Tu Defensa perdió el choque pero igual bloqueó la mitad del daño.');
+      await Future.delayed(const Duration(milliseconds: 1500));
+    }
+  }
+
+  static String _catName(CardCategory c) => switch (c) {
+        CardCategory.punch => 'Puño',
+        CardCategory.kick => 'Patada',
+        CardCategory.grapple => 'Agarre',
+        CardCategory.defense => 'Defensa',
+        CardCategory.dodge => 'Esquive',
+      };
 
   /// Paso del coach según el estado real de la batalla (solo tutorial).
   int? _coachStep(BattleState b) {
@@ -245,7 +280,10 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
               child: SafeArea(
                 bottom: false,
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 70),
+                  // 70 (altura de _TopHpRow) + ~85 (SizedBox(10) + fila de
+                  // slots del rival, 72px) para no tapar la apertura revelada
+                  // que el propio texto de este paso le pide mirar al jugador.
+                  padding: const EdgeInsets.only(top: 155),
                   child: TutorialCoachBanner(
                     key: ValueKey('coach_$step'),
                     text: _coachTexts[step]!,
@@ -297,7 +335,26 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
       final hpAfter = ref.read(battleProvider).player.currentHp;
       if (hpAfter < hpBefore) _triggerShake();
 
+      // Lectura: counteraste una carta repetida del rival → daño ×2.
+      if (lastRound.slotResults[i].readBy == 'player') {
+        SoundService().play('level_up');
+        HapticsService().success();
+        _showBanner('¡LECTURA!', 'Castigaste la repetición · daño ×2');
+        await Future.delayed(const Duration(milliseconds: 900));
+      }
+
+      // Coach del tutorial: explicar la mecánica JUSTO cuando ocurre.
+      if (ref.read(battleProvider).isTutorial) {
+        await _maybeCoachOnResolve(lastRound.slotResults[i]);
+      }
+
       await Future.delayed(const Duration(milliseconds: 400));
+
+      // KO en medio del round: si alguien cayó a 0, el combate termina acá.
+      // Los slots restantes NO se aplican — quien llegó a 0 primero perdió,
+      // aunque el golpe rival del slot siguiente también hubiera sido letal.
+      final afterSlot = ref.read(battleProvider);
+      if (!afterSlot.player.isAlive || !afterSlot.opponent.isAlive) break;
     }
 
     if (mounted) setState(() => _resolvingSlot = -1);
@@ -321,6 +378,17 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
         _showBanner('RONDA PERFECTA RIVAL', '-${last.opponentPerfectBonus} HP');
         await Future.delayed(const Duration(milliseconds: 1300));
       }
+
+      // Banner de combo posicional (el daño/cura ya se aplicó en finalizeRound).
+      if (last.playerComboName != null) {
+        SoundService().play('level_up');
+        HapticsService().success();
+        final sub = last.playerComboHeal > 0
+            ? '+${last.playerComboHeal} HP'
+            : '+${last.playerComboDamage} DAÑO EXTRA';
+        _showBanner('¡COMBO ${last.playerComboName!.toUpperCase()}!', sub);
+        await Future.delayed(const Duration(milliseconds: 1300));
+      }
     }
 
     await Future.delayed(const Duration(milliseconds: 500));
@@ -336,10 +404,27 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
       if (!mounted) return;
       final nextState = ref.read(battleProvider);
       if (!nextState.isBattleOver) {
-        _showRoundBanner(nextState.currentRound, scoutEarned: scoutEarned);
+        // Evento de ring de la nueva ronda tiene prioridad de banner.
+        final ringEvent = RingEvents.byId(nextState.activeRingEvent);
+        if (ringEvent != null) {
+          HapticsService().medium();
+          SoundService().play('whoosh');
+          _showBanner('EVENTO: ${ringEvent.name.toUpperCase()}', ringEvent.description);
+          await Future.delayed(const Duration(milliseconds: 1400));
+          if (!mounted) return;
+        } else {
+          _showRoundBanner(nextState.currentRound, scoutEarned: scoutEarned);
+        }
       }
       if (nextState.passiveJustUnlocked) {
         setState(() => _showPassiveBanner = true);
+        // Coach: explicar la pasiva la primera vez que se desbloquea (tutorial).
+        if (nextState.isTutorial && !_seenBeats.contains('passive')) {
+          _seenBeats.add('passive');
+          _showBanner('¡CARTA PASIVA!',
+              'Tu HP bajó al 40%: apareció tu carta especial de remontada. Jugala en el momento justo.');
+          await Future.delayed(const Duration(milliseconds: 1600));
+        }
       }
     }
   }

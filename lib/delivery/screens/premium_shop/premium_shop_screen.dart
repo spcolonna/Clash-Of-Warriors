@@ -4,11 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../domain/config/game_config.dart' as cfg;
+import '../../../domain/entities/game_card.dart';
 import '../../../infra/config/premium_shop_config.dart';
+import '../../../infra/local/heroes_data.dart';
 import '../../../infra/services/admob_service.dart';
 import '../../../infra/services/haptics_service.dart';
 import '../../../infra/sound/sound_service.dart';
 import '../../state/providers.dart';
+import '../../widgets/card_preview_dialog.dart';
+import '../../widgets/game_card_widget.dart';
+import '../../widgets/animated_resource_chip.dart';
 
 class PremiumShopScreen extends ConsumerWidget {
   const PremiumShopScreen({super.key});
@@ -89,27 +94,12 @@ class _PremiumShopAppBar extends StatelessWidget {
         onPressed: () => Navigator.of(context).pop(),
       ),
       actions: [
-        Container(
-          margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFF2D0050),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFB39DDB).withValues(alpha: 0.4)),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.diamond, size: 14, color: Color(0xFFB39DDB)),
-              const SizedBox(width: 6),
-              Text(
-                '$tokens',
-                style: const TextStyle(
-                  color: Color(0xFFB39DDB),
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+        Padding(
+          padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+          child: AnimatedResourceChip(
+            icon: Icons.diamond,
+            value: tokens,
+            color: const Color(0xFFB39DDB),
           ),
         ),
       ],
@@ -197,7 +187,9 @@ class _BundlesSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bundles = PremiumShopConfig.bundles;
+    final bundles = ref.watch(premiumShopProvider).valueOrNull?.bundles ??
+        const <PremiumBundle>[];
+    if (bundles.isEmpty) return const SizedBox.shrink();
     return SizedBox(
       height: 300,
       child: ListView.separated(
@@ -234,76 +226,271 @@ class _BundlesSection extends ConsumerWidget {
   }
 }
 
-class _BundleCard extends StatelessWidget {
+class _BundleCard extends ConsumerWidget {
   final PremiumBundle bundle;
   final VoidCallback onPurchase;
 
   const _BundleCard({required this.bundle, required this.onPurchase});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 190,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(bundle.heroGradientStart), Color(bundle.heroGradientEnd)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: bundle.isHighlighted
-            ? Border.all(color: const Color(0xFFFFD700), width: 2)
-            : Border.all(color: Colors.white10),
-        boxShadow: [
-          BoxShadow(
-            color: bundle.isHighlighted
-                ? const Color(0xFFFFD700).withValues(alpha: 0.2)
-                : Colors.black38,
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalog = ref.watch(cardCatalogProvider);
+    final cards = bundle.cardIds
+        .map(catalog.findById)
+        .whereType<GameCard>()
+        .toList();
+
+    return GestureDetector(
+      onTap: () =>
+          _showBundleContentsDialog(context, bundle, cards, onPurchase),
+      child: Container(
+        width: 190,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(bundle.heroGradientStart), Color(bundle.heroGradientEnd)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: double.infinity,
-                  height: 88,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.sports_mma, size: 44, color: Colors.white54),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(bundle.name, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, height: 1.2)),
-                const SizedBox(height: 4),
-                Text(
-                  bundle.description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 10),
-                ),
-                const SizedBox(height: 10),
-                _BundleContentsRow(bundle: bundle),
-                const Spacer(),
-                _PriceButton(priceUsd: bundle.priceUsd, onTap: onPurchase),
-              ],
+          borderRadius: BorderRadius.circular(20),
+          border: bundle.isHighlighted
+              ? Border.all(color: const Color(0xFFFFD700), width: 2)
+              : Border.all(color: Colors.white10),
+          boxShadow: [
+            BoxShadow(
+              color: bundle.isHighlighted
+                  ? const Color(0xFFFFD700).withValues(alpha: 0.2)
+                  : Colors.black38,
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
-          ),
-          if (bundle.badgeText != null)
-            Positioned(top: 10, right: 10, child: _Badge(text: bundle.badgeText!)),
-        ],
+          ],
+        ),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Retrato del héroe + abanico de las cartas reales del pack
+                  SizedBox(
+                    width: double.infinity,
+                    height: 92,
+                    child: Row(
+                      children: [
+                        _OfferHeroPortrait(
+                          heroId: bundle.heroId,
+                          width: 66,
+                          height: 92,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(child: _CardFan(cards: cards)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(bundle.name, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, height: 1.2)),
+                  const SizedBox(height: 4),
+                  Text(
+                    bundle.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 10),
+                  ),
+                  const SizedBox(height: 10),
+                  _BundleContentsRow(bundle: bundle),
+                  const Spacer(),
+                  _PriceButton(priceUsd: bundle.priceUsd, onTap: onPurchase),
+                ],
+              ),
+            ),
+            if (bundle.badgeText != null)
+              Positioned(top: 10, right: 10, child: _Badge(text: bundle.badgeText!)),
+          ],
+        ),
       ),
     );
   }
+}
+
+/// Retrato del héroe real (assets/images/heros/*), con fallback al ícono
+/// genérico para héroes que aún no existen en el juego.
+class _OfferHeroPortrait extends StatelessWidget {
+  final String heroId;
+  final double width;
+  final double height;
+
+  const _OfferHeroPortrait({
+    required this.heroId,
+    required this.width,
+    required this.height,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final imagePath = HeroesData.findByIdSafe(heroId)?.imagePath;
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: imagePath == null
+          ? const Center(
+              child: Icon(Icons.sports_mma, size: 32, color: Colors.white54))
+          : Image.asset(
+              imagePath,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const Center(
+                  child:
+                      Icon(Icons.sports_mma, size: 32, color: Colors.white54)),
+            ),
+    );
+  }
+}
+
+/// Abanico de mini-cartas reales del pack (las con arte se ven full-art).
+class _CardFan extends StatelessWidget {
+  final List<GameCard> cards;
+  const _CardFan({required this.cards});
+
+  @override
+  Widget build(BuildContext context) {
+    if (cards.isEmpty) {
+      return Center(
+        child: Icon(Icons.style, size: 30,
+            color: Colors.white.withValues(alpha: 0.35)),
+      );
+    }
+    final shown = cards.take(3).toList();
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        for (int i = 0; i < shown.length; i++)
+          Transform.translate(
+            offset: Offset((i - (shown.length - 1) / 2) * 22, 0),
+            child: Transform.rotate(
+              angle: (i - (shown.length - 1) / 2) * 0.16,
+              // Render a 70px y escala a 42: evita overflows de fuentes mínimas
+              child: SizedBox(
+                width: 42,
+                height: 63,
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: IgnorePointer(
+                    child: GameCardWidget(card: shown[i], width: 70),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Dialog con el contenido real del pack: héroe + cartas a tamaño legible.
+void _showBundleContentsDialog(
+  BuildContext context,
+  PremiumBundle bundle,
+  List<GameCard> cards,
+  VoidCallback onPurchase,
+) {
+  showDialog<void>(
+    context: context,
+    barrierColor: Colors.black.withValues(alpha: 0.75),
+    builder: (ctx) => Dialog(
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(bundle.name,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text(bundle.description,
+                  textAlign: TextAlign.center,
+                  style:
+                      const TextStyle(color: Color(0xFFB0B0C8), fontSize: 12)),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Column(
+                    children: [
+                      _OfferHeroPortrait(
+                          heroId: bundle.heroId, width: 90, height: 126),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        width: 90,
+                        child: Text(bundle.heroName,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final card in cards)
+                          GestureDetector(
+                            onTap: () => CardPreviewDialog.show(ctx, card),
+                            child: GameCardWidget(card: card, width: 74),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.diamond,
+                      size: 16, color: Color(0xFFB39DDB)),
+                  const SizedBox(width: 6),
+                  Text('+${bundle.tokenAmount} tokens',
+                      style: const TextStyle(
+                          color: Color(0xFFB39DDB),
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _PriceButton(
+                priceUsd: bundle.priceUsd,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  onPurchase();
+                },
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cerrar',
+                    style: TextStyle(color: Colors.white54)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _BundleContentsRow extends StatelessWidget {
@@ -349,7 +536,9 @@ class _TokenPacksSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final packs = PremiumShopConfig.tokenPacks;
+    final packs = ref.watch(premiumShopProvider).valueOrNull?.tokenPacks ??
+        const <TokenPack>[];
+    if (packs.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GridView.builder(
@@ -481,9 +670,25 @@ class _HeroesSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final heroes = PremiumShopConfig.heroOffers;
     final unlockedIds = ref.watch(playerProvider)?.unlockedHeroIds ?? [];
     final currentTokens = ref.watch(playerProvider)?.tokens ?? 0;
+    // Solo héroes que el jugador todavía no tiene (igual que la tienda normal).
+    final heroes = (ref.watch(premiumShopProvider).valueOrNull?.heroOffers ??
+            const <HeroOffer>[])
+        .where((h) => !unlockedIds.contains(h.heroId))
+        .toList();
+
+    if (heroes.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Center(
+          child: Text(
+            'Ya desbloqueaste todos los héroes disponibles.',
+            style: TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+        ),
+      );
+    }
 
     return SizedBox(
       height: 240,
@@ -494,15 +699,14 @@ class _HeroesSection extends ConsumerWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, i) {
           final hero = heroes[i];
-          final isOwned = unlockedIds.contains(hero.heroId);
           final cost = _tokenCostForRarity(hero.rarity);
           return _HeroCard(
             hero: hero,
-            isOwned: isOwned,
+            isOwned: false,
             tokenCost: cost,
             canAfford: currentTokens >= cost,
-            onPurchase: isOwned ? null : () => _onHeroPurchase(context, ref, hero, cost, currentTokens),
-            onInfo: () => _showHeroPreviewDialog(context, hero, cost, isOwned),
+            onPurchase: () => _onHeroPurchase(context, ref, hero, cost, currentTokens),
+            onInfo: () => _showHeroPreviewDialog(context, hero, cost, false),
           );
         },
       ),
@@ -584,15 +788,13 @@ class _HeroCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
+                SizedBox(
                   width: double.infinity,
                   height: 72,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.sports_mma, size: 36, color: Colors.white54),
+                  child: _OfferHeroPortrait(
+                    heroId: hero.heroId,
+                    width: double.infinity,
+                    height: 72,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -777,7 +979,21 @@ void _showHeroPreviewDialog(
                 shape: BoxShape.circle,
                 border: Border.all(color: rarityColor.withValues(alpha: 0.5), width: 2),
               ),
-              child: const Icon(Icons.sports_mma, size: 36, color: Colors.white70),
+              clipBehavior: Clip.antiAlias,
+              child: Builder(builder: (_) {
+                final imagePath =
+                    HeroesData.findByIdSafe(hero.heroId)?.imagePath;
+                if (imagePath == null) {
+                  return const Icon(Icons.sports_mma,
+                      size: 36, color: Colors.white70);
+                }
+                return Image.asset(
+                  imagePath,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.sports_mma,
+                      size: 36, color: Colors.white70),
+                );
+              }),
             ),
             const SizedBox(height: 12),
             Text(

@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/entities/game_card.dart';
 import '../../state/providers.dart';
 import '../../state/shop_provider.dart';
-import '../card_preview_dialog.dart';
 import '../game_card_widget.dart';
+import 'purchase_card_dialog.dart';
 
 class ShopCardItem extends ConsumerWidget {
   final ShopCard card;
@@ -14,7 +14,8 @@ class ShopCardItem extends ConsumerWidget {
   final bool isFactionUnlocked;
   final bool isOwned;
   final bool canAfford;
-  final VoidCallback? onTap;
+  final Future<bool> Function()? onBuy;
+  final VoidCallback? onPurchased;
 
   const ShopCardItem({
     super.key,
@@ -23,10 +24,11 @@ class ShopCardItem extends ConsumerWidget {
     required this.isFactionUnlocked,
     required this.isOwned,
     required this.canAfford,
-    this.onTap,
+    this.onBuy,
+    this.onPurchased,
   });
 
-  static const double _cardWidth = 130.0;
+  static const double width = 130.0;
 
   GameCard _toGameCard() => GameCard(
     id: card.id,
@@ -46,13 +48,24 @@ class ShopCardItem extends ConsumerWidget {
     final gameCard =
         ref.watch(cardCatalogProvider).findById(card.id) ?? _toGameCard();
 
+    // Un solo tap: abre la carta real a tamaño completo con el botón de
+    // compra ya resuelto (bloqueada / sin monedas / comprar), sin popups
+    // intermedios ni un ícono de ojo separado. Al comprar, la propia carta
+    // hace una animación de "adquisición" antes de cerrarse.
     return GestureDetector(
-      onTap: onTap,
-      onLongPress: () => CardPreviewDialog.show(context, gameCard),
+      onTap: () => PurchaseCardDialog.show(
+        context,
+        card: gameCard,
+        cost: card.cost,
+        canBuy: isFactionUnlocked && canAfford,
+        disabledLabel: !isFactionUnlocked ? 'Bloqueada' : 'Sin monedas',
+        onBuy: onBuy ?? () async => false,
+        onPurchased: onPurchased,
+      ),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          GameCardWidget(card: gameCard, width: _cardWidth),
+          GameCardWidget(card: gameCard, width: width),
 
           // ── Estado: precio / comprada / bloqueada ──────────────────────
           Positioned(
@@ -88,28 +101,6 @@ class ShopCardItem extends ConsumerWidget {
                 ),
               ),
             ),
-
-          // ── Botón de preview (arriba izquierda, siempre tappable) ──────
-          Positioned(
-            top: 4,
-            left: 4,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => CardPreviewDialog.show(context, gameCard),
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Icon(
-                  Icons.visibility_outlined,
-                  size: 12,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );

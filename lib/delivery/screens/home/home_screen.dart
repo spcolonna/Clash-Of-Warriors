@@ -18,6 +18,10 @@ import '../premium_shop/premium_shop_screen.dart';
 import '../ranking/ranking_screen.dart';
 import '../settings/settings_screen.dart';
 import '../shell/main_shell_scaffold.dart';
+import '../../widgets/rank_badge.dart';
+import '../../widgets/animated_resource_chip.dart';
+import '../../widgets/reward_feedback.dart';
+import '../../widgets/card_reward_dialog.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -120,7 +124,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 10),
+                // ── Rango actual (derivado de battlePoints) ───────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: RankBadge(battlePoints: player.battlePoints, compact: true),
+                  ),
+                ),
+                const SizedBox(height: 14),
                 // ── Banner de bienvenida (con nombre real) ────────────────
                 _WelcomeBanner(
                   factionId: player.selectedFactionId,
@@ -230,12 +243,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _showDailyRewardDialog(BuildContext context, DailyLoginResult result) {
-    showDialog<void>(
+  void _showDailyRewardDialog(BuildContext context, DailyLoginResult result) async {
+    await showDialog<void>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.78),
       builder: (_) => _DailyRewardDialog(result: result),
     );
+    // Si la recompensa del día es una carta, celebrarla en grande.
+    if (!mounted) return;
+    if (result.reward.type == DailyRewardType.card &&
+        result.reward.cardId != null) {
+      final card = ref.read(cardCatalogProvider).findById(result.reward.cardId!);
+      if (card != null && context.mounted) {
+        await CardRewardDialog.show(context, card);
+      }
+    }
   }
 
   void _showMissionsSheet(BuildContext context) {
@@ -318,8 +340,19 @@ class _ProgressSheet extends ConsumerWidget {
           _ProgressCycleBar(
             player: player,
             reward: reward,
-            onClaim: () =>
-                ref.read(playerProvider.notifier).claimProgressReward(),
+            onClaim: () {
+              ref.read(playerProvider.notifier).claimProgressReward();
+              // Si la recompensa es una carta, celebrarla en grande; si no,
+              // el burst corto de recompensa alcanza.
+              final card = reward.type == 'card' && reward.cardId != null
+                  ? ref.read(cardCatalogProvider).findById(reward.cardId!)
+                  : null;
+              if (card != null) {
+                CardRewardDialog.show(context, card);
+              } else {
+                showRewardBurst(context, label: '¡RECOMPENSA!');
+              }
+            },
           ),
         ],
       ),
@@ -680,57 +713,19 @@ class _ResourceBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _ResourceChip(
+        AnimatedResourceChip(
             icon: Icons.monetization_on,
             value: softCoins,
             color: const Color(0xFFF5B800)),
         const SizedBox(width: 8),
-        _ResourceChip(
+        AnimatedResourceChip(
             icon: Icons.military_tech, value: medals, color: Colors.amber),
         const SizedBox(width: 8),
-        _ResourceChip(
+        AnimatedResourceChip(
             icon: Icons.diamond,
             value: tokens,
             color: const Color(0xFFB39DDB)),
       ],
-    );
-  }
-}
-
-class _ResourceChip extends StatelessWidget {
-  final IconData icon;
-  final int value;
-  final Color color;
-
-  const _ResourceChip({
-    required this.icon,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          Text(
-            '$value',
-            style: TextStyle(
-              color: color,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -984,11 +979,16 @@ class _LevelBar extends StatelessWidget {
                 const SizedBox(height: 6),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: player.levelProgress,
-                    minHeight: 7,
-                    backgroundColor: Colors.white10,
-                    valueColor: const AlwaysStoppedAnimation(blue),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: player.levelProgress),
+                    duration: const Duration(milliseconds: 700),
+                    curve: Curves.easeOut,
+                    builder: (context, v, _) => LinearProgressIndicator(
+                      value: v,
+                      minHeight: 7,
+                      backgroundColor: Colors.white10,
+                      valueColor: const AlwaysStoppedAnimation(blue),
+                    ),
                   ),
                 ),
               ],
@@ -1169,8 +1169,12 @@ class _MissionsSheet extends ConsumerWidget {
           else
             ...missions.map((m) => _MissionRow(
                   mission: m,
-                  onClaim: () =>
-                      ref.read(playerProvider.notifier).claimMission(m.id),
+                  onClaim: () {
+                    ref.read(playerProvider.notifier).claimMission(m.id);
+                    showRewardBurst(context,
+                        label: '¡MISIÓN COMPLETA!',
+                        detail: '+${m.rewardAmount} ${m.rewardType == 'tokens' ? 'tokens' : 'monedas'}');
+                  },
                 )),
         ],
       ),
@@ -1332,8 +1336,12 @@ class _JourneySheet extends ConsumerWidget {
                   milestone: m,
                   complete: m.isComplete(player),
                   claimed: player.claimedMilestones.contains(m.id),
-                  onClaim: () =>
-                      ref.read(playerProvider.notifier).claimMilestone(m.id),
+                  onClaim: () {
+                    ref.read(playerProvider.notifier).claimMilestone(m.id);
+                    showRewardBurst(context,
+                        label: '¡HITO LOGRADO!',
+                        detail: '+${m.rewardAmount} ${m.rewardType == 'tokens' ? 'tokens' : 'monedas'}');
+                  },
                 )),
         ],
       ),

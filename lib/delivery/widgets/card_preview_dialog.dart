@@ -8,6 +8,9 @@ class CardPreviewDialog extends StatelessWidget {
   final VoidCallback? onPlay;
   final bool canPlay;
   final String playLabel;
+  final String disabledLabel;
+  final IconData playIcon;
+  final Color playColor;
 
   const CardPreviewDialog({
     super.key,
@@ -16,12 +19,15 @@ class CardPreviewDialog extends StatelessWidget {
     this.onPlay,
     this.canPlay = true,
     this.playLabel = 'Jugar',
+    this.disabledLabel = 'Sin stamina',
+    this.playIcon = Icons.sports_mma,
+    this.playColor = const Color(0xFFE74C3C),
   });
 
-  /// [onPlay] agrega un botón "Jugar" debajo de la carta (cierra el dialog
-  /// antes de invocar el callback). [canPlay] en false lo muestra
-  /// deshabilitado con la razón "Sin stamina". [playLabel] permite avisar
-  /// destinos especiales (p. ej. "Jugar como apertura").
+  /// [onPlay] agrega un botón de acción debajo de la carta (cierra el dialog
+  /// antes de invocar el callback) — así una sola pantalla sirve tanto para
+  /// ver la carta como para actuar sobre ella (jugarla, comprarla, etc.).
+  /// [canPlay] en false lo muestra deshabilitado con el texto [disabledLabel].
   static Future<void> show(
       BuildContext context,
       GameCard card, {
@@ -29,6 +35,9 @@ class CardPreviewDialog extends StatelessWidget {
         VoidCallback? onPlay,
         bool canPlay = true,
         String playLabel = 'Jugar',
+        String disabledLabel = 'Sin stamina',
+        IconData playIcon = Icons.sports_mma,
+        Color playColor = const Color(0xFFE74C3C),
       }) {
     return showDialog<void>(
       context: context,
@@ -39,6 +48,9 @@ class CardPreviewDialog extends StatelessWidget {
         onPlay: onPlay,
         canPlay: canPlay,
         playLabel: playLabel,
+        disabledLabel: disabledLabel,
+        playIcon: playIcon,
+        playColor: playColor,
       ),
     );
   }
@@ -84,7 +96,7 @@ class CardPreviewDialog extends StatelessWidget {
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: canPlay
-                            ? const Color(0xFFE74C3C)
+                            ? playColor
                             : const Color(0xFF2A2A3E),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
@@ -99,12 +111,12 @@ class CardPreviewDialog extends StatelessWidget {
                             }
                           : null,
                       icon: Icon(
-                        canPlay ? Icons.sports_mma : Icons.bolt,
+                        canPlay ? playIcon : Icons.lock,
                         size: 18,
                         color: canPlay ? Colors.white : Colors.white38,
                       ),
                       label: Text(
-                        canPlay ? playLabel : 'Sin stamina',
+                        canPlay ? playLabel : disabledLabel,
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,

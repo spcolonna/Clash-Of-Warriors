@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../infra/services/haptics_service.dart';
 import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/rank_badge.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -50,6 +51,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       style: const TextStyle(fontSize: 14, color: AppColors.accent, fontWeight: FontWeight.w700)),
                   ],
                 ),
+                if (player != null) ...[
+                  const SizedBox(height: 12),
+                  RankBadge(battlePoints: player.battlePoints),
+                ],
                 if (player != null && ref.read(authProvider).isAnonymous) ...[
                   const SizedBox(height: 12),
                   SizedBox(

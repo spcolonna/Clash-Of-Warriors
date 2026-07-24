@@ -3,6 +3,7 @@
 import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/config/game_config.dart';
+import '../../domain/config/ring_events.dart';
 import '../../domain/entities/battle_state.dart';
 import '../../domain/entities/game_card.dart';
 import '../../domain/entities/hero_entity.dart';
@@ -415,6 +416,7 @@ class BattleNotifier extends Notifier<BattleState> {
       playerBlockedSlots: playerBlockedSlots,
       opponentBlockedSlots: opponentBlockedSlots,
       mode: _gameMode,
+      ringRule: RingEvents.byId(state.activeRingEvent)?.rule,
     );
 
     final newHistory = [...state.roundHistory, result];
@@ -488,19 +490,19 @@ class BattleNotifier extends Notifier<BattleState> {
     if (state.roundHistory.isNotEmpty) {
       final last = state.roundHistory.last;
 
-      // 0a. Bonus de ronda perfecta (los 3 slots ganados)
-      if (last.playerPerfectBonus > 0) {
-        opponent = opponent.copyWith(
-          currentHp: (opponent.currentHp - last.playerPerfectBonus)
-              .clamp(0, opponent.hero.maxHp),
-        );
-      }
-      if (last.opponentPerfectBonus > 0) {
-        player = player.copyWith(
-          currentHp: (player.currentHp - last.opponentPerfectBonus)
-              .clamp(0, player.hero.maxHp),
-        );
-      }
+      // 0a. Bonus de ronda perfecta + daño/cura de combo. El daño de cada lado
+      // pega al rival; la cura (Tortuga) va al lado que la ejecutó.
+      final playerExtraDmg = last.playerPerfectBonus + last.playerComboDamage;
+      final opponentExtraDmg =
+          last.opponentPerfectBonus + last.opponentComboDamage;
+      opponent = opponent.copyWith(
+        currentHp: (opponent.currentHp - playerExtraDmg + last.opponentComboHeal)
+            .clamp(0, opponent.hero.maxHp),
+      );
+      player = player.copyWith(
+        currentHp: (player.currentHp - opponentExtraDmg + last.playerComboHeal)
+            .clamp(0, player.hero.maxHp),
+      );
 
       // 0b. Scout ganado: quien gana más slots que el rival gana un scout
       if (!state.isTutorial) {
@@ -515,9 +517,15 @@ class BattleNotifier extends Notifier<BattleState> {
       }
     }
 
+    // Doble KO (ambos a 0 en el mismo slot, o por DoT/ronda perfecta) favorece
+    // al jugador: si lo bajaste a 0, ganás aunque el golpe rival también fuera
+    // letal. El orden importa — evaluar la derrota solo si el rival sigue vivo.
     bool? playerWon;
-    if (!opponent.isAlive) playerWon = true;
-    if (!player.isAlive) playerWon = false;
+    if (!opponent.isAlive) {
+      playerWon = true;
+    } else if (!player.isAlive) {
+      playerWon = false;
+    }
 
     // 1. Tick-down de efectos existentes y filtrar expirados
     final tickedPlayerEffects = player.statusEffects
@@ -555,6 +563,12 @@ class BattleNotifier extends Notifier<BattleState> {
           }
         }
 
+        // "Árbitro Distraído": los efectos de carta se duplican esta ronda.
+        final effectMult = RingEvents.byId(state.activeRingEvent)?.rule ==
+                RingEventRule.doubleCardEffects
+            ? 2
+            : 1;
+
         // Cartas de efecto no-daño: se disparan al ganar su slot.
         void applyCardEffect({
           required GameCard? card,
@@ -562,7 +576,7 @@ class BattleNotifier extends Notifier<BattleState> {
         }) {
           final effect = card?.effect;
           if (effect == null) return;
-          final value = card!.effectValue ?? 0;
+          final value = (card!.effectValue ?? 0) * effectMult;
           switch (effect) {
             case CardEffect.drainStamina:
               (byPlayer ? newOpponentEffects : newPlayerEffects).add(
@@ -592,6 +606,25 @@ class BattleNotifier extends Notifier<BattleState> {
                       .clamp(0, opponent.hero.maxHp),
                 );
               }
+            case CardEffect.denyDefense:
+              (byPlayer ? newOpponentEffects : newPlayerEffects).add(
+                const StatusEffect(
+                  type: StatusEffectType.defenseDenied,
+                  value: 0,
+                  roundsRemaining: 1,
+                ),
+              );
+            case CardEffect.weaken:
+              (byPlayer ? newOpponentEffects : newPlayerEffects).add(
+                StatusEffect(
+                  type: StatusEffectType.weakened,
+                  value: value,
+                  roundsRemaining: 1,
+                ),
+              );
+            case CardEffect.pierce:
+              // Efecto inmediato, resuelto en resolveSlot. Nada diferido.
+              break;
           }
         }
 
@@ -723,11 +756,20 @@ class BattleNotifier extends Notifier<BattleState> {
         : TutorialBotAI.decideSequence(updatedOpponent.hand,
             stamina: effectiveOpponentStamina);
 
+    // Evento de ring: cada N rondas en arena (no tutorial). currentRound ya
+    // fue incrementado en finalizeRound → es la ronda que arranca ahora.
+    final ringId = (GameConfig.ringEventsEnabled &&
+            !state.isTutorial &&
+            state.currentRound % GameConfig.ringEventEveryNRounds == 0)
+        ? RingEvents.random().id
+        : null;
+
     state = state.copyWith(
       phase: playerWon != null ? BattlePhase.battleEnd : BattlePhase.planning,
       playerWon: playerWon,
       passiveJustUnlocked: passiveJustUnlocked,
       revealedOpponentSlots: const {}, // limpiar scouts al iniciar cada ronda
+      activeRingEvent: ringId,
       player: player.copyWith(
         currentHp: newPlayerHp,
         currentStamina: effectivePlayerStamina,

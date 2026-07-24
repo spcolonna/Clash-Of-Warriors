@@ -20,7 +20,13 @@
       "Bash(xargs cat)",
       "Bash(gcloud auth *)",
       "Bash(firebase firestore:rules:get)",
-      "Bash(curl -s -H 'Authorization: Bearer __TRACKED_VAR__' https://firebaserules.googleapis.com/v1/projects/clashofwarriors-309ed/releases)"
+      "Bash(curl -s -H 'Authorization: Bearer __TRACKED_VAR__' https://firebaserules.googleapis.com/v1/projects/clashofwarriors-309ed/releases)",
+      "Bash(pod install *)",
+      "Bash(flutter clean *)",
+      "Bash(flutter config *)",
+      "Bash(flutter --version --machine)",
+      "Bash(grep -n \"tokens\\\\|_TokenPill\\\\|class _PremiumShopAppBar\\\\|Text\\('\\\\$\\\\|diamond\" lib/delivery/screens/premium_shop/premium_shop_screen.dart)",
+      "Bash(awk '/factory PlayerProfile.fromMap/,/^  }$/' lib/domain/entities/player_profile.dart)"
     ]
   }
 }
