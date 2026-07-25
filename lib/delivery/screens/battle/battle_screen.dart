@@ -24,6 +24,8 @@ import '../../widgets/card_preview_dialog.dart';
 import '../../widgets/round_banner.dart';
 import '../../widgets/slot_clash_animator.dart';
 import '../../widgets/tutorial_coach_banner.dart';
+import '../../widgets/tutorial_tap_pointer.dart';
+import '../../../infra/local/tutorial_script.dart';
 import '../../widgets/stamina_globe.dart';
 import '../../widgets/tap_scale_button.dart';
 import '../help/how_to_play_screen.dart';
@@ -47,21 +49,15 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
   int _bannerSeq = 0; // fuerza rebuild del banner entre usos consecutivos
   late final AnimationController _shakeController;
 
-  // ── Tutorial guiado: pasos del coach ya descartados por el jugador ──
-  final Set<int> _dismissedCoachSteps = {};
-
-  static const _coachTexts = <int, String>{
-    0: 'Tocá una carta de tu mano y JUGALA: la primera va al slot de '
-        'APERTURA. Al colocarla, el rival revela la suya.',
-    1: '¡Ya ves la apertura del rival! Regla de oro: Puño gana a Patada, '
-        'Patada gana a Defensa y Defensa gana a Puño. Jugá cartas que '
-        'ganen sus choques.',
-    2: 'Consejo: si ganás un slot y en el siguiente jugás la carta que '
-        'encadena (Puño→Patada), pega +50%. Cuando estés listo, '
-        'tocá Confirmar.',
-    3: '¿Ves los ojos 👁 junto a los slots del rival? Tocá un slot oculto '
-        'para ESPIARLO con un scout. Son limitados: usalos bien.',
-  };
+  /// Step actual del guion del tutorial (null fuera de tutorial/planning o si
+  /// ya no quedan pasos). Se deriva del estado: ronda + cartas colocadas.
+  TutorialStep? _scriptStep(BattleState b) {
+    if (!b.isTutorial || b.phase != BattlePhase.planning) return null;
+    final placed = b.player.plannedSequence.whereType<GameCard>().length;
+    final idx = TutorialScript.stepIndex(b.currentRound, placed);
+    if (idx < 0 || idx >= TutorialScript.steps.length) return null;
+    return TutorialScript.steps[idx];
+  }
 
   // Beats del coach que se disparan cuando OCURRE la mecánica (una sola vez).
   final Set<String> _seenBeats = {};
@@ -97,18 +93,6 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
         CardCategory.dodge => 'Esquive',
       };
 
-  /// Paso del coach según el estado real de la batalla (solo tutorial).
-  int? _coachStep(BattleState b) {
-    if (!b.isTutorial || b.phase != BattlePhase.planning) return null;
-    if (b.currentRound == 1) {
-      final placed = b.player.plannedSequence.whereType<GameCard>().length;
-      if (placed == 0) return 0;
-      if (placed == 1) return 1;
-      return 2;
-    }
-    if (b.currentRound == 2) return 3;
-    return null;
-  }
 
   @override
   void initState() {
@@ -149,14 +133,27 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
     _shakeController.forward(from: 0);
   }
 
-  /// Coloca la carta desde el tap de la mano (primer slot libre).
+  /// Coloca la carta desde el tap de la mano. En el tutorial guionado la
+  /// fuerza al slot que indica el paso; fuera de él, al primer slot libre.
   void _onCardPlay(GameCard card) {
-    final slot =
-        ref.read(battleProvider.notifier).playCardToFirstFreeSlot(card);
+    final notifier = ref.read(battleProvider.notifier);
+    final step = _scriptStep(ref.read(battleProvider));
+    final int slot;
+    if (step?.forcedSlot != null) {
+      slot = notifier.placeCardInSlot(card, step!.forcedSlot!)
+          ? step.forcedSlot!
+          : -1;
+    } else {
+      slot = notifier.playCardToFirstFreeSlot(card);
+    }
     if (slot >= 0) {
       HapticsService().medium();
       SoundService().play('card_place');
-      setState(() => _conjuredCard = card);
+      // En tutorial no disparamos el overlay de conjuro: mantiene el flujo
+      // guionado ágil y sin overlays que tapen la carta/puntero.
+      if (!ref.read(battleProvider).isTutorial) {
+        setState(() => _conjuredCard = card);
+      }
     } else {
       HapticsService().error();
       ScaffoldMessenger.of(context)
@@ -230,15 +227,30 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
                   ),
 
                   // 3. Mano + acción
-                  _BottomSection(
-                    battle: battle,
-                    handReady: _handReady,
-                    onConfirm: _handReady ? _onConfirmSequence : () {},
-                    onDealComplete: () {
-                      if (mounted) setState(() => _handReady = true);
-                    },
-                    onCardPlay: _onCardPlay,
-                  ),
+                  Builder(builder: (context) {
+                    final step = _scriptStep(battle);
+                    return _BottomSection(
+                      battle: battle,
+                      handReady: _handReady,
+                      onConfirm: _handReady ? _onConfirmSequence : () {},
+                      onDealComplete: () {
+                        if (mounted) setState(() => _handReady = true);
+                      },
+                      onCardPlay: _onCardPlay,
+                      // Tutorial guionado: solo la carta del paso es jugable,
+                      // tap-directo (sin preview), sin drag; el botón Confirmar
+                      // solo en pasos de confirmar (con puntero de tap).
+                      handPlayableIds: step == null
+                          ? null
+                          : (step.requiredCardId == null
+                              ? <String>{}
+                              : {step.requiredCardId!}),
+                      handAllowDrag: !battle.isTutorial,
+                      handDirectTapPlay: battle.isTutorial,
+                      confirmBlocked: step != null && !step.isConfirm,
+                      showConfirmPointer: step != null && step.isConfirm,
+                    );
+                  }),
                 ],
               ),
             ),
@@ -267,12 +279,10 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
                 },
               ),
             ),
-          // ── Coach del tutorial (solo primera batalla) ─────────────────────
+          // ── Coach del tutorial guionado (info por paso, sin OK) ───────────
           Builder(builder: (context) {
-            final step = _coachStep(battle);
-            if (step == null || _dismissedCoachSteps.contains(step)) {
-              return const SizedBox.shrink();
-            }
+            final step = _scriptStep(battle);
+            if (step == null) return const SizedBox.shrink();
             return Positioned(
               top: 0,
               left: 0,
@@ -281,14 +291,11 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
                 bottom: false,
                 child: Padding(
                   // 70 (altura de _TopHpRow) + ~85 (SizedBox(10) + fila de
-                  // slots del rival, 72px) para no tapar la apertura revelada
-                  // que el propio texto de este paso le pide mirar al jugador.
+                  // slots del rival, 72px) para no tapar la apertura revelada.
                   padding: const EdgeInsets.only(top: 155),
                   child: TutorialCoachBanner(
-                    key: ValueKey('coach_$step'),
-                    text: _coachTexts[step]!,
-                    onDismiss: () =>
-                        setState(() => _dismissedCoachSteps.add(step)),
+                    key: ValueKey('coach_${battle.currentRound}_${step.coachText.hashCode}'),
+                    text: step.coachText,
                   ),
                 ),
               ),
@@ -1064,6 +1071,12 @@ class _BottomSection extends StatelessWidget {
   final VoidCallback onConfirm;
   final VoidCallback onDealComplete;
   final void Function(GameCard card) onCardPlay;
+  // Tutorial guionado (null/false/true = comportamiento normal):
+  final Set<String>? handPlayableIds;
+  final bool handAllowDrag;
+  final bool handDirectTapPlay;
+  final bool confirmBlocked;
+  final bool showConfirmPointer;
 
   const _BottomSection({
     required this.battle,
@@ -1071,6 +1084,11 @@ class _BottomSection extends StatelessWidget {
     required this.onConfirm,
     required this.onDealComplete,
     required this.onCardPlay,
+    this.handPlayableIds,
+    this.handAllowDrag = true,
+    this.handDirectTapPlay = false,
+    this.confirmBlocked = false,
+    this.showConfirmPointer = false,
   });
 
   @override
@@ -1097,6 +1115,9 @@ class _BottomSection extends StatelessWidget {
                     !battle.player.statusEffects.any((e) =>
                         e.type == StatusEffectType.slotBlocked &&
                         e.value == 0),
+                playableCardIds: handPlayableIds,
+                allowDrag: handAllowDrag,
+                directTapPlay: handDirectTapPlay,
               ),
             ),
             Positioned(
@@ -1117,6 +1138,8 @@ class _BottomSection extends StatelessWidget {
           child: _ActionBar(
             battle: battle,
             onConfirm: handReady ? onConfirm : () {},
+            confirmBlocked: confirmBlocked,
+            showConfirmPointer: showConfirmPointer,
           ),
         ),
       ],
@@ -1713,8 +1736,15 @@ class _CompactDeckCounter extends StatelessWidget {
 class _ActionBar extends ConsumerWidget {
   final BattleState battle;
   final VoidCallback onConfirm;
+  final bool confirmBlocked;
+  final bool showConfirmPointer;
 
-  const _ActionBar({required this.battle, required this.onConfirm});
+  const _ActionBar({
+    required this.battle,
+    required this.onConfirm,
+    this.confirmBlocked = false,
+    this.showConfirmPointer = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1783,33 +1813,48 @@ class _ActionBar extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 10),
-          // Botón confirmar — centrado y compacto
+          // Botón confirmar — centrado y compacto. En el paso de confirmar del
+          // tutorial se le superpone el puntero de tap.
           Expanded(
-            child: TapScaleButton(
-              height: 44,
-              borderRadius: 12,
-              color: const Color(0xFFE74C3C),
-              disabledColor: const Color(0xFF2A2A3E),
-              onPressed: isPlanning && hasAnyCard ? onConfirm : null,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isPlanning ? Icons.sports_mma : Icons.hourglass_bottom,
-                    color: Colors.white,
-                    size: 16,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                TapScaleButton(
+                  height: 44,
+                  borderRadius: 12,
+                  color: const Color(0xFFE74C3C),
+                  disabledColor: const Color(0xFF2A2A3E),
+                  onPressed: isPlanning && hasAnyCard && !confirmBlocked
+                      ? onConfirm
+                      : null,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isPlanning ? Icons.sports_mma : Icons.hourglass_bottom,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        isPlanning ? 'Confirmar' : 'Resolviendo...',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    isPlanning ? 'Confirmar' : 'Resolviendo...',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                ),
+                if (showConfirmPointer)
+                  const Positioned(
+                    right: -6,
+                    top: -18,
+                    child: TutorialTapPointer(size: 46),
                   ),
-                ],
-              ),
+              ],
             ),
           ),
         ],

@@ -103,12 +103,7 @@ class _TutorialSpotlightOverlayState extends State<TutorialSpotlightOverlay>
         ? spotlightCenter.dy - radius - 180
         : spotlightCenter.dy + radius + 60;
 
-    return FadeTransition(
-      opacity: _fadeController,
-      child: GestureDetector(
-        onTap: widget.onDismiss,
-        behavior: HitTestBehavior.opaque,
-        child: Stack(
+    final stack = Stack(
           children: [
             // Capa oscura con hueco circular
             AnimatedBuilder(
@@ -196,9 +191,9 @@ class _TutorialSpotlightOverlayState extends State<TutorialSpotlightOverlay>
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.85),
+                  color: Colors.black.withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.amber.withOpacity(0.5)),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
                 ),
                 child: Text(
                   widget.message,
@@ -213,7 +208,14 @@ class _TutorialSpotlightOverlayState extends State<TutorialSpotlightOverlay>
               ),
             ),
           ],
-        ),
+        );
+
+    return FadeTransition(
+      opacity: _fadeController,
+      child: GestureDetector(
+        onTap: widget.onDismiss,
+        behavior: HitTestBehavior.opaque,
+        child: stack,
       ),
     );
   }

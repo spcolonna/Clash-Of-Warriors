@@ -359,7 +359,13 @@ class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
                     if (isStoryBattle) {
                       // XP de cuenta + progreso de misiones (gane o pierda)
                       ref.read(playerProvider.notifier).addAccountXp(xpReward);
-                      if (!playerWon) {
+                      if (playerWon) {
+                        // Las mismas recompensas que ya se muestran en pantalla
+                        // (medals/coins/tokens) nunca se aplicaban al Player.
+                        ref.read(playerProvider.notifier).addMedals(medals);
+                        ref.read(playerProvider.notifier).addSoftCoins(coins);
+                        ref.read(playerProvider.notifier).addTokens(tokens);
+                      } else {
                         ref
                             .read(playerProvider.notifier)
                             .addSoftCoins(_consolationCoins(battle));

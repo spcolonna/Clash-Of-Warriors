@@ -8,6 +8,8 @@ import '../donations/donations_screen.dart';
 import '../home/home_screen.dart';
 import '../shop/shop_screen.dart';
 import '../story/story_hub_screen.dart';
+import '../../state/providers.dart';
+import '../../widgets/tutorial_spotlight_overlay.dart';
 
 final activeTabProvider = StateProvider<int>((_) => 0);
 
@@ -17,8 +19,16 @@ class MainShellScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final activeTab = ref.watch(activeTabProvider);
+    final player = ref.watch(playerProvider);
 
-    return Scaffold(
+    // Spotlight "andá a la Tienda": debe pintar SOBRE la barra de navegación
+    // (que es un slot aparte del Scaffold), así que va a nivel del shell —
+    // dentro del home quedaba tapado por la nav bar.
+    final needsShopTutorial = activeTab == 0 &&
+        (player?.tutorialBattleComplete ?? false) &&
+        !(player?.starterCardPurchased ?? true);
+
+    final scaffold = Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
       body: Stack(
         fit: StackFit.expand,
@@ -79,6 +89,23 @@ class MainShellScaffold extends ConsumerWidget {
         active: activeTab,
         onChanged: (i) => ref.read(activeTabProvider.notifier).state = i,
       ),
+    );
+
+    if (!needsShopTutorial) return scaffold;
+
+    // El spotlight va por encima del Scaffold ENTERO (body + nav bar), así el
+    // círculo puede caer sobre el tab "Tienda" sin quedar tapado.
+    return Stack(
+      children: [
+        scaffold,
+        TutorialSpotlightOverlay(
+          targetKey: const GlobalObjectKey('nav_shop'),
+          message:
+              '¡Hora de fortalecer tu mazo!\nTocá la Tienda para comprar tu primera carta de facción.',
+          onDismiss: () => ref.read(activeTabProvider.notifier).state = 1,
+          spotlightPadding: 8,
+        ),
+      ],
     );
   }
 }

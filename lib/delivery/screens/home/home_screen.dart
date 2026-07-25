@@ -12,12 +12,10 @@ import '../../../infra/local/heroes_data.dart';
 import '../../../infra/local/daily_rewards_data.dart';
 import '../../../infra/local/new_player_journey_data.dart';
 import '../../state/providers.dart';
-import '../../widgets/tutorial_spotlight_overlay.dart';
 import '../help/how_to_play_screen.dart';
 import '../premium_shop/premium_shop_screen.dart';
 import '../ranking/ranking_screen.dart';
 import '../settings/settings_screen.dart';
-import '../shell/main_shell_scaffold.dart';
 import '../../widgets/rank_badge.dart';
 import '../../widgets/animated_resource_chip.dart';
 import '../../widgets/reward_feedback.dart';
@@ -68,9 +66,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final gameConfig = ref.watch(gameConfigProvider).value ?? GameConfig.defaults;
     final currentReward = gameConfig.rewardAt(player.lastClaimedCycleIndex);
-
-    final needsShopTutorial =
-        player.tutorialBattleComplete && !player.starterCardPurchased;
 
     final activeHero = player.activeHeroId != null
         ? HeroesData.findById(player.activeHeroId!)
@@ -238,7 +233,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
         ),
-        if (needsShopTutorial) const _ShopTabSpotlight(),
+        // El spotlight "andá a la Tienda" ahora vive en MainShellScaffold, por
+        // encima de la nav bar (acá quedaba tapado por la barra inferior).
       ],
     );
   }
@@ -680,23 +676,6 @@ class _ArenaButton extends StatelessWidget {
 }
 
 // ── Widgets secundarios ────────────────────────────────────────────────────
-
-class _ShopTabSpotlight extends ConsumerWidget {
-  const _ShopTabSpotlight();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return TutorialSpotlightOverlay(
-      targetKey: const GlobalObjectKey('nav_shop'),
-      message:
-          '¡Hora de fortalecer tu mazo!\nTocá la Tienda para comprar tu primera carta de facción.',
-      onDismiss: () {
-        ref.read(activeTabProvider.notifier).state = 1;
-      },
-      spotlightPadding: 8,
-    );
-  }
-}
 
 class _ResourceBar extends StatelessWidget {
   final int softCoins;

@@ -5,12 +5,14 @@ import '../../infra/services/haptics_service.dart';
 /// paso a paso. Se muestra sobre la arena; cada paso se descarta con OK.
 class TutorialCoachBanner extends StatelessWidget {
   final String text;
-  final VoidCallback onDismiss;
+  /// null = banner informativo sin botón OK (tutorial guionado: avanza solo
+  /// al hacer la acción, no con un tap de "siguiente").
+  final VoidCallback? onDismiss;
 
   const TutorialCoachBanner({
     super.key,
     required this.text,
-    required this.onDismiss,
+    this.onDismiss,
   });
 
   @override
@@ -81,29 +83,31 @@ class TutorialCoachBanner extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 6),
-            GestureDetector(
-              onTap: () {
-                HapticsService().light();
-                onDismiss();
-              },
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: gold,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'OK',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
+            if (onDismiss != null) ...[
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () {
+                  HapticsService().light();
+                  onDismiss!();
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: gold,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),

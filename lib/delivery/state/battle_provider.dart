@@ -9,6 +9,7 @@ import '../../domain/entities/game_card.dart';
 import '../../domain/entities/hero_entity.dart';
 import '../../domain/usecases/resolve_combat_use_case.dart';
 import '../../infra/local/neutral_cards_data.dart';
+import '../../infra/local/tutorial_script.dart';
 import 'providers.dart'
     show gameConfigProvider, cardCatalogProvider, playerProvider;
 
@@ -204,28 +205,33 @@ class BattleNotifier extends Notifier<BattleState> {
     final config = ref.read(gameConfigProvider).value;
     final firestoreCards = config?.cards ?? [];
 
-    List<GameCard> buildSimpleDeck() {
-      final full = firestoreCards.isNotEmpty
-          ? NeutralCardsData.buildStarterDeckFromConfig(firestoreCards)
-          : NeutralCardsData.buildStarterDeck();
-      return full
-          .where((c) => _simpleCategories.contains(c.category))
-          .toList()
-        ..shuffle(Random());
+    // Tutorial guionado: mano fija (sin shuffle) y secuencias del bot fijas por
+    // ronda. La config remota se usa solo para tomar los stats de las cartas.
+    GameCard resolveCard(GameCard local) {
+      final data = firestoreCards
+          .where((c) => c['id'] == local.id)
+          .cast<Map<String, dynamic>?>()
+          .firstOrNull;
+      return data == null ? local : NeutralCardsData.mapToGameCard(data);
     }
 
-    final deck = buildSimpleDeck();
-    final hand = deck.take(5).toList();
-    final remainingDeck = deck.skip(5).toList();
+    final hand = TutorialScript.playerHand().map(resolveCard).toList();
 
-    final botDeck = buildSimpleDeck();
-    final botHand = botDeck.take(5).toList();
-    final botRemainingDeck = botDeck.skip(5).toList();
+    // El bot tiene en la mano exactamente las cartas de su guion (round 1 y 2).
+    final botScriptCards = <GameCard>[
+      for (final seq in TutorialScript.botSequenceByRound)
+        for (final id in seq)
+          if (id != null) resolveCard(NeutralCardsData.findById(id)!),
+    ];
 
-    // HP suficiente para 2-3 rondas: da tiempo a enseñar apertura,
-    // choques, cadenas y scout sin alargar la primera experiencia.
-    final weakenedBot =
-        botHero.copyWith(maxHp: TutorialBotAI.tutorialBotHp);
+    // Guardar la secuencia guionada del bot por ronda (se aplica en
+    // startNextRound; la ronda 1 se pre-setea abajo).
+    _tutorialBotSequences = [
+      for (int r = 1; r <= TutorialScript.totalRounds; r++)
+        TutorialScript.botSequence(r).map((c) => c == null ? null : resolveCard(c)).toList(),
+    ];
+
+    final weakenedBot = botHero.copyWith(maxHp: TutorialScript.botHp);
 
     state = BattleState(
       phase: BattlePhase.planning,
@@ -235,7 +241,7 @@ class BattleNotifier extends Notifier<BattleState> {
         currentHp: playerHero.maxHp,
         currentStamina: GameConfig.staminaForRound(1, playerHero.maxStamina),
         hand: hand,
-        deck: remainingDeck,
+        deck: const [],
         discardPile: [],
         plannedSequence: List.filled(3, null),
       ),
@@ -243,15 +249,19 @@ class BattleNotifier extends Notifier<BattleState> {
         hero: weakenedBot,
         currentHp: weakenedBot.maxHp,
         currentStamina: GameConfig.staminaForRound(1, weakenedBot.maxStamina),
-        hand: botHand,
-        deck: botRemainingDeck,
+        hand: botScriptCards,
+        deck: const [],
         discardPile: [],
-        plannedSequence: List.filled(3, null),
+        // Ronda 1 pre-seteada con el guion (hoy el bot tutorial quedaba vacío).
+        plannedSequence: _tutorialBotSequences.first,
       ),
       currentRound: 1,
       roundHistory: [],
     );
   }
+
+  /// Secuencias guionadas del bot por ronda (solo tutorial). Vacío fuera de él.
+  List<List<GameCard?>> _tutorialBotSequences = const [];
 
   void initStoryBattle({
     required HeroEntity playerHero,
@@ -527,6 +537,14 @@ class BattleNotifier extends Notifier<BattleState> {
       playerWon = false;
     }
 
+    // Tutorial guionado: al cerrar la última ronda del guion, forzar la
+    // victoria (el guion define el fin, no el HP) — así siempre "finaliza".
+    if (state.isTutorial &&
+        state.currentRound >= TutorialScript.totalRounds &&
+        playerWon != true) {
+      playerWon = true;
+    }
+
     // 1. Tick-down de efectos existentes y filtrar expirados
     final tickedPlayerEffects = player.statusEffects
         .map((e) => e.tickDown())
@@ -744,6 +762,14 @@ class BattleNotifier extends Notifier<BattleState> {
         ? state.roundHistory.last.slotResults.map((r) => r.playerCard).toList()
         : [];
 
+    // Tutorial: usar la secuencia guionada de la ronda que arranca
+    // (state.currentRound ya fue incrementado en finalizeRound). Fuera del
+    // guion (o si algo falla), cae al bot tutorial normal.
+    final tutorialSeq = state.isTutorial &&
+            state.currentRound - 1 < _tutorialBotSequences.length
+        ? _tutorialBotSequences[state.currentRound - 1]
+        : null;
+
     final nextBotSequence = _botDifficulty != null
         ? BotAI.decideSequence(
             updatedOpponent.hand,
@@ -753,8 +779,9 @@ class BattleNotifier extends Notifier<BattleState> {
             mode: _gameMode,
             stamina: effectiveOpponentStamina,
           )
-        : TutorialBotAI.decideSequence(updatedOpponent.hand,
-            stamina: effectiveOpponentStamina);
+        : (tutorialSeq ??
+            TutorialBotAI.decideSequence(updatedOpponent.hand,
+                stamina: effectiveOpponentStamina));
 
     // Evento de ring: cada N rondas en arena (no tutorial). currentRound ya
     // fue incrementado en finalizeRound → es la ronda que arranca ahora.

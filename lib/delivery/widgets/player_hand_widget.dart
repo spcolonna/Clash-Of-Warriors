@@ -6,6 +6,7 @@ import '../../domain/entities/hero_entity.dart';
 import '../../infra/services/haptics_service.dart';
 import 'card_preview_dialog.dart';
 import 'game_card_widget.dart';
+import 'tutorial_tap_pointer.dart';
 
 class PlayerHandWidget extends StatefulWidget {
   final List<GameCard> cards;
@@ -28,6 +29,19 @@ class PlayerHandWidget extends StatefulWidget {
   /// cartas de la mano.
   final HeroEntity? hero;
 
+  /// Tutorial guionado: si no es null, SOLO estas cartas (por id) se pueden
+  /// jugar; el resto queda atenuado e inerte. null = todas jugables (normal).
+  final Set<String>? playableCardIds;
+
+  /// Permite arrastrar cartas. En el tutorial guionado se desactiva (solo
+  /// tap→jugar, que el guion enruta al slot forzado).
+  final bool allowDrag;
+
+  /// Tutorial guionado: tocar la carta permitida la juega DIRECTO (sin abrir
+  /// preview); tocar cualquier otra carta es no-op. La carta permitida además
+  /// se resalta con un puntero de tap interno (sin medición).
+  final bool directTapPlay;
+
   const PlayerHandWidget({
     super.key,
     required this.cards,
@@ -38,6 +52,9 @@ class PlayerHandWidget extends StatefulWidget {
     this.onCardPlay,
     this.nextSlotIsOpening = false,
     this.hero,
+    this.playableCardIds,
+    this.allowDrag = true,
+    this.directTapPlay = false,
   });
 
   @override
@@ -117,6 +134,12 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
     final cardWidth = 90.0;
     final totalCards = allCards.length;
 
+    // Tutorial: índice de la carta señalada (primera jugable permitida).
+    final highlightIndex = widget.playableCardIds == null
+        ? -1
+        : allCards.indexWhere(
+            (c) => widget.playableCardIds!.contains(c.card.id));
+
     // La "mano" se extiende en abanico, con rotación y offset en Y
     final fanSpread = _calculateFanSpread(totalCards, cardWidth, screenWidth);
     final anglePerCard = totalCards > 1
@@ -141,42 +164,83 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
 
           final affordable = widget.remainingStamina == null ||
               cardData.card.staminaCost <= widget.remainingStamina!;
+          // En tutorial guionado solo se pueden jugar las cartas permitidas.
+          final allowedByScript = widget.playableCardIds == null ||
+              widget.playableCardIds!.contains(cardData.card.id);
+          final playable = affordable && allowedByScript;
+          final isHighlight = i == highlightIndex;
 
-          // Cartas fuera de presupuesto de stamina: atenuadas y en escala
-          // de grises para que se lea de un vistazo qué se puede jugar.
+          // Cartas no jugables (sin stamina o bloqueadas por el guion):
+          // atenuadas y en escala de grises para que se lea de un vistazo.
           final rawCard = GameCardWidget(
             card: cardData.card,
             width: cardWidth,
             isPassive: false,
             contextHero: widget.hero,
           );
-          final cardWidget = affordable
-              ? rawCard
-              : Opacity(
-                  opacity: 0.45,
-                  child: ColorFiltered(
-                    colorFilter: const ColorFilter.matrix(<double>[
-                      0.5, 0.4, 0.1, 0, 0,
-                      0.5, 0.4, 0.1, 0, 0,
-                      0.5, 0.4, 0.1, 0, 0,
-                      0, 0, 0, 1, 0,
-                    ]),
-                    child: rawCard,
+          final dimmed = Opacity(
+            opacity: 0.45,
+            child: ColorFiltered(
+              colorFilter: const ColorFilter.matrix(<double>[
+                0.5, 0.4, 0.1, 0, 0,
+                0.5, 0.4, 0.1, 0, 0,
+                0.5, 0.4, 0.1, 0, 0,
+                0, 0, 0, 1, 0,
+              ]),
+              child: rawCard,
+            ),
+          );
+          // Carta permitida en tutorial: brillo + puntero de tap interno.
+          Widget cardWidget;
+          if (!playable) {
+            cardWidget = dimmed;
+          } else if (isHighlight) {
+            cardWidget = Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFF5B800).withValues(alpha: 0.55),
+                        blurRadius: 18,
+                        spreadRadius: 1,
+                      ),
+                    ],
                   ),
-                );
+                  child: rawCard,
+                ),
+                const Positioned(
+                  child: TutorialTapPointer(size: 58),
+                ),
+              ],
+            );
+          } else {
+            cardWidget = rawCard;
+          }
 
-          // Tap: preview grande con botón "Jugar" (si la batalla lo permite)
+          // Tap. En tutorial guionado (directTapPlay): la carta permitida se
+          // juega directo; el resto no hace nada. Fuera de tutorial: preview.
           final tappable = GestureDetector(
             onTap: () {
+              if (widget.directTapPlay) {
+                if (playable && widget.isDraggable && widget.onCardPlay != null) {
+                  HapticsService().medium();
+                  widget.onCardPlay!(cardData.card);
+                }
+                return; // cartas no permitidas: no-op (ni preview)
+              }
               HapticsService().selection();
               CardPreviewDialog.show(
                 context,
                 cardData.card,
                 isPassive: false,
-                onPlay: widget.isDraggable && widget.onCardPlay != null
+                onPlay: widget.isDraggable && playable && widget.onCardPlay != null
                     ? () => widget.onCardPlay!(cardData.card)
                     : null,
-                canPlay: affordable,
+                canPlay: playable,
                 playLabel: widget.nextSlotIsOpening
                     ? 'Jugar como apertura 🔒'
                     : 'Jugar',
@@ -185,7 +249,7 @@ class _PlayerHandWidgetState extends State<PlayerHandWidget>
             child: cardWidget,
           );
 
-          final draggable = widget.isDraggable && affordable
+          final draggable = widget.isDraggable && widget.allowDrag && playable
               ? LongPressDraggable<GameCard>(
             data: cardData.card,
             delay: const Duration(milliseconds: 150),
