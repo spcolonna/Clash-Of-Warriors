@@ -78,6 +78,14 @@ StateNotifierProvider<PlayerNotifier, PlayerProfile?>((ref) {
   return PlayerNotifier(ref);
 });
 
+/// Aplica al héroe del catálogo las estrellas de ascensión que tiene el
+/// jugador. Fuente de verdad única: la batalla y TODA pantalla que muestre
+/// stats deben pasar por acá, o un héroe 2★ se ve con stats de 1★.
+HeroEntity heroWithAscension(HeroEntity hero, PlayerProfile? player) {
+  final stars = player?.heroStarsFor(hero.id) ?? 1;
+  return stars > 1 ? hero.copyWith(stars: stars) : hero;
+}
+
 class PlayerNotifier extends StateNotifier<PlayerProfile?> {
   final Ref _ref;
   PlayerNotifier(this._ref) : super(null);

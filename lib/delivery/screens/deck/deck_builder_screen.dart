@@ -15,10 +15,12 @@ import '../../../infra/services/haptics_service.dart';
 import '../../../infra/sound/sound_service.dart';
 import '../../../domain/entities/hero_entity.dart';
 import '../../../domain/entities/game_card.dart';
+import '../../../domain/entities/player_profile.dart';
 import '../../state/providers.dart';
 import '../../state/deck_builder_provider.dart';
 import '../../widgets/deck/deck_card_tile.dart';
 import '../../widgets/deck/deck_section_header.dart';
+import '../../widgets/card_preview_dialog.dart';
 import '../../widgets/game_card_widget.dart';
 import '../../widgets/hero_stats_dialog.dart';
 
@@ -95,6 +97,7 @@ class _DeckBuilderScreenState extends ConsumerState<DeckBuilderScreen> {
                     ),
                     SliverToBoxAdapter(
                       child: _HeroSelectorSection(
+                        player: player,
                         activeHeroId: player?.activeHeroId,
                         unlockedHeroIds: player?.unlockedHeroIds ?? const [],
                         onSelect: (heroId) => ref
@@ -254,7 +257,15 @@ class _PassiveCardSection extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GameCardWidget(card: passive, width: 110, isPassive: true),
+          // Tocable como cualquier otra carta: a 110px el texto de la pasiva
+          // se recorta, y era la única carta del juego sin forma de ampliarla.
+          GestureDetector(
+            onTap: () {
+              HapticsService().light();
+              CardPreviewDialog.show(context, passive, isPassive: true);
+            },
+            child: GameCardWidget(card: passive, width: 110, isPassive: true),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -306,11 +317,13 @@ class _PassiveCardSection extends StatelessWidget {
 // ─── SECCIÓN DE SELECCIÓN DE HÉROES ─────────────────────────────────────────
 
 class _HeroSelectorSection extends StatelessWidget {
+  final PlayerProfile? player;
   final String? activeHeroId;
   final List<String> unlockedHeroIds;
   final void Function(String heroId) onSelect;
 
   const _HeroSelectorSection({
+    required this.player,
     required this.activeHeroId,
     required this.unlockedHeroIds,
     required this.onSelect,
@@ -318,8 +331,11 @@ class _HeroSelectorSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Con la ascensión aplicada: el catálogo trae los héroes en 1★ y sin esto
+    // la tarjeta/diálogo mostraría stats base aunque el jugador los ascendió.
     final unlockedHeroes = HeroesData.starterHeroes
         .where((h) => unlockedHeroIds.contains(h.id))
+        .map((h) => heroWithAscension(h, player))
         .toList();
 
     if (unlockedHeroes.isEmpty) {
@@ -528,7 +544,7 @@ class _MiniStatBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stats = hero.stats;
+    final stats = hero.boostedStats;
     final values = [
       stats.punch,
       stats.kick,

@@ -190,6 +190,9 @@ class BattleState {
   // Evento de ring activo esta ronda (id de RingEvents), null si ninguno.
   final String? activeRingEvent;
 
+  // true = la derrota fue por rendición del jugador (no da consolación).
+  final bool surrendered;
+
   const BattleState({
     required this.phase,
     required this.player,
@@ -205,6 +208,7 @@ class BattleState {
     this.scoutTokensRemaining = 3,
     this.revealedOpponentSlots = const {},
     this.activeRingEvent,
+    this.surrendered = false,
   });
 
   bool get isBattleOver => playerWon != null;
@@ -223,6 +227,7 @@ class BattleState {
     bool? passiveJustUnlocked,
     int? scoutTokensRemaining,
     Map<int, GameCard>? revealedOpponentSlots,
+    bool? surrendered,
     // Sentinela: permite poner activeRingEvent en null explícitamente (rondas
     // sin evento) sin que el `?? this` lo preserve por error.
     Object? activeRingEvent = _noChange,
@@ -241,6 +246,7 @@ class BattleState {
         passiveJustUnlocked: passiveJustUnlocked ?? this.passiveJustUnlocked,
         scoutTokensRemaining: scoutTokensRemaining ?? this.scoutTokensRemaining,
         revealedOpponentSlots: revealedOpponentSlots ?? this.revealedOpponentSlots,
+        surrendered: surrendered ?? this.surrendered,
         activeRingEvent: identical(activeRingEvent, _noChange)
             ? this.activeRingEvent
             : activeRingEvent as String?,

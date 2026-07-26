@@ -99,6 +99,8 @@ class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
     final playerWon = battle.playerWon ?? true;
     final isTutorial = battle.isTutorial;
     final isStoryBattle = battle.isStoryBattle;
+    // Abandonar la pelea no paga consolación: la recompensa es por pelearla.
+    final surrendered = battle.surrendered;
 
     final rewards = ref.watch(gameConfigProvider).value?.battleRewards ??
         const BattleRewardsConfig();
@@ -173,7 +175,9 @@ class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
                 child: Text(
                   playerWon
                       ? 'Demostraste tu valía en la Arena'
-                      : 'La batalla continúa. Volvé más fuerte.',
+                      : surrendered
+                          ? 'Abandonaste el combate. Sin pelea no hay recompensa.'
+                          : 'La batalla continúa. Volvé más fuerte.',
                   style: const TextStyle(color: Color(0xFF8A8A9A), fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
@@ -208,8 +212,8 @@ class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
                 const SizedBox(height: 12),
               ],
               // Derrota: consolación proporcional al daño infligido —
-              // toda batalla deja algo.
-              if (!playerWon && !isTutorial) ...[
+              // toda batalla peleada deja algo (rendirse no).
+              if (!playerWon && !isTutorial && !surrendered) ...[
                 _Appear(
                   delayMs: 350,
                   child: _RewardRow(
@@ -365,7 +369,7 @@ class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
                         ref.read(playerProvider.notifier).addMedals(medals);
                         ref.read(playerProvider.notifier).addSoftCoins(coins);
                         ref.read(playerProvider.notifier).addTokens(tokens);
-                      } else {
+                      } else if (!surrendered) {
                         ref
                             .read(playerProvider.notifier)
                             .addSoftCoins(_consolationCoins(battle));
@@ -459,8 +463,8 @@ class _EndBattleScreenState extends ConsumerState<EndBattleScreen> {
                         }
                       }
                     }
-                    // Consolación por derrota (arena; el tutorial no aplica)
-                    if (!playerWon && !isTutorial) {
+                    // Consolación por derrota (arena; ni tutorial ni rendición)
+                    if (!playerWon && !isTutorial && !surrendered) {
                       notifier.addSoftCoins(_consolationCoins(battle));
                     }
                     // Level-up de cuenta: celebrar si subiste de nivel.

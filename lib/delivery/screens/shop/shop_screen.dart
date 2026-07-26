@@ -16,6 +16,7 @@ import '../../state/shop_provider.dart';
 import '../../widgets/shop/shop_card_item.dart';
 import '../../widgets/shop/faction_row_header.dart';
 import '../../widgets/animated_resource_chip.dart';
+import '../../widgets/hero_stats_dialog.dart';
 import '../../widgets/tutorial_spotlight_overlay.dart';
 import '../heroes/character_select_screen.dart'; // factionColor
 import '../premium_shop/premium_shop_screen.dart';
@@ -153,68 +154,12 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     return success;
   }
 
+  /// Se llama desde el botón del preview del héroe, que ya muestra precio,
+  /// saldo y estado (igual que la compra de cartas): sin confirmación extra.
   void _onHeroPurchase(HeroEntity hero) async {
     const heroPrice = _HeroShopCard.price;
     final player = ref.read(playerProvider);
-    if (player == null) return;
-
-    final canAfford = player.softCoins >= heroPrice;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Desbloquear ${hero.name}',
-          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(hero.title, style: const TextStyle(color: Color(0xFF8A8A9A), fontSize: 13)),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.monetization_on, size: 16, color: Color(0xFFF5B800)),
-                const SizedBox(width: 4),
-                Text(
-                  '$heroPrice monedas',
-                  style: const TextStyle(color: Color(0xFFF5B800), fontSize: 14, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '(saldo: ${player.softCoins})',
-                  style: TextStyle(
-                    color: canAfford ? Colors.white54 : Colors.red.shade300,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
-          ),
-          TextButton(
-            onPressed: canAfford ? () => Navigator.of(context).pop(true) : null,
-            child: Text(
-              'Comprar',
-              style: TextStyle(
-                color: canAfford ? const Color(0xFFF5B800) : Colors.white24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
+    if (player == null || player.softCoins < heroPrice) return;
 
     final success = await ref.read(playerProvider.notifier).purchaseHeroWithCoins(
       heroId: hero.id,
@@ -553,6 +498,13 @@ class _HeroesSection extends StatelessWidget {
                 isUnlocked: false,
                 playerCoins: player.softCoins,
                 onPurchase: () => onHeroPurchase(hero),
+                onPreview: () => HeroStatsDialog.show(
+                  context,
+                  hero: hero,
+                  onAction: () => onHeroPurchase(hero),
+                  actionLabel: 'Comprar por ${_HeroShopCard.price}',
+                  canAct: player.softCoins >= _HeroShopCard.price,
+                ),
               );
             },
           ),
@@ -573,6 +525,7 @@ class _HeroShopCard extends StatelessWidget {
   final bool isUnlocked;
   final int playerCoins;
   final VoidCallback onPurchase;
+  final VoidCallback onPreview;
 
   const _HeroShopCard({
     required this.hero,
@@ -580,6 +533,7 @@ class _HeroShopCard extends StatelessWidget {
     required this.isUnlocked,
     required this.playerCoins,
     required this.onPurchase,
+    required this.onPreview,
   });
 
   @override
@@ -588,7 +542,9 @@ class _HeroShopCard extends StatelessWidget {
     final canAfford = playerCoins >= price;
 
     return GestureDetector(
-      onTap: (!isUnlocked && canAfford) ? onPurchase : null,
+      // Toda carta de la tienda tiene preview: antes solo respondía si podías
+      // comprarla, así que no había forma de ver stats/lore de un héroe.
+      onTap: onPreview,
       child: Container(
         width: 112,
         decoration: BoxDecoration(

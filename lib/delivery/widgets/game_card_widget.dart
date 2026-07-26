@@ -117,13 +117,157 @@ class _GameCardWidgetState extends State<GameCardWidget>
       ));
     }
 
+    // Las pasivas no son cartas de mazo: no tienen arte ni se compran. Usan
+    // un layout propio tipo "sello del héroe", donde lo que manda es CUÁNDO
+    // se activa y qué hace — no la ilustración.
     return AnimatedBuilder(
       animation: _glowAnim!,
-      builder: (context, _) => _buildCard(
-        card: card, width: width, h: h,
-        headerH: headerH, imageH: imageH, badgeH: badgeH,
-        loreH: loreH, gapH: gapH, bubbleSize: bubbleSize,
-        glowAlpha: _glowAnim!.value,
+      builder: (context, _) =>
+          _buildPassiveCard(card, width, h, _glowAnim!.value),
+    );
+  }
+
+  // ── Layout de carta PASIVA ──────────────────────────────────────────────
+  // Sello dorado del héroe: emblema de categoría, condición de activación
+  // bien visible y la descripción como protagonista (no en una cajita chica).
+  Widget _buildPassiveCard(
+      GameCard card, double width, double h, double glowAlpha) {
+    const gold = Color(0xFFF5B800);
+    final catColor = _categoryColor(card.category);
+    final frameW = (width * 0.028).clamp(2.5, 6.0);
+    final emblem = width * 0.30;
+    final pad = width * 0.075;
+
+    return Container(
+      width: width,
+      height: h,
+      padding: EdgeInsets.all(frameW),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: _metalFrameGradient(gold),
+        boxShadow: [
+          BoxShadow(
+            color: gold.withValues(alpha: 0.25 + 0.45 * glowAlpha),
+            blurRadius: 12 + 10 * glowAlpha,
+            spreadRadius: 1 + 2 * glowAlpha,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(11),
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(0, -0.45),
+              radius: 1.1,
+              colors: [Color(0xFF2B2110), Color(0xFF12100C)],
+            ),
+          ),
+          child: Column(
+            children: [
+              // Cinta superior: qué es y cuándo entra en juego.
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(vertical: width * 0.035),
+                color: gold.withValues(alpha: 0.16),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'PASIVA · SE ACTIVA AL 40% HP',
+                    style: TextStyle(
+                      color: gold,
+                      fontSize: (width * 0.058).clamp(7.0, 11.0),
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: width * 0.05),
+              // Emblema de categoría (reemplaza la ilustración que no tienen)
+              Container(
+                width: emblem,
+                height: emblem,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: catColor.withValues(alpha: 0.16),
+                  border: Border.all(
+                      color: gold.withValues(alpha: 0.55 + 0.35 * glowAlpha),
+                      width: 2),
+                ),
+                child: Icon(_categoryIcon(card.category),
+                    size: emblem * 0.52, color: gold),
+              ),
+              SizedBox(height: width * 0.045),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: pad),
+                child: Text(
+                  card.name,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: (width * 0.095).clamp(11.0, 19.0),
+                    fontWeight: FontWeight.w900,
+                    height: 1.05,
+                  ),
+                ),
+              ),
+              SizedBox(height: width * 0.03),
+              // Datos de juego: categoría · coste · daño
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _PassiveStat(
+                      icon: _categoryIcon(card.category),
+                      label: _categoryLabel(card.category),
+                      color: catColor,
+                      width: width,
+                    ),
+                    SizedBox(width: width * 0.04),
+                    _PassiveStat(
+                      icon: Icons.bolt,
+                      label: '${card.staminaCost}',
+                      color: const Color(0xFF4FC3F7),
+                      width: width,
+                    ),
+                    if (card.baseDamage != null) ...[
+                      SizedBox(width: width * 0.04),
+                      _PassiveStat(
+                        icon: Icons.local_fire_department,
+                        label: '${_displayDamage(card)}',
+                        color: const Color(0xFFE74C3C),
+                        width: width,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              // Descripción: protagonista de la carta, con aire y contraste.
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(pad, width * 0.05, pad, pad),
+                  child: Center(
+                    child: Text(
+                      card.lore,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.fade,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        fontSize: (width * 0.068).clamp(9.5, 14.0),
+                        fontWeight: FontWeight.w500,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -268,10 +412,27 @@ class _GameCardWidgetState extends State<GameCardWidget>
             left: 0,
             right: 0,
             bottom: 0,
-            child: Padding(
+            // Scrim propio del bloque de texto: como el bloque mide lo que
+            // mide su contenido, el degradado SIEMPRE cubre todo el texto
+            // (el degradado global de la carta arranca fijo al 72% y dejaba
+            // el lore de varias líneas sobre la ilustración, ilegible).
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: [0.0, 0.35, 1.0],
+                  colors: [
+                    Color(0x00000000),
+                    Color(0xB3000000),
+                    Color(0xF2000000),
+                  ],
+                ),
+              ),
+              child: Padding(
               // Aire a la derecha para no chocar con la gema de daño
               padding: EdgeInsets.fromLTRB(
-                  width * 0.06, 0, width * 0.06 + gem * 0.9, width * 0.06),
+                  width * 0.06, width * 0.05, width * 0.06 + gem * 0.9, width * 0.06),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -325,17 +486,21 @@ class _GameCardWidgetState extends State<GameCardWidget>
                       maxLines: width >= 200 ? 4 : 3,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: (width * 0.062).clamp(7.0, 13.0),
-                        fontStyle: FontStyle.italic,
-                        height: 1.25,
+                        // Sin itálica, con más cuerpo y blanco casi puro: a
+                        // 7-9px la itálica al 85% era ilegible sobre el arte.
+                        color: Colors.white.withValues(alpha: 0.95),
+                        fontSize: (width * 0.068).clamp(9.5, 14.0),
+                        fontWeight: FontWeight.w500,
+                        height: 1.3,
                         shadows: const [
-                          Shadow(color: Colors.black, blurRadius: 3),
+                          Shadow(color: Colors.black, blurRadius: 4),
+                          Shadow(color: Colors.black, offset: Offset(0, 1)),
                         ],
                       ),
                     ),
                   ],
                 ],
+              ),
               ),
             ),
           ),
@@ -666,8 +831,11 @@ class _GameCardWidgetState extends State<GameCardWidget>
                       child: Text(
                         card.lore.isEmpty ? '' : card.lore,
                         style: TextStyle(
-                          color: const Color(0xFF3A3A3A),
-                          fontSize: loreH * 0.165,
+                          color: const Color(0xFF2A2A2A),
+                          // Piso de tamaño: proporcional puro daba ~6.5px en
+                          // cartas de 110px (ilegible). Prefiere recortar
+                          // texto antes que achicarlo por debajo de 9px.
+                          fontSize: (loreH * 0.185).clamp(9.0, 14.0),
                           fontWeight: FontWeight.w500,
                           height: 1.3,
                         ),
@@ -737,6 +905,49 @@ class _GameCardWidgetState extends State<GameCardWidget>
 /// Gema circular del layout full-art (coste arriba, daño abajo): como las
 /// gemas de maná/poder de Legends of Runeterra — círculo saturado con borde
 /// oscuro y número grande legible sobre el arte.
+/// Dato compacto de la carta pasiva (categoría, coste o daño).
+class _PassiveStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final double width;
+
+  const _PassiveStat({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.width,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+          horizontal: width * 0.045, vertical: width * 0.022),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(width * 0.05),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: (width * 0.075).clamp(9.0, 14.0), color: color),
+          SizedBox(width: width * 0.018),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: (width * 0.062).clamp(8.0, 12.0),
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _FullArtGem extends StatelessWidget {
   final String value;
   final Color color;

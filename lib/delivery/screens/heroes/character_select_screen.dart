@@ -115,8 +115,13 @@ class _CharacterSelectScreenState extends ConsumerState<CharacterSelectScreen> {
                       controller: _pageController,
                       itemCount: _heroes.length,
                       onPageChanged: (i) => setState(() => _currentIndex = i),
+                      // Las stats se muestran ya escaladas por la ascensión
+                      // del jugador (mismo criterio que usa el combate).
                       itemBuilder: (context, i) => RepaintBoundary(
-                        child: _HeroCard(hero: _heroes[i]),
+                        child: _HeroCard(
+                          hero: heroWithAscension(
+                              _heroes[i], ref.watch(playerProvider)),
+                        ),
                       ),
                     ),
                   ),
@@ -235,6 +240,8 @@ class _HeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = factionColor(hero.faction);
+    // Ya vienen escaladas por ascensión (el héroe llega con sus estrellas).
+    final stats = hero.boostedStats;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
@@ -316,12 +323,31 @@ class _HeroCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    hero.title,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          hero.title,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      // Estrellas de ascensión: explican por qué las stats de
+                      // abajo son más altas que las base.
+                      if (hero.stars > 1) ...[
+                        const SizedBox(width: 8),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: List.generate(
+                            hero.stars,
+                            (_) => const Icon(Icons.star_rounded,
+                                size: 14, color: Color(0xFFF5B800)),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 18),
                   Row(
@@ -329,11 +355,11 @@ class _HeroCard extends StatelessWidget {
                       Expanded(
                         child: Column(
                           children: [
-                            _StatRow(label: 'Puño',   value: hero.stats.punch,   color: color),
+                            _StatRow(label: 'Puño',   value: stats.punch,   color: color),
                             const SizedBox(height: 10),
-                            _StatRow(label: 'Patada', value: hero.stats.kick,    color: color),
+                            _StatRow(label: 'Patada', value: stats.kick,    color: color),
                             const SizedBox(height: 10),
-                            _StatRow(label: 'Agarre', value: hero.stats.grapple, color: color),
+                            _StatRow(label: 'Agarre', value: stats.grapple, color: color),
                           ],
                         ),
                       ),
@@ -341,9 +367,9 @@ class _HeroCard extends StatelessWidget {
                       Expanded(
                         child: Column(
                           children: [
-                            _StatRow(label: 'Defensa', value: hero.stats.defense, color: color),
+                            _StatRow(label: 'Defensa', value: stats.defense, color: color),
                             const SizedBox(height: 10),
-                            _StatRow(label: 'Esquive', value: hero.stats.dodge,   color: color),
+                            _StatRow(label: 'Esquive', value: stats.dodge,   color: color),
                             const SizedBox(height: 10),
                             Row(
                               children: [

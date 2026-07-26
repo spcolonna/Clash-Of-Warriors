@@ -26,7 +26,15 @@
       "Bash(flutter config *)",
       "Bash(flutter --version --machine)",
       "Bash(grep -n \"tokens\\\\|_TokenPill\\\\|class _PremiumShopAppBar\\\\|Text\\('\\\\$\\\\|diamond\" lib/delivery/screens/premium_shop/premium_shop_screen.dart)",
-      "Bash(awk '/factory PlayerProfile.fromMap/,/^  }$/' lib/domain/entities/player_profile.dart)"
+      "Bash(awk '/factory PlayerProfile.fromMap/,/^  }$/' lib/domain/entities/player_profile.dart)",
+      "Bash(xattr -l /Users/sebastianperez/.claude/file-history/14b038ac-c599-4b44-b90a-ed671f83ea46/328ae8edc5ec8c56@v14)",
+      "Bash(mkdir -p /Users/sebastianperez/Documents/Personal/ClashOfWarriors/CardHeros)",
+      "Bash(cp \"/Users/sebastianperez/.claude/file-history/14b038ac-c599-4b44-b90a-ed671f83ea46/328ae8edc5ec8c56@v8\" \"/Users/sebastianperez/Documents/Personal/ClashOfWarriors/CardHeros/Mazo_Judoka_Ryoto_arte_v1.md\")",
+      "Bash(pod --version)",
+      "Bash(rm -rf Pods Podfile.lock)"
+    ],
+    "additionalDirectories": [
+      "/Users/sebastianperez/Documents/Personal/ClashOfWarriors/CardHeros"
     ]
   }
 }

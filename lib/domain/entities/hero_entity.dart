@@ -110,6 +110,17 @@ class HeroEntity {
   int _boostedStat(int base) =>
       base + (stars - 1) * _statBonusPerStar;
 
+  /// Stats ya escaladas por la ascensión (las mismas que usa el combate).
+  /// Toda UI que muestre stats debe usar esto y NO `stats` crudo, o va a
+  /// mostrar valores de 1★ para un héroe ascendido.
+  HeroStats get boostedStats => HeroStats(
+        punch: _boostedStat(stats.punch),
+        kick: _boostedStat(stats.kick),
+        grapple: _boostedStat(stats.grapple),
+        defense: _boostedStat(stats.defense),
+        dodge: _boostedStat(stats.dodge),
+      );
+
   /// Daño efectivo de una carta para este héroe.
   /// Cada estrella adicional suma +1 al stat relevante.
   double effectiveDamage(GameCard card) {

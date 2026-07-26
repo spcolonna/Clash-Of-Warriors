@@ -10,18 +10,38 @@ class HeroStatsDialog extends StatefulWidget {
   final int currentHp;
   final int currentStamina;
 
+  /// Acción opcional bajo la ficha (ej. comprar el héroe en la tienda). Sin
+  /// esto el diálogo es solo lectura, con el botón "Cerrar" de siempre.
+  final VoidCallback? onAction;
+  final String actionLabel;
+  final String disabledLabel;
+  final bool canAct;
+  final IconData actionIcon;
+
   const HeroStatsDialog({
     super.key,
     required this.hero,
     required this.currentHp,
     required this.currentStamina,
+    this.onAction,
+    this.actionLabel = 'Comprar',
+    this.disabledLabel = 'Sin monedas',
+    this.canAct = true,
+    this.actionIcon = Icons.shopping_cart,
   });
 
+  /// [onAction] cierra el diálogo antes de invocarse, igual que hace
+  /// CardPreviewDialog: una sola pantalla sirve para ver y para actuar.
   static Future<void> show(
     BuildContext context, {
     required HeroEntity hero,
     int? currentHp,
     int? currentStamina,
+    VoidCallback? onAction,
+    String actionLabel = 'Comprar',
+    String disabledLabel = 'Sin monedas',
+    bool canAct = true,
+    IconData actionIcon = Icons.shopping_cart,
   }) {
     return showDialog(
       context: context,
@@ -30,6 +50,11 @@ class HeroStatsDialog extends StatefulWidget {
         hero: hero,
         currentHp: currentHp ?? hero.maxHp,
         currentStamina: currentStamina ?? hero.maxStamina,
+        onAction: onAction,
+        actionLabel: actionLabel,
+        disabledLabel: disabledLabel,
+        canAct: canAct,
+        actionIcon: actionIcon,
       ),
     );
   }
@@ -267,18 +292,50 @@ class _HeroStatsDialogState extends State<HeroStatsDialog>
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             child: Column(
               children: [
-                _StatRow(label: 'Puño',    value: hero.stats.punch   + (hero.stars - 1), max: 14, color: color),
+                // boostedStats = la misma fórmula que usa el combate.
+                _StatRow(label: 'Puño',    value: hero.boostedStats.punch,   max: 14, color: color),
                 const SizedBox(height: 6),
-                _StatRow(label: 'Patada',  value: hero.stats.kick    + (hero.stars - 1), max: 14, color: color),
+                _StatRow(label: 'Patada',  value: hero.boostedStats.kick,    max: 14, color: color),
                 const SizedBox(height: 6),
-                _StatRow(label: 'Agarre',  value: hero.stats.grapple + (hero.stars - 1), max: 14, color: color),
+                _StatRow(label: 'Agarre',  value: hero.boostedStats.grapple, max: 14, color: color),
                 const SizedBox(height: 6),
-                _StatRow(label: 'Defensa', value: hero.stats.defense + (hero.stars - 1), max: 14, color: color),
+                _StatRow(label: 'Defensa', value: hero.boostedStats.defense, max: 14, color: color),
                 const SizedBox(height: 6),
-                _StatRow(label: 'Esquive', value: hero.stats.dodge   + (hero.stars - 1), max: 14, color: color),
+                _StatRow(label: 'Esquive', value: hero.boostedStats.dodge,   max: 14, color: color),
               ],
             ),
           ),
+
+          // Acción opcional (comprar, etc.)
+          if (widget.onAction != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: widget.canAct
+                      ? () {
+                          Navigator.of(context).pop();
+                          widget.onAction!();
+                        }
+                      : null,
+                  icon: Icon(widget.actionIcon, size: 18),
+                  label: Text(
+                    widget.canAct ? widget.actionLabel : widget.disabledLabel,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF5B800),
+                    foregroundColor: Colors.black,
+                    disabledBackgroundColor: const Color(0xFF2A2A3E),
+                    disabledForegroundColor: Colors.white38,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ),
 
           // Cerrar
           GestureDetector(

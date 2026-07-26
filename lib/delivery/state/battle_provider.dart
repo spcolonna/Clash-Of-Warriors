@@ -11,7 +11,11 @@ import '../../domain/usecases/resolve_combat_use_case.dart';
 import '../../infra/local/neutral_cards_data.dart';
 import '../../infra/local/tutorial_script.dart';
 import 'providers.dart'
-    show gameConfigProvider, cardCatalogProvider, playerProvider;
+    show
+        gameConfigProvider,
+        cardCatalogProvider,
+        playerProvider,
+        heroWithAscension;
 
 export '../../domain/entities/battle_state.dart' show BotDifficulty, GameMode;
 
@@ -119,10 +123,8 @@ class BattleNotifier extends Notifier<BattleState> {
   }
 
   /// Aplica las estrellas de ascensión del jugador al héroe (+1 stat/★).
-  HeroEntity _withAscension(HeroEntity hero) {
-    final stars = ref.read(playerProvider)?.heroStarsFor(hero.id) ?? 1;
-    return stars > 1 ? hero.copyWith(stars: stars) : hero;
-  }
+  HeroEntity _withAscension(HeroEntity hero) =>
+      heroWithAscension(hero, ref.read(playerProvider));
 
   /// Mazo temático del bot según su facción.
   List<GameCard> _buildBotDeck(HeroEntity botHero, GameMode mode) {
@@ -668,6 +670,8 @@ class BattleNotifier extends Notifier<BattleState> {
     state = state.copyWith(
       phase: BattlePhase.battleEnd,
       playerWon: false,
+      // Marca la derrota como abandono: no corresponde consolación.
+      surrendered: true,
     );
   }
 

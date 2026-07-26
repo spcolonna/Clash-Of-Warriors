@@ -23,6 +23,7 @@ import '../../widgets/card_conjure_overlay.dart';
 import '../../widgets/card_preview_dialog.dart';
 import '../../widgets/round_banner.dart';
 import '../../widgets/slot_clash_animator.dart';
+import '../../widgets/surrender_dialog.dart';
 import '../../widgets/tutorial_coach_banner.dart';
 import '../../widgets/tutorial_tap_pointer.dart';
 import '../../../infra/local/tutorial_script.dart';
@@ -45,7 +46,7 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
   Widget? _activeClash;
   GameCard? _conjuredCard;
   bool _showPassiveBanner = false;
-  ({String title, String subtitle})? _banner;
+  ({String title, String subtitle, Duration duration})? _banner;
   int _bannerSeq = 0; // fuerza rebuild del banner entre usos consecutivos
   late final AnimationController _shakeController;
 
@@ -71,17 +72,15 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
         r.playerCard != null &&
         r.opponentCard != null) {
       _seenBeats.add('firstWin');
-      _showBanner('¡GANASTE EL CHOQUE!',
+      await _showBannerAndWait('¡GANASTE EL CHOQUE!',
           '${_catName(r.playerCard!.category)} venció a ${_catName(r.opponentCard!.category)}. Esa es la regla de oro.');
-      await Future.delayed(const Duration(milliseconds: 1500));
       return;
     }
     // Tu Defensa perdió el choque pero bloqueó la mitad del daño.
     if (!_seenBeats.contains('mitigate') && r.mitigatedBy == 'player') {
       _seenBeats.add('mitigate');
-      _showBanner('DEFENSA = SEGURO',
+      await _showBannerAndWait('DEFENSA = SEGURO',
           'Tu Defensa perdió el choque pero igual bloqueó la mitad del daño.');
-      await Future.delayed(const Duration(milliseconds: 1500));
     }
   }
 
@@ -113,11 +112,24 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
     super.dispose();
   }
 
-  void _showBanner(String title, String subtitle) {
+  /// Muestra el banner central y devuelve cuánto dura, para poder esperarlo
+  /// sin desincronizar el delay con la animación (antes eran números sueltos).
+  Duration _showBanner(String title, String subtitle, {Duration? duration}) {
+    final d = duration ?? const Duration(milliseconds: 1200);
     setState(() {
-      _banner = (title: title, subtitle: subtitle);
+      _banner = (title: title, subtitle: subtitle, duration: d);
       _bannerSeq++;
     });
+    return d;
+  }
+
+  /// Banner explicativo (combo, evento, mecánica): se sostiene lo suficiente
+  /// para leerlo y el flujo espera exactamente eso.
+  Future<void> _showBannerAndWait(String title, String subtitle,
+      {Duration? duration}) async {
+    final d = _showBanner(title, subtitle,
+        duration: duration ?? RoundBanner.readable);
+    await Future.delayed(d);
   }
 
   void _showRoundBanner(int round, {bool scoutEarned = false}) {
@@ -274,6 +286,7 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
                 key: ValueKey('banner_$_bannerSeq'),
                 title: _banner!.title,
                 subtitle: _banner!.subtitle,
+                duration: _banner!.duration,
                 onComplete: () {
                   if (mounted) setState(() => _banner = null);
                 },
@@ -346,8 +359,9 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
       if (lastRound.slotResults[i].readBy == 'player') {
         SoundService().play('level_up');
         HapticsService().success();
-        _showBanner('¡LECTURA!', 'Castigaste la repetición · daño ×2');
-        await Future.delayed(const Duration(milliseconds: 900));
+        await _showBannerAndWait(
+            '¡LECTURA!', 'Castigaste la repetición · daño ×2',
+            duration: const Duration(milliseconds: 1800));
       }
 
       // Coach del tutorial: explicar la mecánica JUSTO cuando ocurre.
@@ -378,12 +392,12 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
       if (last.playerPerfectBonus > 0) {
         SoundService().play('level_up');
         HapticsService().success();
-        _showBanner('¡RONDA PERFECTA!', '+${last.playerPerfectBonus} DAÑO EXTRA');
-        await Future.delayed(const Duration(milliseconds: 1300));
+        await _showBannerAndWait(
+            '¡RONDA PERFECTA!', '+${last.playerPerfectBonus} DAÑO EXTRA');
       } else if (last.opponentPerfectBonus > 0) {
         _triggerShake();
-        _showBanner('RONDA PERFECTA RIVAL', '-${last.opponentPerfectBonus} HP');
-        await Future.delayed(const Duration(milliseconds: 1300));
+        await _showBannerAndWait(
+            'RONDA PERFECTA RIVAL', '-${last.opponentPerfectBonus} HP');
       }
 
       // Banner de combo posicional (el daño/cura ya se aplicó en finalizeRound).
@@ -393,8 +407,8 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
         final sub = last.playerComboHeal > 0
             ? '+${last.playerComboHeal} HP'
             : '+${last.playerComboDamage} DAÑO EXTRA';
-        _showBanner('¡COMBO ${last.playerComboName!.toUpperCase()}!', sub);
-        await Future.delayed(const Duration(milliseconds: 1300));
+        await _showBannerAndWait(
+            '¡COMBO ${last.playerComboName!.toUpperCase()}!', sub);
       }
     }
 
@@ -416,8 +430,10 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
         if (ringEvent != null) {
           HapticsService().medium();
           SoundService().play('whoosh');
-          _showBanner('EVENTO: ${ringEvent.name.toUpperCase()}', ringEvent.description);
-          await Future.delayed(const Duration(milliseconds: 1400));
+          // El evento define la ronda entera: hay que poder leer qué hace.
+          await _showBannerAndWait(
+              'EVENTO: ${ringEvent.name.toUpperCase()}', ringEvent.description,
+              duration: const Duration(milliseconds: 3000));
           if (!mounted) return;
         } else {
           _showRoundBanner(nextState.currentRound, scoutEarned: scoutEarned);
@@ -428,9 +444,9 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
         // Coach: explicar la pasiva la primera vez que se desbloquea (tutorial).
         if (nextState.isTutorial && !_seenBeats.contains('passive')) {
           _seenBeats.add('passive');
-          _showBanner('¡CARTA PASIVA!',
-              'Tu HP bajó al 40%: apareció tu carta especial de remontada. Jugala en el momento justo.');
-          await Future.delayed(const Duration(milliseconds: 1600));
+          await _showBannerAndWait('¡CARTA PASIVA!',
+              'Tu HP bajó al 40%: apareció tu carta especial de remontada. Jugala en el momento justo.',
+              duration: const Duration(milliseconds: 3000));
         }
       }
     }
@@ -1862,37 +1878,9 @@ class _ActionBar extends ConsumerWidget {
     );
   }
 
-  void _confirmSurrender(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.75),
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Rendirse',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: const Text(
-          '¿Seguro que querés abandonar el combate? Perderás esta batalla.',
-          style: TextStyle(color: Colors.white70, fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child:
-                const Text('Cancelar', style: TextStyle(color: Colors.white54)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              ref.read(battleProvider.notifier).surrender();
-            },
-            child: const Text('Rendirse',
-                style: TextStyle(
-                    color: Color(0xFFE74C3C), fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
+  Future<void> _confirmSurrender(BuildContext context, WidgetRef ref) async {
+    final confirmed = await SurrenderDialog.show(context);
+    if (confirmed) ref.read(battleProvider.notifier).surrender();
   }
 }
 
