@@ -73,6 +73,8 @@ final StoryArc _actoI = StoryArc(
           emotion: 'shocked'),
       line('kage', 'Kage', 'Y alguien tiene que detenerlo. Hoy.',
           left: false, emotion: 'determined'),
+      narrator(
+          'No hizo falta buscarlos: el Clan ya había mandado a cobrar. Un Mercenario del Clan salió de la oscuridad del túnel, con el contrato de Kage escrito en la cara.'),
     ]),
     battle(5, 'ryoto', BotDifficulty.hard,
         'Un mercenario contratado por el Clan. Bloquea el único camino hacia el Arquitecto.',
@@ -135,6 +137,10 @@ final StoryArc _actoII = StoryArc(
       line('kage', 'Kage',
           'Entonces empecemos por los que no pueden pelear por sí mismos.',
           left: false, emotion: 'determined'),
+      narrator(
+          'Antes de bajar de los tejados lo cruzó el Cobrador del Distrito: el '
+          'que pasa casa por casa recordando que en el Distrito Ninja nadie '
+          'deja de pagar.'),
     ]),
     battle(1, 'mila_rare', BotDifficulty.normal,
         'El cobrador del distrito este visita a una familia endeudada. Llegaste primero.',
@@ -151,6 +157,10 @@ final StoryArc _actoII = StoryArc(
           left: false, emotion: 'angry'),
       line('maestro_clan', 'Maestro del Clan',
           'Entonces elegiste morir como un traidor.', bubble: BubbleType.shout),
+      narrator(
+          'El Clan no manda avisos: manda gente. Una Sombra del Clan lo '
+          'esperaba entre las vigas del dojo abandonado, con una sola orden '
+          'sobre Kage.'),
     ]),
     battle(3, 'kage_rare', BotDifficulty.normal,
         'Las sombras que entrenaron con vos ahora te cazan. Conocen tus trucos. Vos conocés los suyos.',
@@ -166,6 +176,8 @@ final StoryArc _actoII = StoryArc(
           left: false),
       line('mila', 'Mila', 'Entonces vamos por su vida... digo, por el libro.',
           emotion: 'smirk'),
+      narrator(
+          'El libro maestro dormía en la cámara baja, y no dormía solo: el Guardián del Archivo llevaba nueve años sin dejar pasar a nadie, ni siquiera a los del propio Clan.'),
     ]),
     battle(5, 'ryoto_rare', BotDifficulty.hard,
         'El guardián del archivo del Clan no duerme. Hoy va a desear haber dormido.',
@@ -182,6 +194,8 @@ final StoryArc _actoII = StoryArc(
           left: false, emotion: 'determined'),
       line('mila', 'Mila', 'Empezás a pensar como una persona libre.',
           emotion: 'smirk'),
+      narrator(
+          'Con el libro bajo el brazo, la única salida era la escalera norte. Y en la escalera norte esperaba El Puño del Clan: el matón de confianza del Maestro, grande, lento y muy enojado.'),
     ]),
     battle(7, 'kai_rare', BotDifficulty.hard,
         'El matón de confianza del Maestro custodia la salida. Grande, lento, y muy enojado.',
@@ -198,8 +212,8 @@ final StoryArc _actoII = StoryArc(
           'Me diste una jaula con vista. La diferencia la aprendí afuera.',
           left: false, sfx: '¡FIUUM!'),
     ]),
-    battle(9, 'mila_rare', BotDifficulty.hard,
-        'El Maestro del Clan. Tu mentor, tu carcelero, tu pasado. Las deudas huérfanas mueren con su imperio.',
+    battle(9, 'kage_rare', BotDifficulty.hard,
+        'El Maestro del Clan. Tu mentor, tu carcelero, tu pasado. Te enseñó cada golpe que estás por usar contra él.',
         bossName: 'Maestro del Clan', locationId: 'ciudadela_calles'),
   ],
 );
@@ -230,6 +244,9 @@ final StoryArc _actoIII = StoryArc(
       line('kage', 'Kage',
           'Vimos caer a un hombre. Yo necesito ver el cuerpo del sistema. Y para eso... tengo que entrar.',
           left: false),
+      narrator(
+          'El Clan probó suerte esa madrugada con un Recluta de Élite: joven, '
+          'rapidísimo y todavía convencido de que la obediencia se premia.'),
     ]),
     battle(1, 'kage_epic', BotDifficulty.hard,
         'La prueba de ingreso del Nuevo Consejo: derrotar a su mejor recluta. Sin nombre, sin preguntas.',
@@ -243,6 +260,12 @@ final StoryArc _actoIII = StoryArc(
           'Perfecto. Los rencorosos son los empleados más leales. Firmá acá.'),
       narrator(
           'Kage firmó con tinta que reconocería cualquier archivista del viejo Consejo. El anzuelo estaba puesto... en ambas direcciones.'),
+      line('dama_contratos', 'La Dama de los Contratos',
+          'Primera tarea, sombra: hay un Investigador Federal husmeando nuestros libros. Hacelo desaparecer del expediente.',
+          emotion: 'smirk'),
+      line('kage', 'Kage',
+          'Un federal honesto. Justo el que menos merece esto... y el único que puede probar todo.',
+          left: false, bubble: BubbleType.thought),
     ]),
     battle(3, 'ryoto_epic', BotDifficulty.hard,
         'Tu primera "misión" para el Nuevo Consejo: interceptar a un investigador de la Federación. Fingir lealtad tiene un precio.',
@@ -261,6 +284,8 @@ final StoryArc _actoIII = StoryArc(
       line('mila', 'Mila',
           '...Volvé con la prueba, Kage. Y con la máscara rota.',
           emotion: 'determined'),
+      narrator(
+          'Para entrar a la bóveda del Nuevo Consejo había que pasar por El Verificador: el que confirma que cada sombra que baja es realmente quien dice ser.'),
     ]),
     battle(5, 'kai_epic', BotDifficulty.hard,
         'El Nuevo Consejo sospecha. Su verificador de lealtades te pone a prueba con un combate sin reglas.',
@@ -276,6 +301,10 @@ final StoryArc _actoIII = StoryArc(
           bubble: BubbleType.whisper, sfx: '¡!'),
       line('kage', 'Kage', 'Vine a confirmar un rumor. Gracias por el autógrafo.',
           left: false, emotion: 'smirk'),
+      line('dama_contratos', 'La Dama de los Contratos',
+          'Entraste a un despacho que no figura en ningún plano, sombra. De acá '
+          'se sale firmando o no se sale.',
+          emotion: 'angry'),
     ]),
     battle(7, 'mila_epic', BotDifficulty.hard,
         'La Dama de los Contratos sella la sede. Nadie sale con lo que vos sabés. Nadie salió nunca.',
@@ -293,6 +322,10 @@ final StoryArc _actoIII = StoryArc(
       line('kage', 'Kage',
           'Queda un cabo suelto: el Verdugo sabe mi cara. Si llega a la sede antes que nosotros...',
           left: false),
+      line('verdugo', 'El Verdugo del Consejo',
+          'El refugio, el libro, los nombres. Demasiado ruido para una sola '
+          'sombra. Vengo a bajar el volumen.',
+          sfx: '¡CLANG!'),
     ]),
     battle(9, 'ryoto_epic', BotDifficulty.hard,
         'El Verdugo del Consejo, en el único puente de salida. La prueba viaja con vos o no viaja.',
@@ -323,6 +356,10 @@ final StoryArc _actoIV = StoryArc(
           'Yo libero los rehenes de la Arena. Vos apagá las sombras. Y Kage... esta vez sí volvé.'),
       line('kage', 'Kage', 'Esta vez vuelvo con el amanecer.',
           left: false, emotion: 'determined'),
+      narrator(
+          'La Célula Nocturna del Clan trabajaba en los mismos tejados que Kage '
+          'conocía de memoria. Esta vez, los dos bandos sabían exactamente '
+          'dónde pisar.'),
     ]),
     battle(1, 'kage_legendary', BotDifficulty.hard,
         'La primera célula acecha el hospital del Barrio Sur. Se apaga en silencio, antes de que nadie sepa que existió.',
@@ -338,6 +375,8 @@ final StoryArc _actoIV = StoryArc(
       line('lucas', 'Lucas',
           'Vos. Cada contrato que rompiste esta noche pelea de vuelta.',
           emotion: 'determined'),
+      narrator(
+          'El Arquitecto respondió al silencio mandando a su mejor hoja: El Primer Cuchillo, el que abre los caminos que nadie más puede abrir. Subió al campanario sin hacer ruido.'),
     ]),
     battle(3, 'puo_liu_legendary', BotDifficulty.hard,
         'El asesino personal del Arquitecto espera en el campanario. El duelo que el Clan siempre quiso ver.',
@@ -352,6 +391,8 @@ final StoryArc _actoIV = StoryArc(
           'Diseñé las trampas. Por eso sé exactamente dónde no pisar. Seguime.',
           left: false, emotion: 'smirk'),
       narrator('Y por primera vez en su vida, Kage guio a alguien hacia la luz.'),
+      narrator(
+          'La luz, esa noche, tenía centinela. La Guardiana esperaba a la salida del túnel: el Arquitecto también sabía qué trampas había diseñado Kage, y puso a alguien donde ninguna servía.'),
     ]),
     battle(5, 'mila_legendary', BotDifficulty.hard,
         'La guardiana de los túneles: la única sombra que el Clan consideraba superior a Kage. Hasta hoy.',
@@ -369,6 +410,10 @@ final StoryArc _actoIV = StoryArc(
       line('kage', 'Kage',
           'Todo lo que soy lo elegí yo. Esa es la parte que nunca vas a entender.',
           left: false, emotion: 'determined', sfx: '¡FIUUM!'),
+      narrator(
+          'Sobre el techo de la Arena esperaba el Campeón del Último Torneo: el '
+          'guardián que el Arquitecto puso entre él y cualquiera que llegara '
+          'por arriba.'),
     ]),
     battle(7, 'kai_legendary', BotDifficulty.hard,
         'El último escudo del Arquitecto: el campeón comprado del falso torneo. Entre la sombra y su objetivo.',

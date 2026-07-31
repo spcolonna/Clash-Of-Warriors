@@ -410,6 +410,18 @@ class _BattleScreenState extends ConsumerState<BattleScreen>
         await _showBannerAndWait(
             '¡COMBO ${last.playerComboName!.toUpperCase()}!', sub);
       }
+
+      // Combo del RIVAL: sin este cartel el HP bajaba en silencio al cerrar la
+      // ronda y parecía daño salido de la nada (podés incluso haber ganado
+      // todos los slots visibles y aun así perder vida acá).
+      if (last.opponentComboName != null) {
+        _triggerShake();
+        final sub = last.opponentComboHeal > 0
+            ? 'EL RIVAL SE CURA +${last.opponentComboHeal} HP'
+            : '-${last.opponentComboDamage} HP';
+        await _showBannerAndWait(
+            'COMBO RIVAL: ${last.opponentComboName!.toUpperCase()}', sub);
+      }
     }
 
     await Future.delayed(const Duration(milliseconds: 500));

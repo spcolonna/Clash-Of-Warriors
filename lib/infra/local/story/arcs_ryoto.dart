@@ -51,13 +51,16 @@ final StoryArc _actoI = StoryArc(
           'Le sugiero que se retire antes de que esto se complique más.'),
       line('ryoto', 'Ryoto', 'Ya está complicado. Desde hace diez años.',
           left: false),
+      narrator(
+          'La Guardiana de la Federación le bloqueó la entrada al archivo. Sin '
+          'autorización firmada, ningún judoka pasa de ese pasillo.'),
     ]),
     battle(3, 'mila', BotDifficulty.normal,
         'Un inspector corrupto mandó una guardiana capoeirista para intimidarte. No vas a detenerte acá.',
         bossName: 'Guardiana de la Federación', locationId: 'ciudadela_calles'),
     dialogue(4, 'La Sala de Archivos', locationId: 'catacumbas', [
       line('ryoto', 'Ryoto',
-          'Aquí está. El expediente de mi sensei. Manipulado. Las firmas no coinciden.',
+          'Acá está. El expediente de mi sensei. Manipulado. Las firmas no coinciden.',
           left: false, sfx: '¡!'),
       line('kai', 'Kai', 'Eso es corrupción.'),
       line('ryoto', 'Ryoto', '¿Kai? ¿Qué hacés acá?',
@@ -69,6 +72,9 @@ final StoryArc _actoI = StoryArc(
       line('kai', 'Kai',
           'Para lo mismo. Alguien muy poderoso quiere controlar quién llega a la final.'),
       line('ryoto', 'Ryoto', 'El Consejo Sombra.', left: false),
+      narrator(
+          'La Guardiana de la Federación volvió, esta vez con la orden de que '
+          'Ryoto no saliera con una sola hoja encima.'),
     ]),
     battle(5, 'mila', BotDifficulty.hard,
         'La guardiana regresó con refuerzos. Esta vez no hay margen para errores.',
@@ -135,6 +141,10 @@ final StoryArc _actoII = StoryArc(
           'La Inspectora Kuro. Y todavía sella documentos en el tercer piso de la Federación.'),
       line('ryoto', 'Ryoto', 'Entonces mañana pido una audiencia.',
           left: false, emotion: 'determined'),
+      narrator(
+          'La Seguridad de la Federación llegó al Dojo Mushin antes que la '
+          'citación: venían a cerrarlo por "irregularidades" y a asegurarse de '
+          'que nadie discutiera.'),
     ]),
     battle(1, 'kai_rare', BotDifficulty.normal,
         'La "seguridad privada" de la Federación no deja pasar a ex-campeones incómodos. Audiencia denegada. Entrada: ganada.',
@@ -153,6 +163,9 @@ final StoryArc _actoII = StoryArc(
           left: false),
       line('inspectora_kuro', 'Inspectora Kuro', '...¿Quién le dijo eso?',
           emotion: 'shocked', bubble: BubbleType.shout),
+      narrator(
+          'En el tercer piso lo interceptó la Escolta de Kuro: la inspectora no '
+          'recibe a nadie que no haya sido revisado primero.'),
     ]),
     battle(3, 'mila_rare', BotDifficulty.normal,
         'La escolta personal de Kuro te "acompaña" a la salida. El Judo tiene otra idea de cortesía.',
@@ -167,6 +180,10 @@ final StoryArc _actoII = StoryArc(
       line('ryoto', 'Ryoto',
           'Si esa bóveda existe, adentro está la absolución de doce maestros. No solo la de Hiroshi.',
           left: false, emotion: 'determined'),
+      narrator(
+          'El Custodio de la Aduana bebía en la mesa del fondo del café. Los '
+          'papeles que Ryoto buscaba pasaban todos por sus manos, y él lo '
+          'sabía.'),
     ]),
     battle(5, 'kage_rare', BotDifficulty.hard,
         'La vieja aduana está custodiada por sombras a sueldo de Kuro. El camino a la bóveda se gana.',
@@ -182,6 +199,9 @@ final StoryArc _actoII = StoryArc(
       line('ryoto', 'Ryoto',
           'Siempre lo fue. Por eso no alcanza con ganarle. Hay que juzgarla en su propio tribunal.',
           left: false),
+      narrator(
+          'En la bóveda de la Aduana ya había alguien contando: El Cobrador de '
+          'Favores, el que ejecuta lo que la Dama firma.'),
     ]),
     battle(7, 'kai_rare', BotDifficulty.hard,
         'El matón favorito de Kuro llega tarde a la bóveda... pero justo a tiempo para vos.',
@@ -195,8 +215,8 @@ final StoryArc _actoII = StoryArc(
           'Mejor. Que la Federación entera vea caer a su inspectora con las reglas que ella misma traicionó.',
           left: false, emotion: 'determined', sfx: '¡TATAKI!'),
     ]),
-    battle(9, 'mila_rare', BotDifficulty.hard,
-        'La Inspectora Kuro. La firma detrás de doce carreras destruidas. El expediente se cierra en el tatami.',
+    battle(9, 'ryoto_rare', BotDifficulty.hard,
+        'La Inspectora Kuro. Cinturón negro antes que burócrata. La firma detrás de doce carreras destruidas se defiende en el tatami.',
         bossName: 'Inspectora Kuro', locationId: 'dojo'),
   ],
 );
@@ -225,6 +245,9 @@ final StoryArc _actoIII = StoryArc(
           left: false, bubble: BubbleType.whisper),
       narrator(
           'Ryoto no iba a pensarlo. Iba a rastrear cada billete de esa fundación hasta su origen.'),
+      narrator(
+          'La Fundación mandó a un Sparring de la Fundación al Dojo Mushin. Le '
+          'dijeron que era un entrenamiento; era una advertencia.'),
     ]),
     battle(1, 'kai_epic', BotDifficulty.hard,
         'Un "sparring de cortesía" organizado por la fundación. Miden tu obediencia. Medí su paciencia.',
@@ -239,6 +262,10 @@ final StoryArc _actoIII = StoryArc(
       line('ryoto', 'Ryoto',
           'Exacto. Vos aceptá tu contrato. Yo sigo el dinero. Nos vemos en la cima... con las pruebas.',
           left: false, emotion: 'determined'),
+      narrator(
+          'La Contadora del Consejo lo estaba esperando en el gimnasio: la '
+          'única que sabe de memoria a dónde fue cada peso, y a quién le '
+          'conviene que siga en silencio.'),
     ]),
     battle(3, 'mila_epic', BotDifficulty.hard,
         'El Tesorero sospecha del rastreo. Su contadora de confianza pelea mejor de lo que suma.',
@@ -254,6 +281,9 @@ final StoryArc _actoIII = StoryArc(
       line('ryoto', 'Ryoto',
           'Ahora tengo los números que lo prueban. Tu palabra más mis libros: eso ya es un caso.',
           left: false),
+      narrator(
+          'Los libros de la Fundación tenían perro. El Guardián de la Cuenta '
+          'durmió nueve meses en ese pasillo para que nadie los abriera.'),
     ]),
     battle(5, 'kage_epic', BotDifficulty.hard,
         'Los guardias de la cuenta sellada no preguntan. Vos tampoco. El tatami decide.',
@@ -286,7 +316,7 @@ final StoryArc _actoIII = StoryArc(
           'El Dojo Mushin nunca estuvo en venta. Ese fue siempre tu error de cálculo.',
           left: false, emotion: 'determined'),
     ]),
-    battle(9, 'kage_epic', BotDifficulty.hard,
+    battle(9, 'puo_liu_epic', BotDifficulty.hard,
         'El Arquitecto, expuesto por la carta y por los números. El Incorruptible cierra el caso en el tatami.',
         bossName: 'El Arquitecto', locationId: 'arena'),
   ],
@@ -313,6 +343,10 @@ final StoryArc _actoIV = StoryArc(
       line('ryoto', 'Ryoto',
           'Entonces la Federación no cae. Sensei: el dojo queda a su cargo. Yo llevo el tatami a la calle.',
           left: false, emotion: 'determined'),
+      narrator(
+          'La Cabecilla de la Turba trajo al Dojo Mushin a todos los que el '
+          'Consejo pudo asustar esa noche. Contra el dojo, no contra el '
+          'Consejo.'),
     ]),
     battle(1, 'kai_legendary', BotDifficulty.hard,
         'La turba pagada del Consejo intenta incendiar la sede de la Federación. La primera línea sos vos.',
@@ -326,6 +360,9 @@ final StoryArc _actoIV = StoryArc(
           'La orden de desalojo de la Arena está lista. Pero nadie puede llevarla: los túneles están tomados.'),
       line('ryoto', 'Ryoto', 'Yo puedo. Deme la orden.',
           left: false, sfx: '¡ZAS!'),
+      narrator(
+          'En la sede lo esperaba la Campeona Clandestina: la que pelea en los '
+          'circuitos que la Federación jura que no existen.'),
     ]),
     battle(3, 'mila_legendary', BotDifficulty.hard,
         'Los túneles hacia la Arena tienen un peaje: la campeona clandestina del Consejo. Se paga en ippons.',
@@ -340,6 +377,9 @@ final StoryArc _actoIV = StoryArc(
           'Por eso me caés bien, judoka. Peleás con reglas en un mundo sin reglas. Y ganás igual.'),
       line('ryoto', 'Ryoto', 'Las reglas son mías. El mundo, que se adapte.',
           left: false, emotion: 'determined'),
+      narrator(
+          'En los túneles de la Arena apareció la Escolta de Élite del '
+          'Arquitecto: los que quedan cuando ya no queda nadie más.'),
     ]),
     battle(5, 'kage_legendary', BotDifficulty.hard,
         'La escolta de élite del Arquitecto custodia la entrada del tatami central. Última aduana antes de la verdad.',
@@ -354,6 +394,9 @@ final StoryArc _actoIV = StoryArc(
           left: false, sfx: '¡TUMP!'),
       line('arquitecto', 'El Arquitecto', 'Entonces mostrame el Judo.',
           bubble: BubbleType.whisper),
+      narrator(
+          'Sobre el tatami central esperaba el Campeón del Último Torneo. Al '
+          'Arquitecto no se llega entero: se llega después de él.'),
     ]),
     battle(7, 'puo_liu_legendary', BotDifficulty.hard,
         'El campeón final del Arquitecto sale al tatami. La Arena entera contiene la respiración.',
@@ -369,7 +412,7 @@ final StoryArc _actoIV = StoryArc(
       line('ryoto', 'Ryoto', 'Por los doce. Y por el que me enseñó a caer.',
           left: false, sfx: '¡IPPON!'),
     ]),
-    battle(9, 'kage_legendary', BotDifficulty.hard,
+    battle(9, 'puo_liu_legendary', BotDifficulty.hard,
         'El Arquitecto en el tatami central. Sin jueces comprados, sin firmas falsas. Solo Judo. El último ippon de la saga.',
         bossName: 'El Arquitecto', locationId: 'arena'),
   ],

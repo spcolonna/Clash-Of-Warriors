@@ -35,6 +35,14 @@ class CombatEngine {
     return table[a]?.contains(b) ?? false;
   }
 
+  /// True si la categoría participa del ruleset del modo. En Normal, Agarre y
+  /// Esquive quedan fuera de la tabla: no son parte del RPS de 3, pero igual
+  /// pueden llegar a la mano vía la carta pasiva (que no se filtra por modo).
+  /// Una categoría fuera de tabla no tiene counter → conecta sin resistencia,
+  /// que es justo lo que promete el lore de las pasivas.
+  static bool categoryPlaysIn(CardCategory c, GameMode mode) =>
+      mode == GameMode.normal ? _simpleModeWinTable.containsKey(c) : true;
+
   // ── Cadenas de combo ──────────────────────────────────────────────────
   // Puño → Patada → Agarre → Puño. Si ganaste el slot anterior con la
   // categoría que encadena en la actual, la carta actual pega +50%.
@@ -124,8 +132,10 @@ class CombatEngine {
   }) {
     // Ambos vacíos — nada ocurre
     if (playerCard == null && opponentCard == null) {
-      return const SlotResult(
-        slotIndex: 0,
+      return SlotResult(
+        // Antes iba 0 fijo: los slots 1 y 2 vacíos se buscaban por slotIndex
+        // en la UI y devolvían el resultado del slot 0 (o ninguno).
+        slotIndex: slotIndex,
         playerCard: null,
         opponentCard: null,
         playerDamageDealt: 0,
@@ -188,8 +198,20 @@ class CombatEngine {
     }
 
     // Ambos tienen carta — resolver choque
-    final playerWins = beats(playerCard.category, opponentCard.category, mode: mode);
-    final opponentWins = beats(opponentCard.category, playerCard.category, mode: mode);
+    var playerWins = beats(playerCard.category, opponentCard.category, mode: mode);
+    var opponentWins = beats(opponentCard.category, playerCard.category, mode: mode);
+
+    // Categoría fuera del ruleset del modo (Agarre/Esquive en Normal, que solo
+    // llegan por la pasiva): no tiene counter, así que gana el slot en vez de
+    // caer en el empate — antes ambos lados se hacían daño sin motivo claro.
+    if (!playerWins && !opponentWins) {
+      final playerInMode = categoryPlaysIn(playerCard.category, mode);
+      final opponentInMode = categoryPlaysIn(opponentCard.category, mode);
+      if (playerInMode != opponentInMode) {
+        playerWins = !playerInMode;
+        opponentWins = !opponentInMode;
+      }
+    }
 
     if (playerWins) {
       final conditionalMet = _isConditionalMet(
@@ -499,9 +521,13 @@ class CombatEngine {
       return (name: 'Tortuga', damage: 0, heal: heal);
     }
 
-    // One-Two: Puño en slot 0 y slot 1 → +% al daño del segundo Puño.
+    // One-Two: Puño en slot 0 y slot 1, GANANDO el segundo → +% a su daño.
+    // Exigir la victoria (y no solo que haya hecho daño) lo alinea con
+    // "Agarrar y Golpear": antes un empate en el slot 1 alcanzaba para
+    // disparar el combo, lo que sumaba daño difícil de explicar.
     if (c0?.category == CardCategory.punch &&
-        c1?.category == CardCategory.punch) {
+        c1?.category == CardCategory.punch &&
+        wonAt(1)) {
       final bonus = (dmgAt(1) * GameConfig.comboOneTwoBonus).ceil();
       if (bonus > 0) return (name: 'One-Two', damage: bonus, heal: 0);
     }

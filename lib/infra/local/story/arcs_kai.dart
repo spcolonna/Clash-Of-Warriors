@@ -72,6 +72,8 @@ final StoryArc _actoI = StoryArc(
       line('kai', 'Kai',
           'El costo de no rendirse es más alto que el de rendirse. Pero es el único que vale la pena pagar.',
           left: false, emotion: 'determined'),
+      narrator(
+          'El costo llegó esa misma noche, en la calle trasera del gimnasio: los Matones de Vespa vinieron a cobrarle la respuesta antes de que la diera en público.'),
     ]),
     battle(5, 'kage', BotDifficulty.hard,
         'Los matones del promotor. No van a detenerte. Nadie va a detenerte.',
@@ -106,6 +108,10 @@ final StoryArc _actoI = StoryArc(
       line('kai', 'Kai',
           'Entonces lo derroto en el ring. Justo. Como siempre debió haber sido.',
           left: false, emotion: 'determined', sfx: '¡DING!'),
+      narrator(
+          'La campana sonó y del otro lado del ring no había un rival: había El '
+          'Campeón Comprado, con las órdenes ya cobradas y el resultado ya '
+          'escrito.'),
     ]),
     battle(9, 'ryoto', BotDifficulty.hard,
         'La final del torneo. Sin trampas. Sin sobornos. Solo dos peleadores y la verdad del ring.',
@@ -137,6 +143,9 @@ final StoryArc _actoII = StoryArc(
           'Los tipos como Vespa no terminan. Mutan. Ahora paga en efectivo y cobra en futuros.'),
       line('kai', 'Kai', 'Entonces le voy a cortar la caja. Pelea por pelea.',
           left: false, emotion: 'determined', sfx: '¡PAF!'),
+      narrator(
+          'Al gimnasio ya no se entraba gratis. El Portero del Circuito se '
+          'plantó en la puerta: sin la firma de Vespa, nadie usa ese ring.'),
     ]),
     battle(1, 'ryoto_rare', BotDifficulty.normal,
         'Para entrar al circuito hay que pelear. Primera regla: acá no hay reglas. Segunda: la casa siempre gana. Vas a romper las dos.',
@@ -154,6 +163,10 @@ final StoryArc _actoII = StoryArc(
       line('kai', 'Kai',
           'Yo. Esta noche peleo en tu lugar. Y mañana el circuito no existe más.',
           left: false, emotion: 'determined'),
+      narrator(
+          'El sótano de las apuestas tenía su propio rey. El Invicto del Sótano '
+          'llevaba cuarenta peleas sin perder, y ninguna arriba de un ring '
+          'legal.'),
     ]),
     battle(3, 'kage_rare', BotDifficulty.normal,
         'El campeón nocturno del sótano. Invicto en 40 peleas arregladas. Esta no está arreglada.',
@@ -168,6 +181,8 @@ final StoryArc _actoII = StoryArc(
       line('kai', 'Kai',
           'Entonces al cortarle la caja a Vespa, se la corto al Clan también. Dos pájaros.',
           left: false, emotion: 'smirk'),
+      narrator(
+          'La caja de Vespa no estaba en un banco: estaba en la trastienda de la barbería, y el Guardaespaldas de la Caja no se movía de la puerta ni para comer.'),
     ]),
     battle(5, 'mila_rare', BotDifficulty.hard,
         'La contadora del circuito viaja con guardaespaldas. La caja viaja con ella.',
@@ -183,6 +198,8 @@ final StoryArc _actoII = StoryArc(
       line('kai', 'Kai',
           'Que venga. Le guardo el mejor asiento: la primera fila del ring.',
           left: false, sfx: '¡CRACK!'),
+      narrator(
+          'Vespa no vino solo: mandó por delante al Seguro del Clan, la póliza que contrata cuando el negocio se le va de las manos.'),
     ]),
     battle(7, 'kage_rare', BotDifficulty.hard,
         'Vespa contrató sombras del viejo Clan como seguro. El seguro vence esta noche.',
@@ -199,7 +216,7 @@ final StoryArc _actoII = StoryArc(
       line('kai', 'Kai', 'Contá conmigo para presentarles la factura.',
           left: false, emotion: 'determined', sfx: '¡DING DING!'),
     ]),
-    battle(9, 'ryoto_rare', BotDifficulty.hard,
+    battle(9, 'kai_rare', BotDifficulty.hard,
         'Vespa se guardó un último as: él mismo. Boxeador antes que buitre. El circuito muere con su dueño en la lona.',
         bossName: 'Promotor Vespa', locationId: 'catacumbas'),
   ],
@@ -228,6 +245,12 @@ final StoryArc _actoIII = StoryArc(
           left: false, emotion: 'smirk'),
       narrator(
           'El asesor se llamaba Ryoto. Y no iba a leer el contrato: iba a rastrear cada firma.'),
+      line('tesorero', 'El Tesorero',
+          'Una cosa más. Para la foto necesitamos que pelees con un Rival de Gala. Elegido por nosotros, claro.',
+          emotion: 'smirk'),
+      line('kai', 'Kai',
+          'Un rival de vitrina. Bueno: que se ponga los guantes igual.',
+          left: false),
     ]),
     battle(1, 'puo_liu_epic', BotDifficulty.hard,
         'La presentación oficial exige una exhibición. El rival de gala pelea mejor de lo que sonríe.',
@@ -258,6 +281,8 @@ final StoryArc _actoIII = StoryArc(
       line('kai', 'Kai',
           'Entonces sigamos el plan: sonrío para las cámaras hasta la ceremonia... y ahí rompemos todo.',
           left: false, emotion: 'determined'),
+      narrator(
+          'Pero alguien leyó la sonrisa al revés. El Jefe de Seguridad de la torre los cruzó en el pasillo: si el campeón estaba curioseando pisos que no le tocaban, había que acompañarlo hasta la salida.'),
     ]),
     battle(5, 'kage_epic', BotDifficulty.hard,
         'El jefe de seguridad de la Torre sospecha del "asesor" de Kai. Hay que borrarle la sospecha. A la antigua.',
@@ -272,6 +297,8 @@ final StoryArc _actoIII = StoryArc(
       line('kai', 'Kai',
           'Dame una semana. Si en una semana no entendés todo... yo mismo pinto la pared.',
           left: false, emotion: 'determined'),
+      narrator(
+          'No le dieron la semana. La Cobradora del Consejo apareció entre los andamios del polideportivo: si el barrio no pagaba con silencio, iba a pagar con la obra.'),
     ]),
     battle(7, 'mila_epic', BotDifficulty.hard,
         'La Dama de los Contratos huele la traición y manda a su mejor cobradora. El contrato de cristal empieza a rajarse.',
@@ -320,6 +347,8 @@ final StoryArc _actoIV = StoryArc(
       line('kai', 'Kai',
           'Lo que hace el barrio cuando hay lío: abrimos las puertas. Todas.',
           left: false, sfx: '¡PAF!'),
+      narrator(
+          'Las puertas abiertas también dejan entrar. Los Saqueadores del Consejo llegaron con el Asedio, buscando el único lugar que el Barrio Sur nunca deja caer: el gimnasio.'),
     ]),
     battle(1, 'ryoto_legendary', BotDifficulty.hard,
         'Los cobradores del Consejo intentan saquear el mercado del barrio. El barrio responde. Vos primero.',
@@ -334,6 +363,9 @@ final StoryArc _actoIV = StoryArc(
           emotion: 'determined'),
       narrator(
           'Y por las avenidas de La Ciudadela, la gente marchó hacia la Arena. Sin armas. Con antorchas.'),
+      narrator(
+          'La Avenida Central estaba tomada. Los Mercenarios de la Avenida '
+          'cobraban por cuadra, y el camino al centro pasaba justo por la suya.'),
     ]),
     battle(3, 'kage_legendary', BotDifficulty.hard,
         'La caballería a sueldo del Arquitecto corta la avenida. La marcha no retrocede. Vos tampoco.',
@@ -348,6 +380,8 @@ final StoryArc _actoIV = StoryArc(
       line('kai', 'Kai',
           'Tiempo es lo que mejor sé comprar: arriba del ring, round a round.',
           left: false, emotion: 'determined'),
+      narrator(
+          'El primer round se lo cobró la Campeona de la Guardia, plantada en las puertas de la Arena. Cada minuto que aguantara con ella era un minuto más para Kage y los cimientos.'),
     ]),
     battle(5, 'mila_legendary', BotDifficulty.hard,
         'La campeona de la guardia del Arquitecto sale a limpiar la entrada. El público de la marcha mira. Ganás para ellos.',
@@ -362,6 +396,10 @@ final StoryArc _actoIV = StoryArc(
           'Sinceridad. Qué novedad en este ring.', bubble: BubbleType.whisper),
       line('kai', 'Kai', 'Es lo único que traigo. Eso y las manos.',
           left: false),
+      narrator(
+          'En el ring del Último Torneo lo esperaba el Campeón del Último '
+          'Torneo: el último producto que el Arquitecto pudo comprar antes de '
+          'quedarse solo.'),
     ]),
     battle(7, 'puo_liu_legendary', BotDifficulty.hard,
         'El campeón final del Arquitecto: su última apuesta deportiva. Las gradas, llenas de tu gente, cuentan cada golpe.',
@@ -378,7 +416,7 @@ final StoryArc _actoIV = StoryArc(
       line('kai', 'Kai', 'Round final. El barrio cuenta hasta diez.',
           left: false, sfx: '¡DING DING!'),
     ]),
-    battle(9, 'ryoto_legendary', BotDifficulty.hard,
+    battle(9, 'puo_liu_legendary', BotDifficulty.hard,
         'El Arquitecto, en el ring, ante veinte mil testigos que no pudo comprar. La Leyenda del Sur termina la pelea del siglo.',
         bossName: 'El Arquitecto', locationId: 'arena'),
   ],

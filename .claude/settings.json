@@ -31,10 +31,17 @@
       "Bash(mkdir -p /Users/sebastianperez/Documents/Personal/ClashOfWarriors/CardHeros)",
       "Bash(cp \"/Users/sebastianperez/.claude/file-history/14b038ac-c599-4b44-b90a-ed671f83ea46/328ae8edc5ec8c56@v8\" \"/Users/sebastianperez/Documents/Personal/ClashOfWarriors/CardHeros/Mazo_Judoka_Ryoto_arte_v1.md\")",
       "Bash(pod --version)",
-      "Bash(rm -rf Pods Podfile.lock)"
+      "Bash(rm -rf Pods Podfile.lock)",
+      "Bash(python3 /private/tmp/claude-502/-Users-sebastianperez-Documents-Personal-ClashOfWarriors-arena-project/14b038ac-c599-4b44-b90a-ed671f83ea46/scratchpad/gaps.py)",
+      "Bash(python3 /private/tmp/claude-502/-Users-sebastianperez-Documents-Personal-ClashOfWarriors-arena-project/14b038ac-c599-4b44-b90a-ed671f83ea46/scratchpad/ord.py)",
+      "Bash(cp -r lib/infra/local/story /private/tmp/claude-502/-Users-sebastianperez-Documents-Personal-ClashOfWarriors-arena-project/14b038ac-c599-4b44-b90a-ed671f83ea46/scratchpad/story_backup)",
+      "Bash(python3 /private/tmp/claude-502/-Users-sebastianperez-Documents-Personal-ClashOfWarriors-arena-project/14b038ac-c599-4b44-b90a-ed671f83ea46/scratchpad/insert.py)",
+      "Bash(cp /private/tmp/claude-502/-Users-sebastianperez-Documents-Personal-ClashOfWarriors-arena-project/14b038ac-c599-4b44-b90a-ed671f83ea46/scratchpad/story_backup/*.dart lib/infra/local/story/ && flutter analyze lib/infra/local/story/ 2>&1 | tail -3)",
+      "Bash(sed -n '/La campana sonó y del otro/,+4p' lib/infra/local/story/arcs_kai.dart)"
     ],
     "additionalDirectories": [
-      "/Users/sebastianperez/Documents/Personal/ClashOfWarriors/CardHeros"
+      "/Users/sebastianperez/Documents/Personal/ClashOfWarriors/CardHeros",
+      "/private/tmp/claude-502/-Users-sebastianperez-Documents-Personal-ClashOfWarriors-arena-project/14b038ac-c599-4b44-b90a-ed671f83ea46/scratchpad/story_backup"
     ]
   }
 }

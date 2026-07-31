@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../domain/entities/hero_entity.dart';
 import '../../../infra/local/heroes_data.dart';
+import '../../../infra/local/story/story_npcs.dart';
 
 /// Retrato de personaje estilo cómic.
 ///
@@ -43,30 +44,6 @@ class ComicPortrait extends StatelessWidget {
     Faction.capoeira: 'assets/images/heros/withoutBG/capoeira_common.png',
   };
 
-  /// NPCs conocidos → (facción del cuerpo base, color de silueta).
-  static const _npcSilhouettes = <String, (Faction, Color)>{
-    'maestro_lin': (Faction.shaolin, Color(0xFF2E3440)),
-    'sensei_hiroshi': (Faction.judoka, Color(0xFF2E3440)),
-    'maestro_clan': (Faction.ninja, Color(0xFF1A1023)),
-    'lucas': (Faction.capoeira, Color(0xFF25303A)),
-    'promotor': (Faction.boxer, Color(0xFF33231A)),
-    'promotor_vespa': (Faction.boxer, Color(0xFF33231A)),
-    'oficial': (Faction.judoka, Color(0xFF2A2A33)),
-    'entrenador': (Faction.boxer, Color(0xFF2E2A26)),
-    // El Arquitecto: silueta violeta — su identidad ES el misterio.
-    'arquitecto': (Faction.shaolin, Color(0xFF3A1458)),
-    'el_arquitecto': (Faction.shaolin, Color(0xFF3A1458)),
-    // Villanos de los actos II-IV
-    'lugarteniente': (Faction.ninja, Color(0xFF241430)),
-    'inspectora_kuro': (Faction.judoka, Color(0xFF302030)),
-    'cobrador': (Faction.ninja, Color(0xFF1E2A22)),
-    'falsario': (Faction.shaolin, Color(0xFF32261A)),
-    'tesorero': (Faction.boxer, Color(0xFF2A2418)),
-    'verdugo': (Faction.judoka, Color(0xFF301518)),
-    'dama_contratos': (Faction.capoeira, Color(0xFF2C1830)),
-    'campeon_cristal': (Faction.boxer, Color(0xFF203040)),
-  };
-
   @override
   Widget build(BuildContext context) {
     Widget result;
@@ -90,9 +67,9 @@ class ComicPortrait extends StatelessWidget {
       if (hero != null) {
         result = _inkedHero(_factionAsset[hero.faction]!);
       } else {
-        final npc = _npcSilhouettes[speakerId];
+        final npc = StoryNpcs.byId(speakerId);
         if (npc != null) {
-          result = _silhouette(_factionAsset[npc.$1]!, npc.$2);
+          result = _silhouette(_factionAsset[npc.faction]!, npc.tint);
         } else {
           // NPC desconocido: silueta gris genérica
           result = _silhouette(

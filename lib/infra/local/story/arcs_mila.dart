@@ -35,6 +35,9 @@ final StoryArc _actoI = StoryArc(
       line('mila', 'Mila',
           'Si el Clan lo tiene, lo voy a encontrar. Y si no quiere volver, al menos necesito saber que está bien.',
           left: false, emotion: 'determined'),
+      narrator(
+          'En el puerto, la Pandilla del Puerto cobraba peaje hasta por '
+          'caminar. Mila no traía plata; traía otra cosa.'),
     ]),
     battle(1, 'kai', BotDifficulty.easy,
         'La pandilla que controla el puerto no deja pasar sin pelear. Primera parada en La Ciudadela.',
@@ -51,6 +54,8 @@ final StoryArc _actoI = StoryArc(
       line('mila', 'Mila', '¿Podés llevarme hasta él?', left: false),
       line('kage', 'Kage',
           'Puedo mostrarte el camino. El resto lo tenés que hacer vos.'),
+      narrator(
+          'El camino entraba al Distrito Ninja por un portón sin número. Los Guardias del Clan lo cuidaban por turnos: nadie pregunta por un deudor y se va caminando.'),
     ]),
     battle(3, 'kage', BotDifficulty.normal,
         'Los guardias del Clan no dejan pasar a nadie. Demostrá que el camino es tuyo.',
@@ -69,6 +74,8 @@ final StoryArc _actoI = StoryArc(
       line('mila', 'Mila',
           'Entonces encontramos la forma de cancelar esa deuda.',
           left: false, emotion: 'determined'),
+      narrator(
+          'El papel de esa deuda estaba en el almacén del sector este, y el Guardián del Clan dormía apoyado en la puerta. Cancelar una deuda, acá, se hace con las manos.'),
     ]),
     battle(5, 'kage', BotDifficulty.hard,
         'El guardián del Clan tiene los documentos de deuda de Lucas. Si los recuperás, cambia todo.',
@@ -98,9 +105,13 @@ final StoryArc _actoI = StoryArc(
           'Estoy acá también. El Arquitecto está usando al Clan como escudo. Cuando lo enfrentés, vas a entender todo.'),
       line('mila', 'Mila', 'Entiendo todo lo que necesito entender.',
           left: false, sfx: '¡GINGA!'),
+      narrator(
+          'Adentro esperaba el Maestro del Clan: el mismo que años después le '
+          'cobraría a Kage el precio de irse. Hoy le tocaba explicarle a Mila '
+          'de dónde salió la deuda de Lucas.'),
     ]),
-    battle(9, 'puo_liu', BotDifficulty.hard,
-        'El maestro del Clan. El que inventó la deuda de Lucas. La danza termina acá.',
+    battle(9, 'kage', BotDifficulty.hard,
+        'El Maestro del Clan. El que inventó la deuda de Lucas. La danza termina acá.',
         bossName: 'Maestro del Clan', locationId: 'catacumbas'),
   ],
 );
@@ -141,7 +152,10 @@ final StoryArc _actoII = StoryArc(
       line('mila', 'Mila', 'Una salida por la puerta, caminando.',
           left: false, emotion: 'smirk'),
       line('cobrador', 'El Cobrador',
-          '...Sacála del salón.', emotion: 'angry', bubble: BubbleType.shout),
+          '...Sacala del salón.', emotion: 'angry', bubble: BubbleType.shout),
+      narrator(
+          'La Subasta Nocturna no admitía preguntas. Cuando Mila hizo la suya, '
+          'el Matón de la Subasta se paró entre ella y el estrado.'),
     ]),
     battle(3, 'ryoto_rare', BotDifficulty.normal,
         'El matón de la subasta te invita a salir. La capoeira acepta invitaciones.',
@@ -156,6 +170,10 @@ final StoryArc _actoII = StoryArc(
           'Los paranoicos miran las sombras, Kage. Nunca miran a la que baila a plena luz.',
           left: false, emotion: 'smirk'),
       line('kage', 'Kage', '...Empiezo a entender por qué me ganaste aquella vez.'),
+      narrator(
+          'Sobre el tejado de la lonja apareció la Escolta del Cobrador: el que '
+          'camina siempre tres pasos delante para que el Cobrador nunca se '
+          'ensucie.'),
     ]),
     battle(5, 'kage_rare', BotDifficulty.hard,
         'La escolta del Cobrador detecta el seguimiento. Plan B: la vía rápida.',
@@ -171,6 +189,9 @@ final StoryArc _actoII = StoryArc(
       line('mila', 'Mila',
           'Por eso no lo quemamos acá. Lo quemamos en su subasta. Frente a todos sus clientes.',
           left: false, emotion: 'determined', sfx: '¡FSSSH!'),
+      narrator(
+          'En la bodega del barco ya había clientes esperando: los Compradores '
+          'de Deudas, que venían a revisar la mercadería antes de zarpar.'),
     ]),
     battle(7, 'kai_rare', BotDifficulty.hard,
         'Los compradores de deudas no aceptan devoluciones. La bodega se convierte en roda.',
@@ -219,6 +240,10 @@ final StoryArc _actoIII = StoryArc(
           left: false),
       narrator(
           'La red de los libres tenía doscientos ojos en la ciudad. Esa semana, todos miraban la Torre.'),
+      narrator(
+          'El Nuevo Consejo mandó al Censista del Consejo hasta la puerta del '
+          'refugio: venía a anotar cuántos liberados había, con nombre y '
+          'apellido.'),
     ]),
     battle(1, 'kage_epic', BotDifficulty.hard,
         'El Nuevo Consejo "censa" a los liberados para volver a endeudarlos. El censista trae guardaespaldas.',
@@ -250,6 +275,8 @@ final StoryArc _actoIII = StoryArc(
           'Volvé con la prueba, Kage. Y con la máscara rota. Hasta entonces, la red no te conoce.',
           left: false, emotion: 'sad'),
       narrator('Fue la conversación más corta y más cara de la saga.'),
+      narrator(
+          'Y sin Kage adentro, el refugio quedó al descubierto. El Verificador del Nuevo Consejo subió al tejado esa misma noche: venía a confirmar cuántos liberados había, uno por uno.'),
     ]),
     battle(5, 'ryoto_epic', BotDifficulty.hard,
         'El Verificador del Consejo viene a comprobar si la red de los libres tiene líder. La respuesta duele.',
@@ -266,6 +293,9 @@ final StoryArc _actoIII = StoryArc(
       line('mila', 'Mila',
           'Como en Salvador: con música. Cuando la ciudad mira la roda... nadie cuenta cuántos entran y cuántos salen.',
           left: false, emotion: 'smirk', sfx: '♪ GINGA ♪'),
+      narrator(
+          'Por el ala de servicio de la Torre bajaba la Cobradora del Consejo, '
+          'lista para pasar la factura de todo lo que Mila había desarmado.'),
     ]),
     battle(7, 'kai_epic', BotDifficulty.hard,
         'La Dama manda a su cobradora a interrumpir la roda. El público hace ronda. La danza decide.',
@@ -282,6 +312,9 @@ final StoryArc _actoIII = StoryArc(
           'Mañana Puo Liu rompe la máscara del Consejo ante toda la ciudad. ¿La red va a estar?'),
       line('mila', 'Mila', 'La red ES la ciudad, Kage. Vamos todos.',
           left: false),
+      narrator(
+          'Al amanecer, La Dama de los Contratos llegó al refugio con una '
+          'carpeta bajo el brazo: si la red no se compraba, se embargaba.'),
     ]),
     battle(9, 'kai_epic', BotDifficulty.hard,
         'La Dama de los Contratos, sin censo y sin red que atrapar, apuesta todo a una última pelea. La roda la espera.',
@@ -312,6 +345,8 @@ final StoryArc _actoIV = StoryArc(
       line('mila', 'Mila',
           'Con la red. Doscientos libres conocen cada túnel de esa Arena. Esta noche devolvemos el favor.',
           left: false),
+      narrator(
+          'Para llegar a los túneles había que salir del refugio, y el refugio ya estaba rodeado: los Carceleros del Norte llegaron primero, con las llaves que usaban en las jaulas del Clan.'),
     ]),
     battle(1, 'puo_liu_legendary', BotDifficulty.hard,
         'Los carceleros de las gradas norte descubren la primera evacuación. No va a haber segunda advertencia.',
@@ -336,6 +371,8 @@ final StoryArc _actoIV = StoryArc(
       line('mila', 'Mila',
           'También salen. Todos salen. Hoy no se elige a quién se salva.',
           left: false, emotion: 'determined'),
+      narrator(
+          'El ala sur estaba abierta, pero no vacía: el Jefe de Carceleros esperaba en el vano, contando cabezas. Para él las gradas eran inventario.'),
     ]),
     battle(5, 'ryoto_legendary', BotDifficulty.hard,
         'El jefe de carceleros bloquea el palco con lo último de su orgullo. El orgullo pesa. La danza no.',
@@ -352,6 +389,9 @@ final StoryArc _actoIV = StoryArc(
       line('mila', 'Mila',
           'Los saqué en silencio. El baile es esto que viene ahora.',
           left: false),
+      line('arquitecto', 'El Arquitecto',
+          'Entonces bailá con mi Guardia Personal primero. A mí se llega cansado, nunca entero.',
+          emotion: 'angry'),
     ]),
     battle(7, 'kai_legendary', BotDifficulty.hard,
         'La última guardia personal del Arquitecto forma un círculo. Un círculo. Qué gentileza: una roda.',
